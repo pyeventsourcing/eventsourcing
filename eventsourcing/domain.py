@@ -284,15 +284,19 @@ def create_utc_datetime_now() -> datetime:
     return datetime_now_with_tzinfo()
 
 
-def _is_hasoriginatoridversion_subclass(obj: Any) -> bool:
+def _is_sub_hasoriginatoridversion(obj: Any) -> bool:
     return isinstance(obj, type) and issubclass(obj, HasOriginatorIDVersion)
 
 
-def _is_canmutateaggregate_subclass(obj: Any) -> bool:
+def _is_sub_cansnapshotaggregate(obj: Any) -> bool:
+    return isinstance(obj, type) and issubclass(obj, CanSnapshotAggregate)
+
+
+def _is_sub_canmutateaggregate(obj: Any) -> bool:
     return isinstance(obj, type) and issubclass(obj, CanMutateAggregate)
 
 
-def _is_caninitaggregate_subclass(obj: Any) -> bool:
+def _is_sub_caninitaggregate(obj: Any) -> bool:
     return isinstance(obj, type) and issubclass(obj, CanInitAggregate)
 
 
@@ -342,7 +346,7 @@ class HasOriginatorIDVersion(AbstractDecision, Generic[TAggregateID]):
         collected_id_types: set[Any] = set()
 
         for base in orig_bases:
-            if _is_hasoriginatoridversion_subclass(safe_get_origin(base) or base):
+            if _is_sub_hasoriginatoridversion(safe_get_origin(base) or base):
                 id_type = _get_originator_type_id(base)
 
                 # Only collect concrete types (e.g., UUID, str)
@@ -1729,7 +1733,7 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
             base_event_cls = cls.__dict__[base_event_name]
 
             # Check the base event class is the right sort of thing.
-            if not _is_canmutateaggregate_subclass(base_event_cls):
+            if not _is_sub_canmutateaggregate(base_event_cls):
                 msg = (
                     f"Expected '{base_event_name}' on {cls.__module__}."
                     f"{cls.__qualname__} to derive from CanMutateAggregate, got "
@@ -1785,7 +1789,7 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         can_init_aggregate_classes: dict[str, type[CanInitAggregate[TAggregateID]]] = {
             name: value
             for name, value in cls.__dict__.items()
-            if _is_caninitaggregate_subclass(value)
+            if _is_sub_caninitaggregate(value)
         }
 
         # Analyse __init__ method decorator.
@@ -1807,7 +1811,7 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
 
                 # Check the event class is the right sort of thing.
                 #  - check given event class can init aggregate.
-                if not _is_caninitaggregate_subclass(init_decorator.given_event_cls):
+                if not _is_sub_caninitaggregate(init_decorator.given_event_cls):
                     msg = (
                         f"class '{init_decorator.given_event_cls}' "
                         f"does not derive from CanInitAggregate"
@@ -1843,7 +1847,7 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         base_created_event_cls: type[CanInitAggregate[TAggregateID]] | None = None
         if not created_event_class:
             # If we have a "created" event class that matches the name, then use it.
-            if _is_caninitaggregate_subclass(cls.__dict__.get(created_event_name)):
+            if _is_sub_caninitaggregate(cls.__dict__.get(created_event_name)):
                 created_event_class = cls.__dict__.get(created_event_name)
             # Otherwise, if we have no name and only one class defined, then use it.
             elif not created_event_name and len(can_init_aggregate_classes) == 1:
@@ -1945,13 +1949,13 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                 if event_decorator.given_event_cls:
                     given = event_decorator.given_event_cls
                     # Check the event class is the right sort of thing.
-                    if not _is_canmutateaggregate_subclass(given):
+                    if not _is_sub_canmutateaggregate(given):
                         msg = (
                             f"{event_decorator.given_event_cls} "
                             f"is not subclass of {CanMutateAggregate.__name__}"
                         )
                         raise TypeError(msg)
-                    if _is_caninitaggregate_subclass(given):
+                    if _is_sub_caninitaggregate(given):
                         msg = (
                             f"{event_decorator.given_event_cls} "
                             f"is subclass of {CanInitAggregate.__name__}"
@@ -2041,7 +2045,7 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                 origin = safe_get_origin(base)
                 args = safe_get_args(base)
 
-                # 2. Determine which raw class to look for in the registry
+                # 2. Determine which raw class to look for in the dict of redefineds.
                 search_target = origin if origin is not None else base
 
                 if search_target in redefined_event_classes:
@@ -2059,9 +2063,6 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                         )
 
                     redefined_bases.append(redefined_class)
-                # else:
-                #     # If it isn't in the registry, keep the base exactly as it was
-                #     redefined_bases.append(base)
 
             if name in decorators_needing_function_callers:
                 decorator = decorators_needing_function_callers.pop(name)
