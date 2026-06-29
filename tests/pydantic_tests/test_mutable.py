@@ -6,7 +6,13 @@ from uuid import UUID, uuid4
 
 from typing_extensions import TypeVar, get_original_bases
 
-from eventsourcing.domain import TAggregateID, datetime_now_with_tzinfo, event
+from eventsourcing.domain import (
+    CanMutateAggregate,
+    CanSnapshotAggregate,
+    TAggregateID,
+    datetime_now_with_tzinfo,
+    event,
+)
 from eventsourcing.persistence import NullTranscoder
 from eventsourcing.pydantic.mapper import PydanticMapper
 from eventsourcing.pydantic.mutablemodel import (
@@ -40,6 +46,10 @@ class TestOrigintorIDTypes(TestCase):
         # self.assertIs(GenericAggregate[str].originator_id_type, str)
         # self.assertIs(GenericAggregate[str].Event[str].originator_id_type, str)
         # self.assertIs(GenericAggregate[str].Created[str].originator_id_type, str)
+
+        # TODO: This doesn't really belong here, because it is checking the types.
+        self.assertTrue(issubclass(Aggregate.Snapshot, CanSnapshotAggregate))
+        self.assertFalse(issubclass(Aggregate.Snapshot, CanMutateAggregate))
 
 
 class SnapshotStateWithA(SnapshotState):
@@ -256,6 +266,8 @@ class MutableAggregateTestCase(TestCase, Generic[_T, TAggregateID]):
         self.assertEqual(copy.id, agg.id)
         self.assertEqual(copy.version, agg.version)
         self.assertEqual(copy.a, agg.a)
+        self.assertEqual(copy.created_on, agg.created_on)
+        self.assertEqual(len(copy.collect_events()), 0)
 
 
 class TestMutableAggregateWithUuidIDAndEventClasses(

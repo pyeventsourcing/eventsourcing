@@ -52,7 +52,6 @@ class Aggregate(BaseAggregate[TAggregateID]):
     class Created(Event[TAggregateID], CanInitAggregate[TAggregateID]):
         originator_topic: str
 
-    # # # TODO: Why does Pydantic says GenericAggregate.Snapshot is not generic?
-    class Snapshot(CanSnapshotAggregate[TAggregateID], Event[TAggregateID]):
+    class Snapshot(AggregateSnapshot[TAggregateID]):
         topic: str
         state: Any

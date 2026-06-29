@@ -15,6 +15,7 @@ from eventsourcing.domain import (
     BaseAggregate,
     CanInitAggregate,
     CanMutateAggregate,
+    CanSnapshotAggregate,
     GenericAggregateEvent,
     HasOriginatorIDVersion,
     OriginatorIDError,
@@ -1031,14 +1032,31 @@ class TestBaseAggregate(TestCase):
 
     def test_raises_when_has_aggregate_id_version_invalid_aggregate_id(self) -> None:
         # This test checks we are dealing with HasOriginatorIDVersion classes,
-        # not just CanMutateAggregate classes. So should also catch Snapshot.
+        # not just CanMutateAggregate classes.
         with self.assertRaises(TypeError) as cm:
 
             class A(BaseAggregate[str]):
                 class Event(GenericAggregateEvent[str]):
                     pass
 
-                class SnapshotLike(HasOriginatorIDVersion):
+                class HasOriginatorIDVersionLike(HasOriginatorIDVersion):
+                    pass
+
+        self.assertIn("Invalid originator ID type:", str(cm.exception))
+        self.assertIn(
+            "A.HasOriginatorIDVersionLike'> has <class 'uuid.UUID'>", str(cm.exception)
+        )
+        self.assertIn("<locals>.A'> expects <class 'str'>", str(cm.exception))
+
+    def test_raises_when_can_snapshot_aggregate_invalid_aggregate_id(self) -> None:
+        # This test checks we are dealing with CanSnapshotAggregate classes.
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[str]):
+                class Event(GenericAggregateEvent[str]):
+                    pass
+
+                class SnapshotLike(CanSnapshotAggregate):
                     pass
 
         self.assertIn("Invalid originator ID type:", str(cm.exception))

@@ -1346,7 +1346,8 @@ def _fill_id_type(
 
     # 5. Subscript the class or alias with the new arguments
     callable_event_cls: Any = event_cls
-    return callable_event_cls[*args]
+    filled = callable_event_cls[*args]
+    return filled
 
 
 def _validate_id_type(
@@ -1755,7 +1756,7 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
             else:
                 base_event_cls = cls._define_event_class(
                     name=base_event_name,
-                    bases=(_fill_id_type(cls, super_base_event_cls),),
+                    bases=(_fill_and_validate_id_type(cls, super_base_event_cls),),
                     apply_method=None,
                 )
                 _validate_id_type(cls, base_event_cls)
@@ -2023,8 +2024,13 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                 ):
                     all_visible_event_classes[name] = value
 
-        # Ensure events visible on this class are subclasses of the base event class,
-        # and subclasses of any of their base event classes that we have redefined.
+        # Ensure events that all event visible on this class are defined on this class,
+        # that all "can mutate" classes are subclasses of the base event class, and of
+        # any subclasses of any of their base event classes that we have redefined.
+        # Also ensure that all events are consistent with the "originator ID type" of
+        # this aggregate class. Fill in any classes that are missing by constructing
+        # subclasses, and fill in any missing type arguments, where the type parameter
+        # is for the "aggregate ID type".
         for name, value in all_visible_event_classes.items():
             # Don't subclass the base event class again.
             if name == base_event_name:
@@ -2038,32 +2044,29 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
             if base_event_cls is None:
                 raise base_event_class_not_defined_error
 
-            assert base_event_cls is not None
-
-            # TODO: Probably need to fix this ***DEFINITELY REVIEW THIS***
             # Identify base classes that were redefined, to preserve hierarchy.
             redefined_bases = []
 
-            # 1. Iterate over the safe bases that preserve type arguments
-            for base in safe_get_original_bases(value):
-                origin = safe_get_origin(base)
-                args = safe_get_args(base)
+            # 1. Iterate over the original bases to preserve type arguments
+            for value_base in safe_get_original_bases(value):
+                value_origin = safe_get_origin(value_base)
+                value_args = safe_get_args(value_base)
 
                 # 2. Determine which raw class to look for in the dict of redefineds.
-                search_target = origin if origin is not None else base
+                search_target = value_origin if value_origin is not None else value_base
 
                 if search_target in redefined_event_classes:
                     redefined_class = redefined_event_classes[search_target]
 
                     # 3. If the original base had type arguments,
                     #    re-apply them to the new class!
-                    if args:
+                    if value_args:
                         # If there's only one argument, unpack it to avoid tuple-
                         # nesting issues, otherwise pass the tuple of arguments.
                         redefined_class = (
-                            redefined_class[args[0]]
-                            if len(args) == 1
-                            else redefined_class[args]
+                            redefined_class[value_args[0]]
+                            if len(value_args) == 1
+                            else redefined_class[value_args]
                         )
 
                     redefined_bases.append(redefined_class)
@@ -2146,6 +2149,17 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
                         ),
                     )
                     _created_event_classes[cls] = [event_class]
+
+                elif _is_sub_cansnapshotaggregate(value):
+                    if name in cls.__dict__:
+                        # User-defined snapshot: still validate its ID type,
+                        # but don't rebuild it.
+                        _validate_id_type(cls, value)
+                        continue
+                    # Don't include base event class in bases of snapshot classes.
+                    event_class_bases = (_fill_and_validate_id_type(cls, value),)
+                    # Define event class.
+                    event_class = cls._define_event_class(name, event_class_bases, None)
 
                 else:
                     # Decide base classes of redefined event class: it must be
@@ -2558,7 +2572,7 @@ class GenericAggregate(BaseAggregate[TAggregateID]):
     class Created(GenericAggregateCreated[TAggregateID], Event[TAggregateID]):
         pass
 
-    class Snapshot(Event[TAggregateID], GenericSnapshot[TAggregateID]):
+    class Snapshot(GenericSnapshot[TAggregateID]):
         pass
 
 
