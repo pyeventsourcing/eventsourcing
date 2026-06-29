@@ -13,6 +13,10 @@ from eventsourcing.domain import (
     AggregateCreated,
     AggregateEvent,
     BaseAggregate,
+    CanInitAggregate,
+    CanMutateAggregate,
+    GenericAggregateEvent,
+    HasOriginatorIDVersion,
     OriginatorIDError,
     OriginatorVersionError,
     ProgrammingError,
@@ -378,6 +382,17 @@ class TestBaseAggregate(TestCase):
 
         self.assertIn("Base event class 'Event' not defined", str(cm.exception))
 
+    def test_method_decorator_uses_string_but_base_event_not_defined(self) -> None:
+
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate):
+                @event("Commanded")
+                def command(self) -> None:
+                    pass
+
+        self.assertIn("Base event class 'Event' not defined", str(cm.exception))
+
     def test_init_has_event_decorator_with_class_wrong_type(self) -> None:
         with self.assertRaises(TypeError) as cm:
 
@@ -695,17 +710,6 @@ class TestBaseAggregate(TestCase):
         self.assertIsInstance(c.pending_events[0], C.Began)
         self.assertTrue(issubclass(C.Began, B.Began))
 
-    def test_method_decorator_uses_string_but_base_event_not_defined(self) -> None:
-
-        with self.assertRaises(TypeError) as cm:
-
-            class A(BaseAggregate):
-                @event("Commanded")
-                def command(self) -> None:
-                    pass
-
-        self.assertIn("Base event class 'Event' not defined", str(cm.exception))
-
     def test_original_subclass_relations_are_respected_issue_295(self) -> None:
         # Issue #295 on GitHub.
         # https://github.com/pyeventsourcing/eventsourcing/issues/295
@@ -893,3 +897,150 @@ class TestBaseAggregate(TestCase):
         self.assertTrue(issubclass(B.Scheduled, B.Else))
         self.assertTrue(issubclass(B.Scheduled, B.Something))
         self.assertTrue(issubclass(B.Created, B.Something))
+
+    def test_raises_when_originator_id_type_invalid(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[int]):  # type: ignore[type-var]
+                pass
+
+        self.assertEqual(
+            "Aggregate ID type arg cannot be <class 'int'>",
+            str(cm.exception),
+        )
+
+    def test_raises_when_base_event_class_type_invalid(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate):
+                class Event:
+                    pass
+
+        self.assertIn("Expected 'Event' on", str(cm.exception))
+        self.assertIn("to derive from CanMutateAggregate", str(cm.exception))
+
+    def test_raises_when_base_event_class_originator_id_type_invalid_str(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[UUID]):
+                class Event(CanMutateAggregate[str]):
+                    pass
+
+        self.assertIn("Invalid originator ID type:", str(cm.exception))
+        self.assertIn("A.Event'> has <class 'str'>", str(cm.exception))
+        self.assertIn("A'> expects <class 'uuid.UUID'>", str(cm.exception))
+
+    def test_raises_when_base_event_class_originator_id_type_invalid_uuid(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[str]):
+                class Event(CanMutateAggregate[UUID]):
+                    pass
+
+        self.assertIn("Invalid originator ID type:", str(cm.exception))
+        self.assertIn("A.Event'> has <class 'uuid.UUID'>", str(cm.exception))
+        self.assertIn("A'> expects <class 'str'>", str(cm.exception))
+
+    def test_raises_when_event_class_originator_id_type_invalid_str(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class B(BaseAggregate[UUID]):
+                class Event(CanMutateAggregate[UUID]):
+                    pass
+
+                class Something(CanMutateAggregate[str]):
+                    pass
+
+        self.assertIn("Invalid originator ID type:", str(cm.exception))
+        self.assertIn("B.Something'> has <class 'str'>", str(cm.exception))
+        self.assertIn("<locals>.B'> expects <class 'uuid.UUID'>", str(cm.exception))
+
+    def test_raises_when_event_class_originator_id_type_invalid_uuid(self) -> None:
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[str]):
+                class Event(CanMutateAggregate[str]):
+                    pass
+
+                class Something(CanMutateAggregate[UUID]):
+                    pass
+
+        self.assertIn("Invalid originator ID type:", str(cm.exception))
+        self.assertIn("A.Something'> has <class 'uuid.UUID'>", str(cm.exception))
+        self.assertIn("<locals>.A'> expects <class 'str'>", str(cm.exception))
+
+    def test_raises_when_can_init_aggregate_originator_id_type_invalid(self) -> None:
+        class Started(CanInitAggregate[str]):
+            pass
+
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate):
+                class Event(AggregateEvent):
+                    pass
+
+                @event(Started)
+                def __init__(self) -> None:
+                    pass
+
+        self.assertIn("Invalid originator ID type:", str(cm.exception))
+        self.assertIn("<locals>.Started'> has <class 'str'>", str(cm.exception))
+        self.assertIn("<locals>.A'> expects <class 'uuid.UUID'>", str(cm.exception))
+
+    def test_raises_when_can_mutate_aggregate_originator_id_type_invalid(self) -> None:
+
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate):
+                class Event(AggregateEvent):
+                    pass
+
+                class Started(CanInitAggregate[UUID]):
+                    pass
+
+                class Something(CanMutateAggregate[str]):
+                    pass
+
+        self.assertIn("Invalid originator ID type:", str(cm.exception))
+        self.assertIn("A.Something'> has <class 'str'>", str(cm.exception))
+        self.assertIn("A'> expects <class 'uuid.UUID'>", str(cm.exception))
+
+    # def test_raises_when_originator_id_types_mismatch(self) -> None:
+    #     @dataclass(frozen=True, kw_only=True)
+    #     class DomainEventStrID(metaclass=MetaDomainEvent):
+    #         """Frozen data class representing domain model events."""
+    #
+    #         originator_id: str
+    #         originator_version: int
+    #         timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
+    #         metadata: dict[str, str] = field(
+    #             default_factory=get_metadata_from_context
+    #         )
+    #         event_id: UUID = NIL_UUID
+    #
+    #     with self.assertRaises(TypeError) as cm:
+    #         class A(BaseAggregate[UUID]):
+    #             @dataclass(frozen=True)
+    #             class Event(CanMutateAggregate[str], DomainEventStrID):
+    #                 pass
+    #
+    #     self.assertEqual(
+    #         "Aggregate ID type arg cannot be <class 'int'>",
+    #         str(cm.exception),
+    #     )
+
+    def test_raises_when_has_aggregate_id_version_invalid_aggregate_id(self) -> None:
+        # This test checks we are dealing with HasOriginatorIDVersion classes,
+        # not just CanMutateAggregate classes. So should also catch Snapshot.
+        with self.assertRaises(TypeError) as cm:
+
+            class A(BaseAggregate[str]):
+                class Event(GenericAggregateEvent[str]):
+                    pass
+
+                class SnapshotLike(HasOriginatorIDVersion):
+                    pass
+
+        self.assertIn("Invalid originator ID type:", str(cm.exception))
+        self.assertIn("A.SnapshotLike'> has <class 'uuid.UUID'>", str(cm.exception))
+        self.assertIn("<locals>.A'> expects <class 'str'>", str(cm.exception))
