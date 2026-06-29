@@ -5,8 +5,6 @@ from time import sleep
 from unittest.case import TestCase
 from uuid import UUID, uuid4
 
-from typing_extensions import TypeVar
-
 import eventsourcing.domain
 from eventsourcing.domain import (
     CanInitAggregate,
