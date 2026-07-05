@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
-from uuid import uuid4
 
 from eventsourcing.persistence import ProgrammingError
 
@@ -30,12 +29,13 @@ class DCBAppendCondition:
     after: int | None = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class DCBEvent:
     type: str
     data: bytes
     tags: list[str] = field(default_factory=list)
-    uuid: str = field(default_factory=lambda: str(uuid4()))
+    uuid: str
+    metadata: dict[str, str]
 
 
 @dataclass

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, get_args
+from typing import Any, Generic, get_args
 from unittest import TestCase
 from uuid import UUID, uuid4
 
@@ -50,7 +50,6 @@ class TestOrigintorIDTypes(TestCase):
         # TODO: This doesn't really belong here, because it is checking the types.
         self.assertTrue(issubclass(Aggregate.Snapshot, CanSnapshotAggregate))
         self.assertFalse(issubclass(Aggregate.Snapshot, CanMutateAggregate))
-
 
 
 class SnapshotStateWithA(SnapshotState):
@@ -140,7 +139,7 @@ class MutableAggregateTestCase(TestCase, Generic[_T, TAggregateID]):
     cls_under_test: type[_T]
     expected_originator_id_type: TAggregateID
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: Any):
         args = get_args(get_original_bases(cls)[0])
         assert len(args) == 2, cls
         cls.cls_under_test = args[0]

@@ -63,7 +63,12 @@ domain and convert to local timezones when presenting values in user interfaces.
 
 NIL_UUID = UUID("00000000-0000-0000-0000-000000000000")
 """
-Offical Nil UUID sentinel, used to detect missing event IDs in legacy databases.
+Offical Nil UUID ID sentinel, used to detect and fill missing IDs in legacy databases.
+"""
+
+NIL_UUID_STR = str(NIL_UUID)
+"""
+Offical Nil str ID sentinel, used to detect and fill missing IDs in legacy databases.
 """
 
 LEGACY_NAMESPACE = uuid5(NAMESPACE_DNS, "eventsourcing.python.library")
@@ -533,6 +538,22 @@ def put_metadata_in_context(metadata: dict[str, str]) -> Iterator[None]:
         existing = _ctx_event_metadata.get() or {}
         merged_metadata = {**existing, **metadata}
         token = _ctx_event_metadata.set(merged_metadata)
+        yield
+    finally:
+        if token is not None:
+            _ctx_event_metadata.reset(token)
+        else:
+            pass  # pragma: no cover
+
+
+@contextmanager
+def set_metadata_in_context(metadata: dict[str, str]) -> Iterator[None]:
+    """
+    Overrides metadata dict in context variable. Used when mutating perspectives.
+    """
+    token: contextvars.Token[dict[str, str] | None] | None = None
+    try:
+        token = _ctx_event_metadata.set(metadata)
         yield
     finally:
         if token is not None:
@@ -1346,8 +1367,7 @@ def _fill_id_type(
 
     # 5. Subscript the class or alias with the new arguments
     callable_event_cls: Any = event_cls
-    filled = callable_event_cls[*args]
-    return filled
+    return callable_event_cls[*args]
 
 
 def _validate_id_type(

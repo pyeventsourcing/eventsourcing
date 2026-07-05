@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic
 
 from eventsourcing.dcb.api import (
     DCBAppendCondition,
@@ -17,42 +17,79 @@ from eventsourcing.dcb.api import (
     TDCBRecorder_co,
 )
 from eventsourcing.dcb.domain import (
+    Event,
     Selector,
-    Tagged,
     TDecision,
 )
 from eventsourcing.domain import null_metadata_in_context
 from eventsourcing.persistence import (
     BaseInfrastructureFactory,
+    Cipher,
+    Compressor,
     Queue,
     ShutDown,
     TTrackingRecorder,
 )
-from eventsourcing.utils import get_topic
+from eventsourcing.utils import get_topic, resolve_topic
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class DCBMapper(ABC):
+class DCBMapper(ABC, Generic[TDecision]):
+    def __init__(
+        self,
+        compressor: Compressor | None = None,
+        cipher: Cipher | None = None,
+    ):
+        self.compressor = compressor
+        self.cipher = cipher
+
+    def to_dcb_event(self, event: Event[TDecision]) -> DCBEvent:
+        data = self._to_data(event.decision)
+        if self.compressor:
+            data = self.compressor.compress(data)
+        if self.cipher:
+            data = self.cipher.encrypt(data)
+        return DCBEvent(
+            type=get_topic(type(event.decision)),
+            data=data,
+            tags=event.tags,
+            uuid=event.uuid,
+            metadata=event.metadata,
+        )
+
+    def to_domain_event(self, event: DCBEvent) -> Event[TDecision]:
+        data = event.data
+        if self.cipher:
+            data = self.cipher.decrypt(data)
+        if self.compressor:
+            data = self.compressor.decompress(data)
+        return Event(
+            tags=event.tags,
+            decision=self._to_decision(data, resolve_topic(event.type)),
+            uuid=event.uuid,
+            metadata=event.metadata,
+        )
+
     @abstractmethod
-    def to_dcb_event(self, event: Tagged[Any]) -> DCBEvent:
+    def _to_data(self, decision: TDecision) -> bytes:
         raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
-    def to_domain_event(self, event: DCBEvent) -> Tagged[Any]:
+    def _to_decision(self, data: bytes, decision_class: type[TDecision]) -> TDecision:
         raise NotImplementedError  # pragma: no cover
 
 
-class DCBEventStore:
-    def __init__(self, mapper: DCBMapper, recorder: DCBRecorder):
+class DCBEventStore(Generic[TDecision]):
+    def __init__(self, mapper: DCBMapper[TDecision], recorder: DCBRecorder):
         self.mapper = mapper
         self.recorder = recorder
 
     def append(
         self,
-        events: Sequence[Tagged[TDecision]],
-        cb: Selector | Sequence[Selector] | None = None,
+        events: Sequence[Event[TDecision]],
+        cb: Selector[TDecision] | Sequence[Selector[TDecision]] | None = None,
         after: int | None = None,
     ) -> int:
         if len(events) == 0:
@@ -72,7 +109,7 @@ class DCBEventStore:
 
     def read(
         self,
-        cb: Selector | Sequence[Selector] | None = None,
+        cb: Selector[TDecision] | Sequence[Selector[TDecision]] | None = None,
         *,
         after: int | None = None,
     ) -> DCBEventStoreReadResponse[TDecision]:
@@ -85,7 +122,7 @@ class DCBEventStore:
 
     @staticmethod
     def _cb_to_dcb_query(
-        cb: Selector | Sequence[Selector] | None = None,
+        cb: Selector[TDecision] | Sequence[Selector[TDecision]] | None = None,
     ) -> DCBQuery:
         cb = [cb] if isinstance(cb, Selector) else cb or []
         return DCBQuery(
@@ -99,8 +136,10 @@ class DCBEventStore:
         )
 
 
-class DCBEventStoreReadResponse(Iterator[Tagged[TDecision]]):
-    def __init__(self, dcb_read_response: DCBReadResponse, mapper: DCBMapper):
+class DCBEventStoreReadResponse(Iterator[Event[TDecision]]):
+    def __init__(
+        self, dcb_read_response: DCBReadResponse, mapper: DCBMapper[TDecision]
+    ):
         self._dcb_read_response = dcb_read_response
         self._mapper = mapper
 
@@ -108,7 +147,7 @@ class DCBEventStoreReadResponse(Iterator[Tagged[TDecision]]):
     def head(self) -> int | None:
         return self._dcb_read_response.head
 
-    def __next__(self) -> Tagged[TDecision]:
+    def __next__(self) -> Event[TDecision]:
         dcb_sequenced_event = self._dcb_read_response.__next__()
         with null_metadata_in_context():
             return self._mapper.to_domain_event(dcb_sequenced_event.event)

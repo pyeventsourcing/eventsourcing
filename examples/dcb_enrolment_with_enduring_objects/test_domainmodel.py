@@ -4,7 +4,7 @@ from typing import cast
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.dcb.domain import Selector, Tagged
+from eventsourcing.dcb.domain import Event, Selector
 from examples.dcb_enrolment.interface import CourseID, StudentID
 from examples.dcb_enrolment_with_enduring_objects.application import Course, Student
 
@@ -29,7 +29,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
-        new_event1 = cast(Tagged[Student.Registered], new_events[0])
+        new_event1 = cast(Event[Student.Registered], new_events[0])
         self.assertIsInstance(new_event1.decision, Student.Registered)
         self.assertEqual(new_event1.decision.student_id, student.id)
 
@@ -55,7 +55,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
-        new_event2 = cast(Tagged[Student.NameUpdated], new_events[0])
+        new_event2 = cast(Event[Student.NameUpdated], new_events[0])
         self.assertIsInstance(new_event2.decision, Student.NameUpdated)
         self.assertEqual(new_event2.decision.name, "Maxine")
 
@@ -87,7 +87,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
-        new_event = cast(Tagged[Course.Registered], new_events[0])
+        new_event = cast(Event[Course.Registered], new_events[0])
         self.assertIsInstance(new_event.decision, Course.Registered)
         self.assertEqual(new_event.decision.course_id, course.id)
 

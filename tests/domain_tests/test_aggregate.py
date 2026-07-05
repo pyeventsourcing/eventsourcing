@@ -16,12 +16,9 @@ from eventsourcing.domain import (
     AggregateStrID,
     AggregateUuidID,
     BaseAggregate,
-    CanInitAggregate,
-    CanMutateAggregate,
     OriginatorIDError,
     OriginatorVersionError,
     datetime_now_with_tzinfo,
-    event,
 )
 from eventsourcing.tests.domain import (
     AccountClosedError,

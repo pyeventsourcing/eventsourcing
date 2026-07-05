@@ -104,7 +104,7 @@ method which can be used to stop the subscription to the application recorder in
 
 
 The :class:`~eventsourcing.projection.DCBApplicationSubscription` class is the equivalent for
-:ref:`DCB applications <DCB application>`. It returns :ref:`tagged decisions <DCB Tagged>`.
+:ref:`DCB applications <DCB application>`. It returns :ref:`event objects <DCB Domain Event>`.
 Please note, the :ref:`DCB recorders <DCB recorders>` :class:`~eventsourcing.dcb.popo.InMemoryDCBRecorder`,
 :class:`~eventsourcing.dcb.postgres_tt.PostgresDCBRecorderTT` and the ``eventsourcing_umadb`` extension
 all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` method.
@@ -116,7 +116,7 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
 
     from eventsourcing.dcb.application import DCBApplication
     from eventsourcing.dcb.domain import EnduringObject
-    from eventsourcing.dcb.msgpack import Decision, MessagePackMapper
+    from eventsourcing.dcb.msgspec import Decision, MsgspecMapper
     from eventsourcing.domain import event
     from eventsourcing.projection import DCBApplicationSubscription
     from eventsourcing.utils import get_topic
@@ -133,7 +133,7 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
 
 
     # Construct an application object.
-    app = DCBApplication(env={"MAPPER_TOPIC": get_topic(MessagePackMapper)})
+    app = DCBApplication(env={"MAPPER_TOPIC": get_topic(MsgspecMapper)})
 
     # Record an event.
     perspective = Thing(thing_id=str(uuid4()))
@@ -143,7 +143,7 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
     max_tracking_id = 0
 
     with DCBApplicationSubscription(app, gt=max_tracking_id, topics=()) as subscription:
-        for tagged_event, tracking in subscription:
+        for event, tracking in subscription:
             # Process the event and record new state with tracking information.
             subscription.stop()  # ...so we can continue with the examples
 
@@ -208,24 +208,24 @@ The example below shows how a projection can be defined.
 
 
 For projections that work with :ref:`DCB applications <DCB application>`, you will need to define the dispatching
-to work with :ref:`tagged decisions <DCB tagged>`. That is, because the ``process_event()`` method will receive
-:class:`~eventsourcing.dcb.domain.Tagged` objects, and because :func:`~eventsourcing.dispatch.singledispatchmethod` dispatches on the type of
-the first argument, you will need to forward ``tagged.decision`` and define handlers for different
-types of :class:`~eventsourcing.dcb.domain.Decision`.
+to work with :ref:`domain events <DCB Domain Event>`. Because the ``process_event()`` method will receive
+:class:`~eventsourcing.dcb.domain.Event` objects, and because :func:`~eventsourcing.dispatch.singledispatchmethod`
+dispatches on the type of the first argument, so you will need to forward ``event.decision`` and define handlers for
+different types of :class:`~eventsourcing.dcb.domain.Decision`.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.domain import Tagged
-    from eventsourcing.dcb.msgpack import Decision
+    from eventsourcing.dcb.domain import Event
+    from eventsourcing.dcb.msgspec import Decision
 
 
-    class TaggedDecisionProjection(Projection["MyMaterialisedViewInterface"]):
+    class EventDecisionProjection(Projection["MyMaterialisedViewInterface"]):
         name = "myprojection"
         topics = (get_topic(Decision), )
 
         @singledispatchmethod
-        def process_event(self, tagged: Tagged[Decision], tracking: Tracking) -> None:
-            self.process_decision(tagged.decision, tracking)
+        def process_event(self, event: Event[Decision], tracking: Tracking) -> None:
+            self.process_decision(event.decision, tracking)
 
         @singledispatchmethod
         def process_decision(self, _: Decision, tracking: Tracking) -> None:
@@ -364,8 +364,8 @@ The projection runner supports :ref:`DCB application classes <DCB application>`.
     with ProjectionRunner(
         application_class=DCBApplication,
         view_class=MyPOPOMaterialisedView,
-        projection_class=TaggedDecisionProjection,
-        env={"MAPPER_TOPIC": get_topic(MessagePackMapper)},
+        projection_class=EventDecisionProjection,
+        env={"MAPPER_TOPIC": get_topic(MsgspecMapper)},
     ) as projection_runner:
 
         # Register signal handler.

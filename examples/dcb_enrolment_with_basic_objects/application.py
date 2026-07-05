@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import cast
+from typing import Any, cast
 from uuid import uuid4
 
 from eventsourcing.dcb.api import DCBAppendCondition, DCBEvent, DCBQuery, DCBQueryItem
@@ -18,7 +18,7 @@ from examples.dcb_enrolment.interface import (
 )
 
 
-class EnrolmentWithDCB(DCBApplication, EnrolmentInterface):
+class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
     def register_student(self, name: str, max_courses: int) -> StudentID:
         student_id = StudentID(f"student-{uuid4()}")
         consistency_boundary = DCBQuery(
@@ -28,6 +28,8 @@ class EnrolmentWithDCB(DCBApplication, EnrolmentInterface):
             type="StudentRegistered",
             data=json.dumps({"name": name, "max_courses": max_courses}).encode(),
             tags=[student_id],
+            uuid=str(uuid4()),
+            metadata={},
         )
         self.recorder.append(
             events=[student_registered],
@@ -43,6 +45,8 @@ class EnrolmentWithDCB(DCBApplication, EnrolmentInterface):
             type="CourseRegistered",
             data=json.dumps({"name": name, "places": places}).encode(),
             tags=[course_id],
+            uuid=str(uuid4()),
+            metadata={},
         )
         consistency_boundary = DCBQuery(
             items=[DCBQueryItem(tags=[course_id])],
@@ -112,6 +116,8 @@ class EnrolmentWithDCB(DCBApplication, EnrolmentInterface):
             type="StudentJoinedCourse",
             data=b"",
             tags=[student_id, course_id],
+            uuid=str(uuid4()),
+            metadata={},
         )
 
         # Append using the same consistency boundary as the fail condition.

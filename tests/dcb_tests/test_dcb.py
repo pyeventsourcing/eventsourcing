@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from threading import Event, Thread
 from time import sleep
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from unittest import TestCase
 from uuid import uuid4
 
@@ -18,9 +18,6 @@ from eventsourcing.dcb.api import (
     DCBSequencedEvent,
     DCBSubscription,
 )
-from eventsourcing.dcb.popo import InMemoryDCBRecorder
-from eventsourcing.dcb.postgres_tt import PostgresDCBRecorderTT, PostgresDCBSubscription
-from eventsourcing.dcb.tests import DCBRecorderTestCase
 from eventsourcing.persistence import IntegrityError, ProgrammingError
 from eventsourcing.postgres import PostgresDatastore, PostgresRecorder
 from eventsourcing.tests.postgres_utils import drop_tables
@@ -35,6 +32,7 @@ if TYPE_CHECKING:
 
     from pytest_benchmark.fixture import BenchmarkFixture
 
+    from eventsourcing.dcb.postgres_tt import PostgresDCBRecorderTT
 
 # https://dcb.events/specification/
 
@@ -79,20 +77,31 @@ class TestDCBObjects(TestCase):
 
     def test_event(self) -> None:
         # Must contain "type" and "data".
-        event = DCBEvent(type="EventType1", data=b"data")
+        uuid = str(uuid4())
+        event = DCBEvent(type="EventType1", data=b"data", uuid=uuid, metadata={})
         self.assertEqual("EventType1", event.type)
         self.assertEqual(b"data", event.data)
         self.assertEqual([], event.tags)
+        self.assertEqual(uuid, event.uuid)
+        self.assertEqual({}, event.metadata)
 
         # May contain tags.
-        event = DCBEvent(type="EventType1", data=b"data", tags=["tag1", "tag2"])
+        event = DCBEvent(
+            type="EventType1",
+            data=b"data",
+            tags=["tag1", "tag2"],
+            uuid=str(uuid4()),
+            metadata={},
+        )
         self.assertEqual("EventType1", event.type)
         self.assertEqual(b"data", event.data)
         self.assertEqual(["tag1", "tag2"], event.tags)
 
     def test_sequenced_event(self) -> None:
         sequenced_event = DCBSequencedEvent(
-            event=DCBEvent(type="EventType1", data=b"data"),
+            event=DCBEvent(
+                type="EventType1", data=b"data", uuid=str(uuid4()), metadata={}
+            ),
             position=3,
         )
         self.assertEqual("EventType1", sequenced_event.event.type)
@@ -145,19 +154,12 @@ class TestDCBSubscription(TestCase):
         self.assertEqual(s, iter(s))
 
 
-class TestInMemoryDCBRecorder(DCBRecorderTestCase):
-    def test_append_read(self) -> None:
-        self._test_append_read(InMemoryDCBRecorder())
-
-    def test_append_subscribe(self) -> None:
-        self._test_append_subscribe(InMemoryDCBRecorder())
-
-
 class WithPostgres(TestCase):
     postgres_dcb_recorder_class: type[PostgresDCBRecorderTT | PostgresDCBRecorderTS]
     pool_size: int = 1
 
     def setUp(self) -> None:
+        drop_tables()
         self.datastore = PostgresDatastore(
             dbname="eventsourcing",
             host="127.0.0.1",
@@ -173,98 +175,6 @@ class WithPostgres(TestCase):
         self.datastore.close()
         # Drop tables.
         drop_tables()
-
-
-class TestPostgresDCBRecorderTS(DCBRecorderTestCase, WithPostgres):
-    postgres_dcb_recorder_class = PostgresDCBRecorderTS
-
-    def test_append_read(self) -> None:
-        self._test_append_read(self.recorder)
-
-    def test_pg_type_dcb_event(self) -> None:
-        # Check "dcb_event" type.
-        event = cast(PostgresDCBRecorderTS, self.recorder).construct_pg_dcb_event(
-            type="EventType1",
-            data=b"data",
-            tags=["tag1", "tag2"],
-        )
-        self.assertEqual("EventType1", event.type)
-        self.assertEqual(b"data", event.data)
-        self.assertEqual(["tag1", "tag2"], event.tags)
-
-        with self.datastore.get_connection() as conn:
-            result = conn.execute(
-                (
-                    "SELECT pg_typeof(%(dcb_event)s), "
-                    "(%(dcb_event)s).type, "
-                    "(%(dcb_event)s).data, "
-                    "(%(dcb_event)s).tags"
-                ),
-                {"dcb_event": event},
-            ).fetchone()
-
-        assert result is not None
-        self.assertEqual("dcb_event", result["pg_typeof"])
-        self.assertEqual("EventType1", result["type"])
-        self.assertEqual(b"data", result["data"])
-        self.assertEqual(["tag1", "tag2"], result["tags"])
-
-        with (
-            self.assertRaises(ProgrammingError) as cm,
-            self.datastore.get_connection() as conn,
-        ):
-            conn.execute(
-                (
-                    "SELECT pg_typeof(%(dcb_event)s), "
-                    "(%(dcb_event)s).typeyyyyyyyyyyy, "
-                    "(%(dcb_event)s).data, "
-                    "(%(dcb_event)s).tags"
-                ),
-                {"dcb_event": event},
-            ).fetchone()
-
-        self.assertIn(
-            'column "typeyyyyyyyyyyy" not found in data type dcb_event',
-            str(cm.exception),
-        )
-
-
-class TestPostgresDCBRecorderTT(DCBRecorderTestCase, WithPostgres):
-    postgres_dcb_recorder_class = PostgresDCBRecorderTT
-    pool_size = 2  # +1 for the subscription listen thread
-
-    def test_postgres_event_store(self) -> None:
-        self._test_append_read(self.recorder)
-
-    def test_append_subscribe(self) -> None:
-        self._test_append_subscribe(self.recorder)
-
-        # Also check subscription loop when select_limit is reached in pull loop.
-        event = DCBEvent(type="type1", data=b"data1", tags=["tagX"])
-        initial_position = self.recorder.append([event])
-        with self.recorder.subscribe(after=initial_position) as subscription:
-            assert isinstance(subscription, PostgresDCBSubscription)
-            subscription.select_limit = 3
-            self.recorder.append(events=([event] * 10))
-            for _ in range(10):
-                next(subscription)
-
-        # Also check subscription loop when selecting zero in pull loop.
-        subscribe = self.recorder.subscribe(after=initial_position)
-        with subscribe:
-            sleep(1)
-
-        # Also check calling __next__ after stop().
-        with self.assertRaises(StopIteration):
-            subscription.__next__()
-
-        # Also check calling __next__ after stop() after an error.
-        subscription.stop()
-        error = ValueError()
-        subscription._thread_error = error
-        with self.assertRaises(ValueError) as cm:
-            subscription.__next__()
-        self.assertEqual(error, cm.exception)
 
 
 class TestDCBPostgresFactory(TestCase):
@@ -403,33 +313,11 @@ class ConcurrentAppendTestCase(TestCase):
                 type="CommitOrderTest",
                 data=b"",
                 tags=[tag],
+                uuid=str(uuid4()),
+                metadata={},
             )
-            for i in range(self.insert_num)
+            for _ in range(self.insert_num)
         ]
-
-
-class TestPostgresDCBRecorderStoreTSCommitOrderVsInsertOrder(
-    ConcurrentAppendTestCase, WithPostgres
-):
-    postgres_dcb_recorder_class = PostgresDCBRecorderTS
-
-    def test_commit_vs_insert_order(self) -> None:
-        self._test_commit_vs_insert_order(self.recorder)
-
-    def test_fail_condition_is_effective(self) -> None:
-        self._test_fail_condition_is_effective(self.recorder)
-
-
-class TestPostgresDCBRecorderTTCommitOrderVsInsertOrder(
-    ConcurrentAppendTestCase, WithPostgres
-):
-    postgres_dcb_recorder_class = PostgresDCBRecorderTT
-
-    def test_commit_vs_insert_order(self) -> None:
-        self._test_commit_vs_insert_order(self.recorder)
-
-    def test_fail_condition_is_effective(self) -> None:
-        self._test_fail_condition_is_effective(self.recorder)
 
 
 @pytest.fixture
@@ -673,6 +561,8 @@ def generate_events(num_events: int) -> list[DCBEvent]:
             type=f"topic{i}",
             data=b"state{i}",
             tags=[str(uuid4())],
+            uuid=str(uuid4()),
+            metadata={},
         )
         for i in range(num_events)
     ]

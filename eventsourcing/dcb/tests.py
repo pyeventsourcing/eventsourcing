@@ -30,7 +30,13 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(initial_position, read_response.head or 0)
 
         # Append one event.
-        event1 = DCBEvent(type="type1", data=b"data1", tags=["tagX"])
+        event1 = DCBEvent(
+            type="type1",
+            data=b"data1",
+            tags=["tagX"],
+            uuid=str(uuid4()),
+            metadata={"correlation_id": str(uuid4())},
+        )
         position = recorder.append(events=[event1])
 
         # Check the returned position is 1.
@@ -40,7 +46,9 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
+        self.assertEqual(event1.uuid, result[0].event.uuid)
         self.assertEqual(event1.data, result[0].event.data)
+        self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Read all after 1, expect no events.
@@ -53,7 +61,9 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(after=initial_position, limit=1)
         result = list(read_response)
         self.assertEqual(1, len(result))
+        self.assertEqual(event1.uuid, result[0].event.uuid)
         self.assertEqual(event1.data, result[0].event.data)
+        self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Read all limit 0, expect no events (and read_response.head is None).
@@ -67,7 +77,9 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(query_type1, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
+        self.assertEqual(event1.uuid, result[0].event.uuid)
         self.assertEqual(event1.data, result[0].event.data)
+        self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Read events with type2, expect no events.
@@ -82,7 +94,9 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(query_tag_x, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
+        self.assertEqual(event1.uuid, result[0].event.uuid)
         self.assertEqual(event1.data, result[0].event.data)
+        self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Read events with tagY, expect no events.
@@ -120,8 +134,20 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Append two more events.
-        event2 = DCBEvent(type="type2", data=b"data2", tags=["tagA", "tagB"])
-        event3 = DCBEvent(type="type3", data=b"data3", tags=["tagA", "tagC"])
+        event2 = DCBEvent(
+            type="type2",
+            data=b"data2",
+            tags=["tagA", "tagB"],
+            uuid=str(uuid4()),
+            metadata={},
+        )
+        event3 = DCBEvent(
+            type="type3",
+            data=b"data3",
+            tags=["tagA", "tagC"],
+            uuid=str(uuid4()),
+            metadata={},
+        )
         position = recorder.append(events=[event2, event3])
 
         # Check the returned position is 3
@@ -131,31 +157,45 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(after=initial_position)
         result = list(read_response)
         self.assertEqual(3, len(result))
+        self.assertEqual(event1.uuid, result[0].event.uuid)
         self.assertEqual(event1.data, result[0].event.data)
+        self.assertEqual(event1.metadata, result[0].event.metadata)
+        self.assertEqual(event2.uuid, result[1].event.uuid)
         self.assertEqual(event2.data, result[1].event.data)
+        self.assertEqual(event2.metadata, result[1].event.metadata)
+        self.assertEqual(event3.uuid, result[2].event.uuid)
         self.assertEqual(event3.data, result[2].event.data)
+        self.assertEqual(event3.metadata, result[2].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read all after 1, expect two events.
         read_response = recorder.read(after=1 + initial_position)
         result = list(read_response)
         self.assertEqual(2, len(result))
+        self.assertEqual(event2.uuid, result[0].event.uuid)
         self.assertEqual(event2.data, result[0].event.data)
+        self.assertEqual(event2.metadata, result[0].event.metadata)
+        self.assertEqual(event3.uuid, result[1].event.uuid)
         self.assertEqual(event3.data, result[1].event.data)
+        self.assertEqual(event3.metadata, result[1].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read all after 2, expect one event.
         read_response = recorder.read(after=2 + initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
+        self.assertEqual(event3.uuid, result[0].event.uuid)
         self.assertEqual(event3.data, result[0].event.data)
+        self.assertEqual(event3.metadata, result[0].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read all after 1, limit 1, expect one event.
         read_response = recorder.read(after=1 + initial_position, limit=1)
         result = list(read_response)
         self.assertEqual(1, len(result))
+        self.assertEqual(event2.uuid, result[0].event.uuid)
         self.assertEqual(event2.data, result[0].event.data)
+        self.assertEqual(event2.metadata, result[0].event.metadata)
         self.assertEqual(2 + initial_position, read_response.head)
 
         # Read type1 after 1, expect no events.
@@ -181,8 +221,12 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(query_tag_a, after=initial_position)
         result = list(read_response)
         self.assertEqual(2, len(result))
+        self.assertEqual(event2.uuid, result[0].event.uuid)
         self.assertEqual(event2.data, result[0].event.data)
+        self.assertEqual(event2.metadata, result[0].event.metadata)
+        self.assertEqual(event3.uuid, result[1].event.uuid)
         self.assertEqual(event3.data, result[1].event.data)
+        self.assertEqual(event3.metadata, result[1].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with tagA and tagB, expect one event.
@@ -190,7 +234,9 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(query_tag_a_and_b, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
+        self.assertEqual(event2.uuid, result[0].event.uuid)
         self.assertEqual(event2.data, result[0].event.data)
+        self.assertEqual(event2.metadata, result[0].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with tagB or tagC, expect two events.
@@ -203,8 +249,12 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(query_tag_b_or_c, after=initial_position)
         result = list(read_response)
         self.assertEqual(2, len(result))
+        self.assertEqual(event2.uuid, result[0].event.uuid)
         self.assertEqual(event2.data, result[0].event.data)
+        self.assertEqual(event2.metadata, result[0].event.metadata)
+        self.assertEqual(event3.uuid, result[1].event.uuid)
         self.assertEqual(event3.data, result[1].event.data)
+        self.assertEqual(event3.metadata, result[1].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with tagX or tagY, expect one event.
@@ -217,7 +267,9 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(query_tag_x_or_y, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
+        self.assertEqual(event1.uuid, result[0].event.uuid)
         self.assertEqual(event1.data, result[0].event.data)
+        self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with type2 and tagA, expect one event.
@@ -227,7 +279,9 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(query_type2_tag_a, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
+        self.assertEqual(event2.uuid, result[0].event.uuid)
         self.assertEqual(event2.data, result[0].event.data)
+        self.assertEqual(event2.metadata, result[0].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with type2 and tagA after 2, expect no events.
@@ -246,7 +300,9 @@ class DCBRecorderTestCase(TestCase):
         read_response = recorder.read(query_type2_tag_a, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
+        self.assertEqual(event2.uuid, result[0].event.uuid)
         self.assertEqual(event2.data, result[0].event.data)
+        self.assertEqual(event2.metadata, result[0].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with type2 and tagB, or with type3 and tagC, expect two events.
@@ -261,8 +317,12 @@ class DCBRecorderTestCase(TestCase):
         )
         result = list(read_response)
         self.assertEqual(2, len(result), result)
+        self.assertEqual(event2.uuid, result[0].event.uuid)
         self.assertEqual(event2.data, result[0].event.data)
+        self.assertEqual(event2.metadata, result[0].event.metadata)
+        self.assertEqual(event3.uuid, result[1].event.uuid)
         self.assertEqual(event3.data, result[1].event.data)
+        self.assertEqual(event3.metadata, result[1].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Repeat with query items in different order, expect events in ascending order.
@@ -277,12 +337,16 @@ class DCBRecorderTestCase(TestCase):
         )
         result = list(read_response)
         self.assertEqual(2, len(result))
+        self.assertEqual(event2.uuid, result[0].event.uuid)
         self.assertEqual(event2.data, result[0].event.data)
+        self.assertEqual(event2.metadata, result[0].event.metadata)
+        self.assertEqual(event3.uuid, result[1].event.uuid)
         self.assertEqual(event3.data, result[1].event.data)
+        self.assertEqual(event3.metadata, result[1].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Append must fail if recorded events match condition.
-        event4 = DCBEvent(type="type4", data=b"data4")
+        event4 = DCBEvent(type="type4", data=b"data4", uuid=str(uuid4()), metadata={})
 
         # Fail because condition matches all.
         new = [event4]
@@ -369,12 +433,16 @@ class DCBRecorderTestCase(TestCase):
             type="StudentRegistered",
             data=json.dumps({"name": "Student1", "max_courses": 10}).encode(),
             tags=[student_id],
+            uuid=str(uuid4()),
+            metadata={},
         )
         course_id = f"course1-{uuid4()}"
         course_registered = DCBEvent(
             type="CourseRegistered",
             data=json.dumps({"name": "Course1", "places": 10}).encode(),
             tags=[course_id],
+            uuid=str(uuid4()),
+            metadata={},
         )
         student_joined_course = DCBEvent(
             type="StudentJoinedCourse",
@@ -382,6 +450,8 @@ class DCBRecorderTestCase(TestCase):
                 {"student_id": student_id, "course_id": course_id}
             ).encode(),
             tags=[course_id, student_id],
+            uuid=str(uuid4()),
+            metadata={},
         )
 
         recorder.append(
@@ -571,20 +641,35 @@ class DCBRecorderTestCase(TestCase):
         self, recorder: DCBRecorder, initial_position: int = 0
     ) -> None:
         # Append one event.
-        event1 = DCBEvent(type="type1", data=b"data1", tags=["tagX"])
+        event1 = DCBEvent(
+            type="type1",
+            data=b"data1",
+            tags=["tagX"],
+            uuid=str(uuid4()),
+            metadata={"correlation_id": str(uuid4())},
+        )
         position1 = recorder.append(events=[event1])
         self.assertEqual(1 + initial_position, position1)
 
         # Start subscription.
         with recorder.subscribe(after=initial_position) as subscription:
-            self.assertEqual(position1, next(subscription).position)
+            sequenced1 = next(subscription)
+            self.assertEqual(position1, sequenced1.position)
+            self.assertEqual(event1.uuid, sequenced1.event.uuid)
+            self.assertEqual(event1.metadata, sequenced1.event.metadata)
 
             thread = EnsureSubscriptionBlockAndReceive(subscription)
             thread.has_blocked.wait()
             self.assertFalse(thread.has_received.wait(timeout=0.5))
 
             # Append one more event.
-            event2 = DCBEvent(type="type1", data=b"data1", tags=["tagX"])
+            event2 = DCBEvent(
+                type="type1",
+                data=b"data1",
+                tags=["tagX"],
+                uuid=str(uuid4()),
+                metadata={},
+            )
             position2 = recorder.append(events=[event2])
             self.assertEqual(2 + initial_position, position2)
 

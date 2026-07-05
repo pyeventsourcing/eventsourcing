@@ -17,6 +17,7 @@ from eventsourcing.domain import (
     all_func_decorators,
     decorated_func_callers,
     filter_kwargs_for_method_params,
+    get_metadata_from_context,
 )
 from eventsourcing.utils import construct_topic
 
@@ -25,8 +26,6 @@ if TYPE_CHECKING:
 
 
 class Decision(AbstractDecision, ABC):
-    metadata: dict[str, str]
-
     @abstractmethod
     def as_dict(self) -> dict[str, Any]:
         pass  # pragma: no cover
@@ -35,11 +34,7 @@ class Decision(AbstractDecision, ABC):
         assert obj is not None
 
         # Identify the function that was decorated.
-        try:
-            decorated_func = decorated_funcs[(type(obj), type(self))]
-        except KeyError:
-            pass
-        else:
+        if decorated_func := decorated_funcs.get((type(obj), type(self))):
             # Select event attributes mentioned in function signature.
             self_dict = self.as_dict()
             kwargs = filter_kwargs_for_method_params(self_dict, decorated_func)
@@ -63,30 +58,32 @@ class Decision(AbstractDecision, ABC):
         pass
 
 
-TDecision = TypeVar("TDecision", bound=Decision, default=Decision)
+TDecision = TypeVar("TDecision", bound=Decision)
 """
 A type variable representing any subclass of :class:`Decision`.
 """
 
+TDecision_co = TypeVar("TDecision_co", covariant=True)
+"""
+A covariant type variable representing any subclass of :class:`Decision`.
+"""
+
 
 @dataclass
-class Tagged(Generic[TDecision]):
+class Event(Generic[TDecision_co]):
     tags: list[str]
-    decision: TDecision
+    decision: TDecision_co
     uuid: str = field(default_factory=lambda: str(uuid4()))
+    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
 
 T = TypeVar("T")
 P = ParamSpec("P")
 
 
-class MetaPerspective(ABCMeta):
-    pass
-
-
-class Perspective(ABC, Generic[TDecision], metaclass=MetaPerspective):
+class Perspective(ABC, Generic[TDecision]):
     last_known_position: int | None
-    new_decisions: list[Tagged[TDecision]]
+    new_decisions: list[Event[TDecision]]
 
     def __new__(cls, *_: Any, **__: Any) -> Self:
         self = super().__new__(cls)
@@ -95,7 +92,9 @@ class Perspective(ABC, Generic[TDecision], metaclass=MetaPerspective):
         return self
 
     @abstractmethod
-    def consistency_boundary(self) -> Selector | Sequence[Selector]:
+    def consistency_boundary(
+        self,
+    ) -> Selector[TDecision] | Sequence[Selector[TDecision]]:
         raise NotImplementedError  # pragma: no cover
 
     def trigger_event(
@@ -106,16 +105,16 @@ class Perspective(ABC, Generic[TDecision], metaclass=MetaPerspective):
         **kwargs: P.kwargs,
     ) -> None:
         """
-        Constructs new tagged decision and appends to list of uncommitted events.
+        Constructs new event and appends to list of uncommitted events.
         """
-        tagged = Tagged[TDecision](
+        event = Event[TDecision](
             tags=list(tags),
             decision=decision_cls(*args, **kwargs),
         )
-        tagged.decision.mutate(self)
-        self.new_decisions.append(tagged)
+        event.decision.mutate(self)
+        self.new_decisions.append(event)
 
-    def collect_events(self) -> Sequence[Tagged[Any]]:
+    def collect_events(self) -> Sequence[Event[Any]]:
         """
         Drains list of triggered events.
         """
@@ -126,18 +125,18 @@ class Perspective(ABC, Generic[TDecision], metaclass=MetaPerspective):
 TPerspective = TypeVar("TPerspective", bound=Perspective[Any])
 
 
-decorated_funcs: dict[tuple[MetaPerspective, type[Decision]], CallableType] = {}
+decorated_funcs: dict[tuple[type[Any], type[Decision]], CallableType] = {}
 
 
-class MetaSupportsEventDecorator(MetaPerspective):
-    def __init__(
-        cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any]
-    ) -> None:
-        super().__init__(name, bases, namespace)
+class SupportsEventDecorator(Generic[TDecision]):
+    projected_types: ClassVar[list[type[Decision]]]
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
 
         topic_prefix = construct_topic(cls) + "."
 
-        cls.projected_types: list[type[Decision]] = []
+        cls.projected_types = []
 
         # Find the event decorators on this class.
         func_decorators = [
@@ -164,26 +163,7 @@ class MetaSupportsEventDecorator(MetaPerspective):
             cls.projected_types.append(given)
 
 
-class MetaEnduringObject(MetaSupportsEventDecorator):
-    def __init__(
-        cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any]
-    ) -> None:
-        super().__init__(name, bases, namespace)
-        # Check a subclasse of EnduringObject has an __init__ method.
-        if Perspective not in bases:
-            try:
-                init_method = namespace["__init__"]
-            except KeyError:
-                msg = f"Enduring object class {cls} has no __init__ method"
-                raise ProgrammingError(msg) from None
-            if not isinstance(init_method, CommandMethodDecorator):
-                msg = (
-                    f"Enduring object class {cls} __init__ method "
-                    f"is not decorated with @event decorator"
-                )
-                raise ProgrammingError(msg) from None
-            init_method.avoid_delegating_to_init_method = True
-
+class MetaEnduringObject(ABCMeta):
     def __call__(cls: type[T], **kwargs: Any) -> T:
         # TODO: For convenience, make this error out in the same way
         #  as it would if the arguments didn't match the __init__
@@ -200,9 +180,29 @@ TID = TypeVar("TID", bound=str, default=str)
 
 
 class EnduringObject(
-    Perspective[TDecision], Generic[TDecision, TID], metaclass=MetaEnduringObject
+    SupportsEventDecorator[TDecision],
+    Perspective[TDecision],
+    Generic[TDecision, TID],
+    metaclass=MetaEnduringObject,
 ):
     id: TID
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        # Check a subclasse of EnduringObject has an __init__ method.
+        if Perspective not in cls.__bases__:
+            try:
+                init_method = cls.__dict__["__init__"]
+            except KeyError:
+                msg = f"Enduring object class {cls} has no __init__ method"
+                raise ProgrammingError(msg) from None
+            if not isinstance(init_method, CommandMethodDecorator):
+                msg = (
+                    f"Enduring object class {cls} __init__ method "
+                    f"is not decorated with @event decorator"
+                )
+                raise ProgrammingError(msg) from None
+            init_method.avoid_delegating_to_init_method = True
 
     @classmethod
     def _create(cls: type[Self], **kwargs: Any) -> Self:
@@ -215,7 +215,7 @@ class EnduringObject(
         obj.__init__(**kwargs)  # type: ignore[misc]
         return obj
 
-    def consistency_boundary(self) -> list[Selector]:
+    def consistency_boundary(self) -> list[Selector[TDecision]]:
         return [Selector(tags=[self.id])]
 
     def trigger_event(
@@ -230,11 +230,11 @@ class EnduringObject(
 
 
 class Group(Perspective[TDecision]):
-    _enduring_objects: list[EnduringObject]
-    classes: ClassVar[Sequence[type[EnduringObject[Any, Any]]]]
+    _enduring_objects: list[EnduringObject[TDecision]]
+    classes: ClassVar[Sequence[type[EnduringObject[TDecision, Any]]]]
 
-    def __init_subclass__(cls) -> None:
-        super().__init_subclass__()
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
         # 1. Get all the type hints from the __init__ method
         hints = typing.get_type_hints(cls.__init__)
 
@@ -265,9 +265,9 @@ class Group(Perspective[TDecision]):
         self._enduring_objects = [a for a in args if isinstance(a, EnduringObject)]
         return self
 
-    def consistency_boundary(self) -> list[Selector]:
+    def consistency_boundary(self) -> list[Selector[TDecision]]:
         return [
-            Selector(tags=cb.tags)
+            Selector[TDecision](tags=cb.tags)
             for cbs in [o.consistency_boundary() for o in self._enduring_objects]
             for cb in cbs
         ]
@@ -281,30 +281,28 @@ class Group(Perspective[TDecision]):
     ) -> None:
         objs = self._enduring_objects
         tags = [o.id for o in objs] + list(tags)
-        tagged = Tagged[TDecision](
+        event = Event[TDecision](
             tags=tags,
             decision=decision_cls(*args, **kwargs),
         )
         for o in objs:
-            tagged.decision.mutate(o)
-        self.new_decisions.append(tagged)
+            event.decision.mutate(o)
+        self.new_decisions.append(event)
 
 
 @dataclass
-class Selector:
-    types: Sequence[type[Decision]] = ()
+class Selector(Generic[TDecision_co]):
+    types: Sequence[type[TDecision_co]] = ()
     tags: Sequence[str] = ()
 
 
-class MetaSlice(MetaSupportsEventDecorator):
-    def __init__(
-        cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any]
-    ) -> None:
-        super().__init__(name, bases, namespace)
+class Slice(Perspective[TDecision], SupportsEventDecorator[TDecision], ABC):
+    do_projection: ClassVar[bool]
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
         cls.do_projection = len(cls.projected_types) != 0
 
-
-class Slice(Perspective[TDecision], metaclass=MetaSlice):
     def execute(self) -> None:
         pass
 

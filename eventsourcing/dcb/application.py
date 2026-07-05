@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Generic
 
 from typing_extensions import TypeVar
 
@@ -21,6 +21,8 @@ from eventsourcing.dcb.persistence import (
     DCBMapper,
     NotFoundError,
 )
+from eventsourcing.domain import set_metadata_in_context
+from eventsourcing.persistence import TrackingRecorder
 from eventsourcing.utils import Environment, EnvType, resolve_topic
 
 if TYPE_CHECKING:
@@ -29,7 +31,7 @@ if TYPE_CHECKING:
     from typing import Self
 
 
-class DCBApplication:
+class DCBApplication(Generic[TDecision]):
     name = "DCBApplication"
     env: Mapping[str, str] = {"PERSISTENCE_MODULE": "eventsourcing.dcb.popo"}
 
@@ -38,16 +40,22 @@ class DCBApplication:
             cls.name = cls.__name__
 
     def __init__(self, env: EnvType | None = None):
-        self.env = self.construct_env(self.name, env)
-        self.factory = DCBInfrastructureFactory.construct(self.env)
+        env_ = self.construct_env(self.name, env)
+        self.env = env_
+        self.factory = DCBInfrastructureFactory[TrackingRecorder].construct(env_)
         self.recorder = self.factory.dcb_recorder()
-        if "MAPPER_TOPIC" in self.env:
+        mapper_topic = env_.get("MAPPER_TOPIC")
+        if mapper_topic:
             # Only need a mapper, event store, and repository
             # if we are using the higher-level abstractions.
-            self.mapper = cast(DCBMapper, resolve_topic(self.env["MAPPER_TOPIC"])())
-            assert isinstance(self.mapper, DCBMapper)
-            self.events = DCBEventStore(self.mapper, self.recorder)
-            self.repository = DCBRepository(self.events)
+            mapper_cls: type[DCBMapper[TDecision]] = resolve_topic(mapper_topic)
+            assert issubclass(mapper_cls, DCBMapper)
+            self.mapper = mapper_cls(
+                compressor=self.factory.compressor(),
+                cipher=self.factory.cipher(),
+            )
+            self.events = DCBEventStore[TDecision](self.mapper, self.recorder)
+            self.repository = DCBRepository[TDecision](self.events)
 
     def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
         """Constructs environment from which application will be configured."""
@@ -88,8 +96,8 @@ class DCBApplication:
 TEnduringObject = TypeVar("TEnduringObject", bound=EnduringObject[Any, Any])
 
 
-class DCBRepository:
-    def __init__(self, eventstore: DCBEventStore):
+class DCBRepository(Generic[TDecision]):
+    def __init__(self, eventstore: DCBEventStore[TDecision]):
         self.eventstore = eventstore
 
     def save(self, p: Perspective[TDecision]) -> int:
@@ -102,13 +110,14 @@ class DCBRepository:
     def get(
         self, enduring_object_id: str, enduring_object_cls: type[TEnduringObject]
     ) -> TEnduringObject:
-        cb = [Selector(tags=[enduring_object_id])]
+        cb = [Selector[TDecision](tags=[enduring_object_id])]
         events = self.eventstore.read(*cb)
         obj: TEnduringObject | None = enduring_object_cls.__new__(enduring_object_cls)
         count_events = 0
         for event in events:
             count_events += 1
-            obj = event.decision.mutate(obj)
+            with set_metadata_in_context(event.metadata):
+                obj = event.decision.mutate(obj)
         if count_events == 0 or obj is None:
             raise NotFoundError
         obj.last_known_position = events.head
@@ -118,24 +127,26 @@ class DCBRepository:
         self,
         ids: Sequence[str],
         *,
-        classes: Sequence[type[EnduringObject[Any, Any]]] = (),
-        cls: type[EnduringObject[Any, Any]] | None = None,
-    ) -> list[EnduringObject[Any] | None]:
+        classes: Sequence[type[EnduringObject[TDecision, Any]]] = (),
+        cls: type[EnduringObject[TDecision, Any]] | None = None,
+    ) -> list[EnduringObject[TDecision] | None]:
         if len(classes) == 0:
             assert cls is not None
             classes = [cls] * len(ids)
-        cb = [Selector(tags=[id_]) for id_ in ids]
-        objs: dict[str, EnduringObject[Any, Any] | None] = {
+        cb = [Selector[TDecision](tags=[id_]) for id_ in ids]
+        objs: dict[str, EnduringObject[TDecision, Any] | None] = {
             id_: cls.__new__(cls) for (id_, cls) in zip(ids, classes, strict=True)
         }
         event_counts: dict[str, int] = defaultdict(int)
         read_response = self.eventstore.read(cb)
-        for tagged in read_response:
-            for tag in tagged.tags:
+        for event in read_response:
+            for tag in event.tags:
                 event_counts[tag] += 1
                 obj = objs.get(tag)
                 if obj is not None:
-                    objs[tag] = tagged.decision.mutate(obj)
+                    # TODO: Write a text for this case of setting metadata in context.
+                    with set_metadata_in_context(event.metadata):
+                        objs[tag] = event.decision.mutate(obj)
         for id_ in ids:
             obj = objs.get(id_)
             if obj is None or event_counts[id_] == 0:
@@ -161,11 +172,13 @@ class DCBRepository:
         return group
 
     def advance(self, p: TPerspective) -> TPerspective:
-        events = self.eventstore.read(
+        read_response = self.eventstore.read(
             cb=p.consistency_boundary(),
             after=p.last_known_position,
         )
-        for event in events:
-            event.decision.mutate(p)
-        p.last_known_position = events.head
+        for event in read_response:
+            # TODO: Write a text for this case of setting metadata in context.
+            with set_metadata_in_context(event.metadata):
+                event.decision.mutate(p)
+        p.last_known_position = read_response.head
         return p

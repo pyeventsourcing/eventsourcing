@@ -67,7 +67,8 @@ pyright = "*"
 pydantic = { version = "*"}
 msgspec = { version = "*"}
 pytest = { version = "*"}
-eventsourcing-umadb = { version = ">=0.3.1", allow-prereleases = true }
+#eventsourcing-umadb = { version = ">=0.3.1", allow-prereleases = true }
+eventsourcing-umadb = {path = "../eventsourcing-umadb", develop = true}
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = { version = "*"}

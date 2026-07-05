@@ -1,52 +1,112 @@
+from abc import ABC, abstractmethod
+from typing import Any, ClassVar
 from unittest import TestCase
-from uuid import uuid4
 
-from eventsourcing.dcb.api import DCBAppendCondition, DCBEvent, DCBQuery, DCBQueryItem
+import eventsourcing
+from eventsourcing.compressor import ZlibCompressor
+from eventsourcing.cryptography import AESCipher
 from eventsourcing.dcb.application import DCBRepository
-from eventsourcing.dcb.domain import EnduringObject, Tagged
-from eventsourcing.dcb.msgpack import Decision, MessagePackMapper
+from eventsourcing.dcb.domain import EnduringObject, Event
+from eventsourcing.dcb.msgspec import Decision, MsgspecMapper
 from eventsourcing.dcb.persistence import DCBEventStore, NotFoundError
 from eventsourcing.dcb.popo import InMemoryDCBRecorder
-from eventsourcing.dcb.postgres_tt import PostgresDCBRecorderTT, PostgresTTDCBFactory
-from eventsourcing.persistence import ProgrammingError
-from eventsourcing.postgres import PostgresDatastore
-from eventsourcing.tests.postgres_utils import drop_tables
+from eventsourcing.persistence import Cipher, Compressor, ProgrammingError
+from eventsourcing.utils import Environment
 
 
 class TestRepository(TestCase):
     def test_repository(self) -> None:
-        repo = DCBRepository(
-            DCBEventStore(mapper=MessagePackMapper(), recorder=InMemoryDCBRecorder())
+        repo = DCBRepository[Decision](
+            DCBEventStore(mapper=MsgspecMapper(), recorder=InMemoryDCBRecorder())
         )
         with self.assertRaises(NotFoundError):
             repo.get("not-an-object", EnduringObject)
 
 
-class TestDCBMapper(TestCase):
-    def test_dcb_mapper(self) -> None:
-        class MyDecision(Decision):
-            a: int
+class DCBMapperTestCase(TestCase, ABC):
+    mapper_class: ClassVar[type[eventsourcing.dcb.persistence.DCBMapper[Any]]]
 
-        mapper = MessagePackMapper()
-        tagged_event = Tagged(
+    def _test_dcb_mapper(self) -> None:
+        event = Event(
             tags=["tag1", "tag2"],
-            decision=MyDecision(a=1),
+            decision=self.construct_decision(),
         )
-        dcb_event = mapper.to_dcb_event(tagged_event)
-        self.assertEqual(dcb_event.tags, tagged_event.tags)
-        self.assertEqual(dcb_event.uuid, tagged_event.uuid)
+
+        mapper = self.construct_mapper()
+        dcb_event = mapper.to_dcb_event(event)
+        self.assertEqual(dcb_event.tags, event.tags)
+        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(dcb_event)
-        self.assertEqual(type(copy), Tagged)
-        self.assertEqual(copy.tags, tagged_event.tags)
-        self.assertEqual(copy.decision, tagged_event.decision)
-        self.assertEqual(copy.uuid, tagged_event.uuid)
+        self.assertEqual(type(copy), Event)
+        self.assertEqual(copy.tags, event.tags)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+        # With compressor
+        zlib_compressor = ZlibCompressor()
+        mapper = self.construct_mapper(compressor=zlib_compressor)
+        dcb_event = mapper.to_dcb_event(event)
+        self.assertEqual(dcb_event.tags, event.tags)
+        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(dcb_event)
+        self.assertEqual(type(copy), Event)
+        self.assertEqual(copy.tags, event.tags)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+        # With cipher
+        aes_cipher = AESCipher(
+            Environment("", {"CIPHER_KEY": AESCipher.create_key(32)})
+        )
+        mapper = self.construct_mapper(cipher=aes_cipher)
+        dcb_event = mapper.to_dcb_event(event)
+        self.assertEqual(dcb_event.tags, event.tags)
+        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(dcb_event)
+        self.assertEqual(type(copy), Event)
+        self.assertEqual(copy.tags, event.tags)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+        # With compressor and cipher
+        mapper = self.construct_mapper(compressor=zlib_compressor, cipher=aes_cipher)
+        dcb_event = mapper.to_dcb_event(event)
+        self.assertEqual(dcb_event.tags, event.tags)
+        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(dcb_event)
+        self.assertEqual(type(copy), Event)
+        self.assertEqual(copy.tags, event.tags)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+    @abstractmethod
+    def construct_decision(self) -> eventsourcing.dcb.domain.Decision:
+        pass
+
+    def construct_mapper(
+        self,
+        compressor: Compressor | None = None,
+        cipher: Cipher | None = None,
+    ) -> eventsourcing.dcb.persistence.DCBMapper[Any]:
+        return self.mapper_class(compressor=compressor, cipher=cipher)
 
 
 class TestEventStore(TestCase):
     def test_event_store(self) -> None:
         event_store = DCBEventStore(
-            mapper=MessagePackMapper(), recorder=InMemoryDCBRecorder()
+            mapper=MsgspecMapper(), recorder=InMemoryDCBRecorder()
         )
         event_store.read()  # no args
         self.assertEqual(0, event_store.append([]))  # no events
@@ -54,20 +114,20 @@ class TestEventStore(TestCase):
         class MyDecision(Decision):
             a: int
 
-        tagged_event: Tagged[Decision] = Tagged(
+        event: Event[Decision] = Event(
             tags=["tag1", "tag2"],
             decision=MyDecision(a=1),
         )
-        position = event_store.append([tagged_event])
+        position = event_store.append([event])
         self.assertEqual(position, 1)
         copies = list(event_store.read())
         self.assertEqual(len(copies), 1)
         copy = copies[0]
 
-        self.assertEqual(type(copy), Tagged)
-        self.assertEqual(copy.tags, tagged_event.tags)
-        self.assertEqual(copy.decision, tagged_event.decision)
-        self.assertEqual(copy.uuid, tagged_event.uuid)
+        self.assertEqual(type(copy), Event)
+        self.assertEqual(copy.tags, event.tags)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
 
 
 class TestInMemoryDCBRecorder(TestCase):
@@ -75,124 +135,3 @@ class TestInMemoryDCBRecorder(TestCase):
         recorder = InMemoryDCBRecorder()
         with self.assertRaises(ProgrammingError):
             recorder.append([])  # no events
-
-
-class TestPostgresDCBRecorderTT(TestCase):
-    def tearDown(self) -> None:
-        drop_tables()
-
-    def test_recorder_non_zero_lock(self) -> None:
-
-        # Cover case of lock time being non-zero.
-        with PostgresDatastore(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",  # noqa: S106
-            lock_timeout=1,
-        ) as datastore:
-            recorder = PostgresDCBRecorderTT(datastore)
-            recorder.create_table()
-            recorder.append(
-                [DCBEvent(type="t1", data=b"", tags=["t2", "t3"])],
-                DCBAppendCondition(after=1),
-            )
-
-    def test_unconditional_append_and_read(self) -> None:
-
-        # Cover case of lock time being non-zero.
-        with PostgresDatastore(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",  # noqa: S106
-            lock_timeout=1,
-        ) as datastore:
-            recorder = PostgresDCBRecorderTT(datastore)
-            recorder.create_table()
-            dcb_event = DCBEvent(
-                type="t1", data=b'{"a": 1}', tags=["t2", "t3"], uuid=str(uuid4())
-            )
-            recorder.append([dcb_event])
-
-            resp = recorder.read(DCBQuery(items=[DCBQueryItem(tags=dcb_event.tags)]))
-            copies = list(resp)
-            self.assertEqual(len(copies), 1)
-            copy = copies[0]
-            self.assertEqual(copy.event.type, dcb_event.type)
-            self.assertEqual(copy.event.data, dcb_event.data)
-            self.assertEqual(copy.event.tags, dcb_event.tags)
-            self.assertEqual(copy.event.uuid, dcb_event.uuid)
-
-    def test_conditional_append_and_read(self) -> None:
-
-        # Cover case of lock time being non-zero.
-        with PostgresDatastore(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",  # noqa: S106
-            lock_timeout=1,
-        ) as datastore:
-            recorder = PostgresDCBRecorderTT(datastore)
-            recorder.create_table()
-            dcb_event = DCBEvent(
-                type="t1", data=b'{"a": 1}', tags=["t2", "t3"], uuid=str(uuid4())
-            )
-            dcb_query = DCBQuery(items=[DCBQueryItem(tags=dcb_event.tags)])
-            recorder.append(
-                [dcb_event],
-                condition=DCBAppendCondition(fail_if_events_match=dcb_query),
-            )
-
-            resp = recorder.read(dcb_query)
-            copies = list(resp)
-            self.assertEqual(len(copies), 1)
-            copy = copies[0]
-            self.assertEqual(copy.event.type, dcb_event.type)
-            self.assertEqual(copy.event.data, dcb_event.data)
-            self.assertEqual(copy.event.tags, dcb_event.tags)
-            self.assertEqual(copy.event.uuid, dcb_event.uuid)
-
-    def test_recorder_unsupported_query(self) -> None:
-
-        # Cover case of lock time being non-zero.
-        with PostgresDatastore(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="eventsourcing",  # noqa: S106
-        ) as datastore:
-            recorder = PostgresDCBRecorderTT(datastore)
-            recorder.create_table()
-            recorder.append([DCBEvent(type="t1", data=b"", tags=["t2", "t3"])])
-
-            with self.assertRaises(ProgrammingError) as cm:
-                recorder.read(DCBQuery(items=[DCBQueryItem(types=["t1", "t2"])]))
-
-            self.assertIn("Unsupported query", str(cm.exception))
-
-
-class TestPostgresTTDCBFactory(TestCase):
-    def tearDown(self) -> None:
-        drop_tables()
-
-    def test_factory(self) -> None:
-        env = {
-            "PERSISTENCE_MODULE": "eventsourcing.postgres",
-            "POSTGRES_DBNAME": "eventsourcing",
-            "POSTGRES_HOST": "127.0.0.1",
-            "POSTGRES_USER": "eventsourcing",
-            "POSTGRES_PASSWORD": "eventsourcing",
-        }
-        factory = PostgresTTDCBFactory(env=env)
-
-        # create table is false
-        factory.env["CREATE_TABLE"] = "f"
-        recorder = factory.dcb_recorder()
-        with self.assertRaises(ProgrammingError):
-            recorder.read()

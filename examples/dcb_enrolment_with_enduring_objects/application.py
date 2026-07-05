@@ -11,9 +11,9 @@ from eventsourcing.dcb.domain import (
     EnduringObject,
     Group,
 )
-from eventsourcing.dcb.msgpack import (
+from eventsourcing.dcb.msgspec import (
     Decision,
-    MessagePackMapper,
+    MsgspecMapper,
 )
 from eventsourcing.domain import event
 from eventsourcing.utils import get_topic
@@ -153,9 +153,9 @@ class StudentAndCourse(Group[Decision]):
         )
 
 
-class EnrolmentWithEnduringObjects(DCBApplication, EnrolmentInterface):
+class EnrolmentWithEnduringObjects(DCBApplication[Decision], EnrolmentInterface):
     env: Mapping[str, str] = {
-        "MAPPER_TOPIC": get_topic(MessagePackMapper),
+        "MAPPER_TOPIC": get_topic(MsgspecMapper),
         **DCBApplication.env,
     }
 

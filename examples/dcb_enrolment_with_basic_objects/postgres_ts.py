@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NamedTuple, TypedDict
 
 from psycopg.sql import SQL, Identifier
+from psycopg.types.json import Jsonb
 
 from eventsourcing.dcb.api import (
     DCBAppendCondition,
@@ -18,6 +19,7 @@ from eventsourcing.dcb.persistence import (
     DCBInfrastructureFactory,
 )
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
+from eventsourcing.domain import NIL_UUID_STR
 from eventsourcing.persistence import IntegrityError, ProgrammingError
 from eventsourcing.postgres import (
     BasePostgresFactory,
@@ -38,7 +40,9 @@ CREATE TYPE {schema}.{type_name} AS (
     type text,
     data bytea,
     tags text[],
-    text_vector tsvector
+    text_vector tsvector,
+    uuid text,
+    metadata jsonb
 )
 """)
 
@@ -48,7 +52,9 @@ CREATE TABLE IF NOT EXISTS {schema}.{table_name} (
     type text NOT NULL ,
     data bytea,
     tags text[] NOT NULL,
-    text_vector tsvector
+    text_vector tsvector,
+    uuid text,
+    metadata jsonb
 ) WITH (
   autovacuum_enabled = true,
   autovacuum_vacuum_threshold = 100000000,  -- Effectively disables VACUUM
@@ -79,7 +85,9 @@ RETURNS TABLE (
     sequence_position bigint,
     type text,
     data bytea,
-    tags text[]
+    tags text[],
+    uuid text,
+    metadata jsonb
 )
 LANGUAGE plpgsql
 STABLE
@@ -95,14 +103,15 @@ BEGIN
     INTO max_pos;
 
     -- Return the max position as the first row
-    RETURN QUERY SELECT max_pos, NULL::text, NULL::bytea, NULL::text[];
+    RETURN QUERY SELECT max_pos, NULL::text, NULL::bytea,
+    NULL::text[], NULL::text, NULL::jsonb;
 
     IF text_query <> '' THEN
        -- There's a text query...
         IF after is NULL THEN
             -- For initial command query - no 'after'
             RETURN QUERY
-            SELECT t.sequence_position, t.type, t.data, t.tags
+            SELECT t.sequence_position, t.type, t.data, t.tags, t.uuid, t.metadata
             FROM {schema}.{table} t
             WHERE t.text_vector @@ text_query
             ORDER BY t.sequence_position ASC
@@ -110,7 +119,7 @@ BEGIN
         ELSE
             -- More unusual to get here - 'text_query' and 'after'
             RETURN QUERY
-            SELECT t.sequence_position, t.type, t.data, t.tags
+            SELECT t.sequence_position, t.type, t.data, t.tags, t.uuid, t.metadata
             FROM {schema}.{table} t
             WHERE t.text_vector @@ text_query
             AND t.sequence_position > COALESCE(after, 0)
@@ -120,7 +129,7 @@ BEGIN
     ELSE
         -- For propagating the state of an application...
         RETURN QUERY
-        SELECT t.sequence_position, t.type, t.data, t.tags
+        SELECT t.sequence_position, t.type, t.data, t.tags, t.uuid, t.metadata
         FROM {schema}.{table} t
         WHERE t.sequence_position > COALESCE(after, 0)
         ORDER BY t.sequence_position ASC
@@ -192,8 +201,8 @@ AS
 $BODY$
 BEGIN
     RETURN QUERY
-    INSERT INTO {schema}.{table} AS t (type, data, tags, text_vector)
-    SELECT type, data, tags, text_vector FROM unnest(events)
+    INSERT INTO {schema}.{table} AS t (type, data, tags, text_vector, uuid, metadata)
+    SELECT type, data, tags, text_vector, uuid, metadata FROM unnest(events)
     RETURNING t.sequence_position;
 END;
 $BODY$
@@ -336,6 +345,8 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
                         type=row["type"],
                         data=row["data"],
                         tags=row["tags"],
+                        uuid=row["uuid"] or NIL_UUID_STR,
+                        metadata=row["metadata"] or {},
                     ),
                     position=row["sequence_position"],
                 )
@@ -369,6 +380,8 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
                 type=event.type,
                 data=event.data,
                 tags=event.tags,
+                uuid=event.uuid,
+                metadata=event.metadata,
             )
             for event in events
         ]
@@ -440,9 +453,16 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
         type: str,  # noqa: A002
         data: bytes,
         tags: list[str],
+        uuid: str,
+        metadata: dict[str, str],
     ) -> PgDCBEvent:
         return self.datastore.psycopg_python_types[PG_TYPE_NAME_DCB_EVENT_TS](
-            type, data, tags, self.construct_text_vector(type, tags)
+            type,
+            data,
+            tags,
+            self.construct_text_vector(type, tags),
+            uuid,
+            Jsonb(metadata),
         )
 
 
@@ -451,6 +471,8 @@ class PgDCBEvent(NamedTuple):
     data: bytes
     tags: list[str]
     text_vector: str
+    uuid: str
+    metadata: dict[str, str]
 
 
 class PgDCBEventRow(TypedDict):
@@ -458,6 +480,8 @@ class PgDCBEventRow(TypedDict):
     type: str
     data: bytes
     tags: list[str]
+    uuid: str
+    metadata: dict[str, str]
 
 
 class PostgresTSDCBFactory(

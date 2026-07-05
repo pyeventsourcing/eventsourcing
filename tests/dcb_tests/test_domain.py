@@ -5,19 +5,19 @@ from unittest import TestCase
 from eventsourcing.dcb.dataclasses import Decision
 from eventsourcing.dcb.domain import (
     EnduringObject,
+    Event,
     Group,
     Selector,
     Slice,
-    Tagged,
 )
-from eventsourcing.domain import ProgrammingError, event
+from eventsourcing.domain import ProgrammingError, triggers
 
 
 class TestEnduringObject(TestCase):
     def test_raises_if_missing_init_method(self) -> None:
         with self.assertRaises(ProgrammingError) as cm:
 
-            class Obj(EnduringObject):
+            class Obj(EnduringObject[Decision]):
                 pass
 
         self.assertIn("has no __init__ method", str(cm.exception))
@@ -25,7 +25,7 @@ class TestEnduringObject(TestCase):
     def test_raises_if_init_method_not_decorated(self) -> None:
         with self.assertRaises(ProgrammingError) as cm:
 
-            class Obj(EnduringObject):
+            class Obj(EnduringObject[Decision]):
                 def __init__(self) -> None:
                     pass
 
@@ -36,8 +36,8 @@ class TestEnduringObject(TestCase):
         class ObjCreated(Decision):
             obj_id: str
 
-        class Obj(EnduringObject):
-            @event(ObjCreated)
+        class Obj(EnduringObject[Decision]):
+            @triggers(ObjCreated)
             def __init__(self, obj_id: str):
                 self.id = obj_id
 
@@ -46,13 +46,13 @@ class TestEnduringObject(TestCase):
 
         pending = my_obj.collect_events()
         self.assertEqual(len(pending), 1)
-        tagged = pending[0]
-        self.assertIsInstance(tagged, Tagged)
-        self.assertIsInstance(tagged.decision, ObjCreated)
-        self.assertEqual(tagged.decision.obj_id, "blah")
+        event = pending[0]
+        self.assertIsInstance(event, Event)
+        self.assertIsInstance(event.decision, ObjCreated)
+        self.assertEqual(event.decision.obj_id, "blah")
 
         copy = Obj.__new__(Obj)
-        copy = tagged.decision.mutate(copy)
+        copy = event.decision.mutate(copy)
         self.assertEqual(copy.id, "blah")
 
     def test_enduring_object_with_decorated_command(self) -> None:
@@ -64,13 +64,13 @@ class TestEnduringObject(TestCase):
         class ObjUpdated(Decision):
             a: str
 
-        class Obj(EnduringObject):
-            @event(ObjCreated)
+        class Obj(EnduringObject[Decision]):
+            @triggers(ObjCreated)
             def __init__(self, obj_id: str):
                 self.id = obj_id
                 self.a = ""
 
-            @event(ObjUpdated)
+            @triggers(ObjUpdated)
             def set_a(self, a: str) -> None:
                 self.a = a
 
@@ -82,10 +82,10 @@ class TestEnduringObject(TestCase):
 
         pending = my_obj.collect_events()
         self.assertEqual(len(pending), 2)
-        tagged = pending[1]
-        self.assertIsInstance(tagged, Tagged)
-        self.assertIsInstance(tagged.decision, ObjUpdated)
-        self.assertEqual(tagged.decision.a, "a")
+        event = pending[1]
+        self.assertIsInstance(event, Event)
+        self.assertIsInstance(event.decision, ObjUpdated)
+        self.assertEqual(event.decision.a, "a")
 
         copy = Obj.__new__(Obj)
         copy = pending[0].decision.mutate(copy)
@@ -104,7 +104,7 @@ class TestGroup(TestCase):
         class BothUpdated(Decision):
             a: str
 
-        class Obj1(EnduringObject):
+        class Obj1(EnduringObject[Decision]):
             @dataclass
             class Created(Decision):
                 obj1_id: str
@@ -114,39 +114,39 @@ class TestGroup(TestCase):
             class Updated(Decision):
                 a: str
 
-            @event(Created)
+            @triggers(Created)
             def __init__(self, obj1_id: str, a: str) -> None:
                 self.id = obj1_id
                 self.a = a
 
-            @event(Updated)
+            @triggers(Updated)
             def set_a(self, a: str) -> None:
                 self.a = a
 
-            @event(BothUpdated)
+            @triggers(BothUpdated)
             def _(self, a: str) -> None:
                 self.a = a
 
-        class Obj2(EnduringObject):
+        class Obj2(EnduringObject[Decision]):
             @dataclass
             class Created(Decision):
                 obj2_id: str
                 a: str
 
-            @event(Created)
+            @triggers(Created)
             def __init__(self, obj2_id: str, a: str) -> None:
                 self.id = obj2_id
                 self.a = a
 
-            @event(Updated)
+            @triggers(Updated)
             def set_a(self, a: str) -> None:
                 self.a = a
 
-            @event(BothUpdated)
+            @triggers(BothUpdated)
             def _(self, a: str) -> None:
                 self.a = a
 
-        class MyGroup(Group):
+        class MyGroup(Group[Decision]):
             def __init__(self, obj1: Obj1, obj2: Obj2) -> None:
                 self.obj1 = obj1
                 self.obj2 = obj2
@@ -166,16 +166,16 @@ class TestGroup(TestCase):
         new_both = group.collect_events()
 
         copy1 = Obj1.__new__(Obj1)
-        for tagged in list(new1) + list(new_both):
-            copy1 = tagged.decision.mutate(copy1)
+        for event in list(new1) + list(new_both):
+            copy1 = event.decision.mutate(copy1)
 
         self.assertIsInstance(copy1, Obj1)
         assert isinstance(copy1, Obj1)  # for mypy
         self.assertEqual("3", copy1.a)
 
         copy2 = Obj2.__new__(Obj2)
-        for tagged in list(new2) + list(new_both):
-            copy2 = tagged.decision.mutate(copy2)
+        for event in list(new2) + list(new_both):
+            copy2 = event.decision.mutate(copy2)
 
         self.assertIsInstance(copy2, Obj2)
         assert isinstance(copy2, Obj2)  # for mypy
@@ -192,13 +192,15 @@ class TestSlice(TestCase):
         class Updated(Decision):
             a: str
 
-        class Create(Slice):
+        class Create(Slice[Decision]):
             def __init__(self, obj_id: str, a: str) -> None:
                 self.obj_id = obj_id
                 self.a = a
 
-            def consistency_boundary(self) -> Selector | Sequence[Selector]:
-                return Selector(types=type(self).projected_types, tags=[self.obj_id])
+            def consistency_boundary(
+                self,
+            ) -> Selector[Decision] | Sequence[Selector[Decision]]:
+                return Selector(types=[Created], tags=[self.obj_id])
 
             def execute(self) -> None:
                 self.trigger_event(
@@ -207,20 +209,22 @@ class TestSlice(TestCase):
                     a=self.a,
                 )
 
-        class Update(Slice):
+        class Update(Slice[Decision]):
             def __init__(self, obj_id: str, a: str):
                 self.obj_id = obj_id
                 self.a = ""
                 self.new_a = a
 
-            def consistency_boundary(self) -> Selector | Sequence[Selector]:
-                return Selector(types=type(self).projected_types, tags=[self.obj_id])
+            def consistency_boundary(
+                self,
+            ) -> Selector[Decision] | Sequence[Selector[Decision]]:
+                return Selector(types=[Created, Updated], tags=[self.obj_id])
 
-            @event(Created)
+            @triggers(Created)
             def _(self, a: str) -> None:
                 self.a = a
 
-            @event(Updated)
+            @triggers(Updated)
             def _(self, a: str) -> None:
                 self.a = a
 
@@ -237,8 +241,8 @@ class TestSlice(TestCase):
         new = create.collect_events()
 
         update = Update(obj_id=obj_id, a="2")
-        for tagged in new:
-            tagged.decision.mutate(update)
+        for event in new:
+            event.decision.mutate(update)
 
         self.assertEqual("1", update.a)
         self.assertEqual("2", update.new_a)
@@ -249,8 +253,8 @@ class TestSlice(TestCase):
 
         new = update.collect_events()
 
-        for tagged in new:
-            tagged.decision.mutate(update)
+        for event in new:
+            event.decision.mutate(update)
 
         self.assertEqual("2", update.a)
         self.assertEqual("2", update.new_a)
@@ -269,30 +273,34 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
             class Updated(Decision):
                 a: str
 
-            @event(Created)
+            @triggers(Created)
             def __init__(self, myobject_id: str, a: str) -> None:
                 self.id = myobject_id
                 self.a = a
 
-            @event(Updated)
+            @triggers(Updated)
             def set_a(self, a: str) -> None:
                 self.a = a
 
         # Define a slice that will just update "a".
-        class Update(Slice):
+        class Update(Slice[Decision]):
             def __init__(self, obj_id: str, a: str):
                 self.obj_id = obj_id
                 self.a = ""
                 self.new_a = a
 
-            def consistency_boundary(self) -> Selector | Sequence[Selector]:
-                return Selector(types=type(self).projected_types, tags=[self.obj_id])
+            def consistency_boundary(
+                self,
+            ) -> Selector[Decision] | Sequence[Selector[Decision]]:
+                return Selector(
+                    types=[MyObject.Created, MyObject.Updated], tags=[self.obj_id]
+                )
 
-            @event(MyObject.Created)
+            @triggers(MyObject.Created)
             def _(self, a: str) -> None:
                 self.a = a
 
-            @event(MyObject.Updated)
+            @triggers(MyObject.Updated)
             def _(self, a: str) -> None:
                 self.a = a
 
@@ -313,28 +321,30 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
 
         # Construct a slice and update "a".
         update = Update(obj.id, a="3")
-        for tagged in new:
-            tagged.decision.mutate(update)
+        for event in new:
+            event.decision.mutate(update)
         update.execute()
         self.assertEqual("3", update.a)
         new.extend(update.collect_events())
 
         # Reconstruct enduring object from all new events.
         copy1 = MyObject.__new__(MyObject)
-        for tagged in new:
-            copy1 = tagged.decision.mutate(copy1)
+        for event in new:
+            copy1 = event.decision.mutate(copy1)
 
         self.assertIsInstance(copy1, MyObject)
         assert isinstance(copy1, MyObject)  # for mypy
         self.assertEqual("3", copy1.a)
 
         # Define a slice that creates an enduring object.
-        class Create(Slice):
+        class Create(Slice[Decision]):
             def __init__(self, obj_id: str, a: str):
                 self.obj_id = obj_id
                 self.a = a
 
-            def consistency_boundary(self) -> Selector | Sequence[Selector]:
+            def consistency_boundary(
+                self,
+            ) -> Selector[Decision] | Sequence[Selector[Decision]]:
                 return Selector(types=[MyObject.Created], tags=[self.obj_id])
 
             def execute(self) -> None:
@@ -350,8 +360,8 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         new = list(create.collect_events())
 
         copy2 = MyObject.__new__(MyObject)
-        for tagged in new:
-            copy2 = tagged.decision.mutate(copy2)
+        for event in new:
+            copy2 = event.decision.mutate(copy2)
 
         self.assertIsInstance(copy2, MyObject)
         assert isinstance(copy2, MyObject)  # for mypy

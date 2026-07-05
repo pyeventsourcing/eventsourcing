@@ -13,14 +13,14 @@ from eventsourcing.application import (
     ProcessingEvent,
 )
 from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.dcb.domain import EnduringObject, Tagged
-from eventsourcing.dcb.msgpack import Decision
+from eventsourcing.dcb.domain import EnduringObject, Event
+from eventsourcing.dcb.msgspec import Decision
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import (
     Aggregate,
     DomainEventProtocol,
-    event,
     put_metadata_in_context,
+    triggers,
 )
 from eventsourcing.persistence import (
     IntegrityError,
@@ -45,7 +45,7 @@ class Counter(Aggregate):
     def create_id(cls, name: str) -> UUID:
         return uuid5(NAMESPACE_URL, f"/counters/{name}")
 
-    @event("Incremented")
+    @triggers("Incremented")
     def increment(self) -> None:
         self.count += 1
 
@@ -183,12 +183,12 @@ class Thing(EnduringObject[Decision, str]):
     class Created(Decision):
         thing_id: str
 
-    @event(Created)
+    @triggers(Created)
     def __init__(self, thing_id: str) -> None:
         self.id = thing_id
 
 
-class TaggedDecisionCountersProjection(Projection[EventCountersView]):
+class DecisionCountersProjection(Projection[EventCountersView]):
     name = "eventcounters"
     topics: tuple[str, ...] = (
         get_topic(Thing.Created),
@@ -197,8 +197,8 @@ class TaggedDecisionCountersProjection(Projection[EventCountersView]):
     )
 
     @singledispatchmethod
-    def process_event(self, tagged: Tagged[Decision], tracking: Tracking) -> None:
-        self.process_decision(tagged.decision, tracking)
+    def process_event(self, event: Event[Decision], tracking: Tracking) -> None:
+        self.process_decision(event.decision, tracking)
 
     @singledispatchmethod
     def process_decision(self, _: Decision, tracking: Tracking) -> None:
@@ -321,7 +321,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
                 )
 
 
-class TaggedDecisionCountersProjectionTestCase(TestCase, ABC):
+class DecisionCountersProjectionTestCase(TestCase, ABC):
     view_class: type[EventCountersView]
     env: ClassVar[dict[str, str]]
 
@@ -330,7 +330,7 @@ class TaggedDecisionCountersProjectionTestCase(TestCase, ABC):
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=DCBApplication,
-            projection_class=TaggedDecisionCountersProjection,
+            projection_class=DecisionCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
@@ -376,7 +376,7 @@ class TaggedDecisionCountersProjectionTestCase(TestCase, ABC):
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=DCBApplication,
-            projection_class=TaggedDecisionCountersProjection,
+            projection_class=DecisionCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ) as runner:

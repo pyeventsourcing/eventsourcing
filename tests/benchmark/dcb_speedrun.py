@@ -6,7 +6,7 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, Any, cast
 
-from eventsourcing_umadb.recorders import UmaDBDCBRecorder
+from eventsourcing_umadb.recorders import UmaDbDCBRecorder
 from psycopg.sql import SQL, Identifier
 
 from eventsourcing.application import Application
@@ -210,7 +210,7 @@ def count_events(app: EnrolmentInterface) -> int:
             with datastore.get_connection() as conn:
                 result = conn.execute(statement).fetchone()
                 count = result["count"] if result is not None else 0
-        elif isinstance(recorder, UmaDBDCBRecorder):
+        elif isinstance(recorder, UmaDbDCBRecorder):
             count = recorder.umadb.head() or 0
         else:
             assert isinstance(recorder, InMemoryDCBRecorder)

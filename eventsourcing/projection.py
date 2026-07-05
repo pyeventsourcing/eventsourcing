@@ -6,7 +6,6 @@ import threading
 import weakref
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
-from threading import Event, Thread
 from traceback import format_exc
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, get_origin
 from warnings import warn
@@ -14,7 +13,7 @@ from warnings import warn
 from eventsourcing.application import Application, ProcessingEvent
 from eventsourcing.dcb.api import DCBQuery, DCBQueryItem
 from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.dcb.domain import Decision, Tagged
+from eventsourcing.dcb.domain import Decision, Event
 from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import (
     DomainEventProtocol,
@@ -97,17 +96,17 @@ class ApplicationSubscription(
             self.stop()
 
 
-class DCBApplicationSubscription(Iterator[tuple[Tagged[Decision], Tracking]]):
-    """An iterator that yields all tagged decisions recorded in an application
+class DCBApplicationSubscription(Iterator[tuple[Event[Decision], Tracking]]):
+    """An iterator that yields all events recorded in an application
     sequence that have sequence numbers greater than a given value. The iterator
-    will block when all tagged decisions have been yielded, and then
-    continue when new ones are recorded. Tagged decisions are returned along
+    will block when all events have been yielded, and then
+    continue when new ones are recorded. Events are returned along
     with tracking objects that identify the position in the application sequence.
     """
 
     def __init__(
         self,
-        app: DCBApplication,
+        app: DCBApplication[Decision],
         gt: int | None = None,
         topics: Sequence[str] = (),
     ):
@@ -138,18 +137,18 @@ class DCBApplicationSubscription(Iterator[tuple[Tagged[Decision], Tracking]]):
     def __iter__(self) -> Self:
         return self
 
-    def __next__(self) -> tuple[Tagged[Decision], Tracking]:
+    def __next__(self) -> tuple[Event[Decision], Tracking]:
         """Returns the next stored event from subscription to the application's
         recorder. Constructs a tracking object that identifies the position of
         the event in the application sequence. Constructs a domain event object
         from the stored event object using the application's mapper. Returns a
         tuple of the domain event object and the tracking object.
         """
-        sequenced_event = next(self.subscription)
-        tracking = Tracking(self.name, sequenced_event.position)
+        sequenced = next(self.subscription)
+        tracking = Tracking(self.name, sequenced.position)
         with null_metadata_in_context():
-            tagged_decision = self.mapper.to_domain_event(sequenced_event.event)
-        return tagged_decision, tracking
+            event = self.mapper.to_domain_event(sequenced.event)
+        return event, tracking
 
     def __del__(self) -> None:
         """Stops the stored event subscription."""
@@ -275,7 +274,7 @@ class BaseProjectionRunner(Generic[TApplication]):
         env: EnvType | None = None,
     ) -> None:
         self._projection = projection
-        self._is_interrupted = Event()
+        self._is_interrupted = threading.Event()
         self._has_called_stop = False
 
         self._tracking_recorder = tracking_recorder
@@ -312,7 +311,7 @@ class BaseProjectionRunner(Generic[TApplication]):
 
         # Start a thread to stop the subscription when the runner is interrupted.
         self._thread_error: BaseException | None = None
-        self._stop_thread = Thread(
+        self._stop_thread = threading.Thread(
             target=self._stop_subscription_when_stopping,
             kwargs={
                 "subscription": self._subscription,
@@ -322,7 +321,7 @@ class BaseProjectionRunner(Generic[TApplication]):
         self._stop_thread.start()
 
         # Start a thread to iterate over the subscription.
-        self._processing_thread = Thread(
+        self._processing_thread = threading.Thread(
             target=self._process_events_loop,
             kwargs={
                 "subscription": self._subscription,
@@ -334,7 +333,7 @@ class BaseProjectionRunner(Generic[TApplication]):
         self._processing_thread.start()
 
     @property
-    def is_interrupted(self) -> Event:
+    def is_interrupted(self) -> threading.Event:
         return self._is_interrupted
 
     @staticmethod
@@ -354,7 +353,7 @@ class BaseProjectionRunner(Generic[TApplication]):
     @staticmethod
     def _stop_subscription_when_stopping(
         subscription: ApplicationSubscription[TAggregateID],
-        is_stopping: Event,
+        is_stopping: threading.Event,
     ) -> None:
         """Stops the application subscription, which
         will stop the event-processing thread.
@@ -369,7 +368,7 @@ class BaseProjectionRunner(Generic[TApplication]):
     def _process_events_loop(
         subscription: ApplicationSubscription[TAggregateID],
         projection: EventSourcedProjection[Any] | Projection[Any],
-        is_stopping: Event,
+        is_stopping: threading.Event,
         runner: weakref.ReferenceType[
             ProjectionRunner[Application[Any], TrackingRecorder]
         ],

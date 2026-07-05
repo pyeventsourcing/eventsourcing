@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 from psycopg.generators import notifies
 from psycopg.sql import SQL, Composed, Identifier
+from psycopg.types.json import Jsonb
 
 from eventsourcing.dcb.api import (
     DCBAppendCondition,
@@ -20,6 +21,7 @@ from eventsourcing.dcb.persistence import (
     DCBListenNotifySubscription,
 )
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
+from eventsourcing.domain import NIL_UUID_STR
 from eventsourcing.persistence import IntegrityError, InternalError, ProgrammingError
 from eventsourcing.postgres import (
     NO_TRACEBACK,
@@ -43,7 +45,8 @@ CREATE TYPE {schema}.{event_type} AS (
     type text,
     data bytea,
     tags text[],
-    uuid text
+    uuid text,
+    metadata jsonb
 )
 """)
 
@@ -62,7 +65,8 @@ CREATE TABLE IF NOT EXISTS {schema}.{events_table} (
     type text NOT NULL,
     data bytea,
     tags text[] NOT NULL,
-    uuid text NOT NULL
+    uuid text,
+    metadata jsonb
 ) WITH (
   autovacuum_enabled = true,
   autovacuum_vacuum_threshold = 100000000,  -- Effectively disables VACUUM
@@ -183,8 +187,8 @@ BEGIN
         SELECT * FROM unnest(new_events)
     ),
     inserted AS (
-        INSERT INTO {schema}.{events_table} (type, data, tags, uuid)
-        SELECT type, data, tags, uuid
+        INSERT INTO {schema}.{events_table} (type, data, tags, uuid, metadata)
+        SELECT type, data, tags, uuid, metadata
         FROM new_data
         RETURNING id, tags
     ),
@@ -277,8 +281,8 @@ BEGIN
             SELECT * FROM unnest(new_events)
         ),
         inserted AS (
-            INSERT INTO {schema}.{events_table} (type, data, tags, uuid)
-            SELECT type, data, tags, uuid
+            INSERT INTO {schema}.{events_table} (type, data, tags, uuid, metadata)
+            SELECT type, data, tags, uuid, metadata
             FROM new_data
             RETURNING id, tags
         ),
@@ -472,7 +476,8 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
                     type=row["type"],
                     data=row["data"],
                     tags=row["tags"],
-                    uuid=row["uuid"],
+                    uuid=row["uuid"] or NIL_UUID_STR,
+                    metadata=row["metadata"] or {},
                 ),
                 position=row["id"],
             )
@@ -583,6 +588,7 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
                 data=e.data,
                 tags=e.tags,
                 uuid=e.uuid,
+                metadata=Jsonb(e.metadata),
             )
             for e in dcb_events
         ]

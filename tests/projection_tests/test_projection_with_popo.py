@@ -4,13 +4,13 @@ import sys
 from typing import TYPE_CHECKING, ClassVar
 from unittest import skipIf
 
-from eventsourcing.dcb.msgpack import MessagePackMapper
+from eventsourcing.dcb.msgspec import MsgspecMapper
 from eventsourcing.popo import POPOTrackingRecorder
 from eventsourcing.tests.projection import (
     AggregateEventCountersProjectionTestCase,
+    DecisionCountersProjectionTestCase,
     EventCountersView,
     EventCountersViewTestCase,
-    TaggedDecisionCountersProjectionTestCase,
 )
 from eventsourcing.utils import get_topic
 
@@ -59,14 +59,12 @@ class TestAggregateEventCountersProjectionWithPOPO(
 #  - was happening when run alone when DCBSpannerThrown has no attributes
 #  - maybe something to do with deepcopy() in InMemoryRecorder?
 @skipIf(sys.version_info[0:2] == (3, 13), "Weird occasional segmentation violation")
-class TestTaggedDecisionCountersProjectionWithPOPO(
-    TaggedDecisionCountersProjectionTestCase
-):
+class TestDecisionCountersProjectionWithPOPO(DecisionCountersProjectionTestCase):
 
-    env: ClassVar[dict[str, str]] = {"MAPPER_TOPIC": get_topic(MessagePackMapper)}
+    env: ClassVar[dict[str, str]] = {"MAPPER_TOPIC": get_topic(MsgspecMapper)}
     view_class: type[EventCountersView] = POPOEventCounters
 
 
-del TaggedDecisionCountersProjectionTestCase
+del DecisionCountersProjectionTestCase
 del AggregateEventCountersProjectionTestCase
 del EventCountersViewTestCase
