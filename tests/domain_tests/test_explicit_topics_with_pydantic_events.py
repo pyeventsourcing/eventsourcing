@@ -43,7 +43,7 @@ class UncallableMetaAggregate(MetaAggregate[Any]):
 
 
 class CreatedEvent(DomainEvent, CanInitAggregate[UUID]):
-    originator_topic: str
+    pass
 
 
 class Aggregate(BaseAggregate, metaclass=UncallableMetaAggregate):

@@ -118,19 +118,6 @@ class TestBaseAggregate(TestCase):
         self.assertEqual(a.pending_events[0].originator_id, a.id)
         self.assertEqual(a.pending_events[0].originator_version, 1)
 
-        # Raises TypeError if event class can't be constructed.
-        with self.assertRaises(TypeError) as cm:
-            a = Aggregate._create(event_class=Aggregate.Event)  # type: ignore[arg-type]
-
-        self.assertTrue(
-            str(cm.exception).startswith(
-                f"Unable to construct 'Aggregate.Event' event: "
-                f"{get_method_name(Aggregate.Event.__init__)}() got an "
-                "unexpected keyword argument 'originator_topic'",
-            ),
-            str(cm.exception),
-        )
-
         # Raises type error if event class can't be constructed.
         with self.assertRaises(TypeError) as cm:
             a.trigger_event(Aggregate.Event, b=23)
@@ -818,7 +805,7 @@ class TestBaseAggregate(TestCase):
                 pass
 
             class Created(Event, CanInitAggregate[UUID]):
-                originator_topic: str
+                pass
 
         class ExtendedShared(SharedPydantic):
             task_id: str
@@ -867,7 +854,7 @@ class TestBaseAggregate(TestCase):
 
             @dataclass(frozen=True)
             class Created(Event, CanInitAggregate[UUID]):
-                originator_topic: str
+                pass
 
         @dataclass(frozen=True)
         class ExtendedShared(SharedDataclass):

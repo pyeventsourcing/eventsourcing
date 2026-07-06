@@ -50,7 +50,7 @@ class Aggregate(BaseAggregate[TAggregateID]):
         pass
 
     class Created(Event[TAggregateID], CanInitAggregate[TAggregateID]):
-        originator_topic: str
+        pass
 
     class Snapshot(AggregateSnapshot[TAggregateID]):
         topic: str

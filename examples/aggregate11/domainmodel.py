@@ -51,7 +51,7 @@ class Aggregate(BaseAggregate[str]):
 
     @dataclass(frozen=True, kw_only=True)
     class Created(Event, CanInitAggregate[str]):
-        originator_topic: str
+        pass
 
 
 class Dog(Aggregate):

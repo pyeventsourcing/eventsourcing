@@ -422,14 +422,37 @@ class CanMutateAggregate(HasOriginatorIDVersion[TAggregateID]):
         """
         assert aggregate is not None
 
-        # Check this event belongs to this aggregate.
-        if self.originator_id != aggregate.id:
-            raise OriginatorIDError(self.originator_id, aggregate.id)
+        if not hasattr(aggregate, "id"):
+            self_dict = self._as_dict()
+            base_kwargs = filter_kwargs_for_method_params(
+                self_dict, type(aggregate).__base_init__
+            )
 
-        # Check this event is the next in its sequence.
-        next_version = aggregate.version + 1
-        if self.originator_version != next_version:
-            raise OriginatorVersionError(self.originator_version, next_version)
+            # Call the base class init method (so we don't need to always write
+            # a call to super().__init__() in every aggregate __init__() method).
+            aggregate.__base_init__(**base_kwargs)
+
+            # Pick out event attributes for aggregate subclass class init method.
+            init_kwargs = filter_kwargs_for_method_params(
+                self_dict, type(aggregate).__init__
+            )
+
+            # Provide the aggregate id, if the __init__ method expects it.
+            if type(aggregate) in _init_mentions_id:
+                init_kwargs["id"] = self_dict["originator_id"]
+
+            # Call the aggregate subclass class init method.
+            aggregate.__init__(**init_kwargs)  # type: ignore[misc]
+
+        # Check this event belongs to this aggregate.
+        else:
+            if self.originator_id != aggregate.id:
+                raise OriginatorIDError(self.originator_id, aggregate.id)
+
+            # Check this event is the next in its sequence.
+            next_version = aggregate.version + 1
+            if self.originator_version != next_version:
+                raise OriginatorVersionError(self.originator_version, next_version)
 
         # Call apply() before mutating values, in case exception is raised.
         self.apply(aggregate)
@@ -460,51 +483,6 @@ class CanInitAggregate(CanMutateAggregate[TAggregateID]):
     """Implements a :func:`~eventsourcing.domain.CanMutateAggregate.mutate`
     method that constructs the initial state of an aggregate.
     """
-
-    originator_topic: str
-    """String describing the path to an aggregate class."""
-
-    def mutate(self, aggregate: TAggregate | None) -> TAggregate | None:
-        """Constructs an aggregate instance according to the attributes of an event.
-
-        The ``aggregate`` argument is typed as an optional argument, but the
-        value is expected to be ``None``.
-        """
-        assert aggregate is not None
-        #
-        # # Resolve originator topic.
-        # aggregate_class: type[TAggregate] = resolve_topic(self.originator_topic)
-        #
-        # # Construct an aggregate object (a "shell" of the correct object type).
-        # agg = aggregate_class.__new__(aggregate_class)
-
-        # Pick out event attributes for the aggregate base class init method.
-        self_dict = self._as_dict()
-        base_kwargs = filter_kwargs_for_method_params(
-            self_dict, type(aggregate).__base_init__
-        )
-
-        # Call the base class init method (so we don't need to always write
-        # a call to super().__init__() in every aggregate __init__() method).
-        aggregate.__base_init__(**base_kwargs)
-
-        # Pick out event attributes for aggregate subclass class init method.
-        init_kwargs = filter_kwargs_for_method_params(
-            self_dict, type(aggregate).__init__
-        )
-
-        # Provide the aggregate id, if the __init__ method expects it.
-        if type(aggregate) in _init_mentions_id:
-            init_kwargs["id"] = self_dict["originator_id"]
-
-        # Call the aggregate subclass class init method.
-        aggregate.__init__(**init_kwargs)  # type: ignore[misc]
-
-        # Call the event apply method (alternative to using __init__())
-        self.apply(aggregate)
-
-        # Return the constructed and initialised aggregate object.
-        return aggregate
 
 
 class MetaDomainEvent(EventsourcingType):
@@ -675,18 +653,12 @@ class GenericAggregateEvent(
 class AggregateCreated(CanInitAggregate[UUID], AggregateEvent):
     """Frozen data class representing the initial creation of an aggregate."""
 
-    originator_topic: str
-    """String describing the path to an aggregate class."""
-
 
 @dataclass(frozen=True, kw_only=True)
 class GenericAggregateCreated(
     CanInitAggregate[TAggregateID], GenericAggregateEvent[TAggregateID]
 ):
     """Frozen data class representing the initial creation of an aggregate."""
-
-    originator_topic: str
-    """String describing the path to an aggregate class."""
 
 
 class EventSourcingError(Exception):
@@ -1563,7 +1535,6 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
         # Impose the required common "created" event attribute values.
         kwargs = kwargs.copy()
         kwargs.update(
-            originator_topic=get_topic(cls),
             originator_id=originator_id,
             event_id=uuid4(),
             originator_version=cls.INITIAL_VERSION,

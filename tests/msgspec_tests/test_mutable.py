@@ -174,7 +174,6 @@ class MutableAggregateTestCase(TestCase, Generic[_T, TAggregateID]):
         event = self.cls_under_test.Started(
             originator_id=self.create_originator_id(),
             originator_version=2,
-            originator_topic=get_topic(self.cls_under_test),
             timestamp=datetime_now_with_tzinfo(),
             a=1,
         )

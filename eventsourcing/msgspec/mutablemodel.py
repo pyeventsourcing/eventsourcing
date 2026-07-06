@@ -82,7 +82,7 @@ class Aggregate(BaseAggregate[TAggregateID]):
             return {key: getattr(self, key) for key in self.__struct_fields__}
 
     class Created(Event[TAggregateID], CanInitAggregate[TAggregateID]):
-        originator_topic: str
+        pass
 
     class Snapshot(AggregateSnapshot[TAggregateID]):
         pass
