@@ -94,10 +94,10 @@ class ContentManagement(Application):
         return self._get_page_by_id(page_id)
 
     def _get_page_by_id(self, page_id: UUID) -> Page:
-        return self.repository.get(page_id)
+        return self.repository.get(page_id, Page)
 
     def _get_slug(self, slug: str) -> Slug:
-        return self.repository.get(Slug.create_id(slug))
+        return self.repository.get(Slug.create_id(slug), Slug)
 
     def get_pages(
         self,

@@ -83,7 +83,7 @@ class Counters(EventSourcedProjection):
         topic = get_topic(type(domain_event))
         try:
             counter_id = Counter.create_id(topic)
-            counter: Counter = self.repository.get(counter_id)
+            counter = self.repository.get(counter_id, Counter)
         except AggregateNotFoundError:
             counter = Counter(topic)
         counter.increment()
@@ -93,7 +93,7 @@ class Counters(EventSourcedProjection):
         topic = get_topic(domain_event_class)
         counter_id = Counter.create_id(topic)
         try:
-            counter: Counter = self.repository.get(counter_id)
+            counter = self.repository.get(counter_id, Counter)
         except AggregateNotFoundError:
             return 0
         return counter.count

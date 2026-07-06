@@ -1051,7 +1051,7 @@ class TestEventDecorator(TestCase):
         app = Application()
         app.save(order)  # type: ignore[arg-type]
 
-        copy: Order = app.repository.get(order.id)  # type: ignore[attr-defined]
+        copy = app.repository.get(order.id, Order)
 
         self.assertEqual(
             copy.confirmed_at,  # pyright: ignore [reportAttributeAccessIssue]
@@ -1547,7 +1547,7 @@ class TestOrder(TestCase):
 
         # Check the events determine the state correctly.
         pending_events = order.collect_events()
-        copy = None
+        copy = Order.__new__(Order)
         for e in pending_events:
             copy = e.mutate(copy)
 

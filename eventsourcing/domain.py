@@ -213,6 +213,10 @@ MutableOrImmutableAggregate = (
 """Type alias defining a union of mutable and immutable aggregate protocols."""
 
 
+TMutableAggregate = TypeVar("TMutableAggregate", bound=MutableAggregateProtocol[Any])
+"""Type variable bound by the mutable aggregate protocols."""
+
+
 TMutableOrImmutableAggregate = TypeVar(
     "TMutableOrImmutableAggregate", bound=MutableOrImmutableAggregate[Any]
 )
@@ -466,39 +470,41 @@ class CanInitAggregate(CanMutateAggregate[TAggregateID]):
         The ``aggregate`` argument is typed as an optional argument, but the
         value is expected to be ``None``.
         """
-        assert aggregate is None
-
-        # Resolve originator topic.
-        aggregate_class: type[TAggregate] = resolve_topic(self.originator_topic)
-
-        # Construct an aggregate object (a "shell" of the correct object type).
-        agg = aggregate_class.__new__(aggregate_class)
+        assert aggregate is not None
+        #
+        # # Resolve originator topic.
+        # aggregate_class: type[TAggregate] = resolve_topic(self.originator_topic)
+        #
+        # # Construct an aggregate object (a "shell" of the correct object type).
+        # agg = aggregate_class.__new__(aggregate_class)
 
         # Pick out event attributes for the aggregate base class init method.
         self_dict = self._as_dict()
         base_kwargs = filter_kwargs_for_method_params(
-            self_dict, type(agg).__base_init__
+            self_dict, type(aggregate).__base_init__
         )
 
         # Call the base class init method (so we don't need to always write
         # a call to super().__init__() in every aggregate __init__() method).
-        agg.__base_init__(**base_kwargs)
+        aggregate.__base_init__(**base_kwargs)
 
         # Pick out event attributes for aggregate subclass class init method.
-        init_kwargs = filter_kwargs_for_method_params(self_dict, type(agg).__init__)
+        init_kwargs = filter_kwargs_for_method_params(
+            self_dict, type(aggregate).__init__
+        )
 
         # Provide the aggregate id, if the __init__ method expects it.
-        if aggregate_class in _init_mentions_id:
+        if type(aggregate) in _init_mentions_id:
             init_kwargs["id"] = self_dict["originator_id"]
 
         # Call the aggregate subclass class init method.
-        agg.__init__(**init_kwargs)  # type: ignore[misc]
+        aggregate.__init__(**init_kwargs)  # type: ignore[misc]
 
         # Call the event apply method (alternative to using __init__())
-        self.apply(agg)
+        self.apply(aggregate)
 
         # Return the constructed and initialised aggregate object.
-        return agg
+        return aggregate
 
 
 class MetaDomainEvent(EventsourcingType):
@@ -1572,7 +1578,8 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
             msg = f"Unable to construct '{event_class.__qualname__}' event: {e}"
             raise TypeError(msg) from e
         # Construct the aggregate object.
-        agg = cast("Self", created_event.mutate(None))
+        agg = cls.__new__(cls)
+        agg = created_event.mutate(agg)
 
         assert agg is not None
         # Append the domain event to pending list.

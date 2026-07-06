@@ -14,6 +14,7 @@ from typing import (
     Generic,
     TypeVar,
     cast,
+    overload,
 )
 from uuid import UUID
 from warnings import warn
@@ -31,6 +32,7 @@ from eventsourcing.domain import (
     SnapshotProtocol,
     TAggregateID,
     TDomainEvent,
+    TMutableAggregate,
     TMutableOrImmutableAggregate,
     datetime_now_with_tzinfo,
     project_aggregate,
@@ -231,9 +233,32 @@ class Repository(Generic[TAggregateID]):
         )
         self._fastforward_locks_inuse: dict[TAggregateID, tuple[Lock, int]] = {}
 
+    @overload
     def get(
         self,
         aggregate_id: TAggregateID,
+        aggregate_cls: type[TMutableAggregate],
+        *,
+        version: int | None = None,
+        fastforward_skipping: bool = False,
+        deepcopy_from_cache: bool = True,
+    ) -> TMutableAggregate: ...
+
+    @overload
+    def get(
+        self,
+        aggregate_id: TAggregateID,
+        *,
+        version: int | None = None,
+        projector_func: ProjectorFunction[TMutableOrImmutableAggregate, TDomainEvent],
+        fastforward_skipping: bool = False,
+        deepcopy_from_cache: bool = True,
+    ) -> TMutableAggregate: ...
+
+    def get(
+        self,
+        aggregate_id: TAggregateID,
+        aggregate_cls: type[TMutableOrImmutableAggregate] | None = None,
         *,
         version: int | None = None,
         projector_func: ProjectorFunction[
@@ -245,6 +270,15 @@ class Repository(Generic[TAggregateID]):
         """Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
         given ID from stored events, optionally at a particular version.
         """
+        # Need to know what type of thing we are dealing with, either from
+        # the `aggregate_cls` or from a custom projector function.
+        if aggregate_cls is None and projector_func is project_aggregate:
+            msg = (
+                "Please supply either a mutable aggregate "
+                "class or a projector function for the aggregate"
+            )
+            raise ProgrammingError(msg)
+
         if self.cache and version is None:
             try:
                 # Look for aggregate in the cache.
@@ -254,7 +288,7 @@ class Repository(Generic[TAggregateID]):
             except KeyError:
                 # Reconstruct aggregate from stored events.
                 aggregate = self._reconstruct_aggregate(
-                    aggregate_id, None, projector_func
+                    aggregate_id, aggregate_cls, None, projector_func
                 )
                 # Put aggregate in the cache.
                 self.cache.put(aggregate_id, aggregate)
@@ -291,13 +325,14 @@ class Repository(Generic[TAggregateID]):
         else:
             # Reconstruct historical version of aggregate from stored events.
             aggregate = self._reconstruct_aggregate(
-                aggregate_id, version, projector_func
+                aggregate_id, aggregate_cls, version, projector_func
             )
         return aggregate
 
     def _reconstruct_aggregate(
         self,
         aggregate_id: TAggregateID,
+        aggregate_cls: TMutableOrImmutableAggregate | None,
         version: int | None,
         projector_func: ProjectorFunction[TMutableOrImmutableAggregate, TDomainEvent],
     ) -> TMutableOrImmutableAggregate:
@@ -326,7 +361,11 @@ class Repository(Generic[TAggregateID]):
         )
 
         # Reconstruct the aggregate from its events.
-        initial: TMutableOrImmutableAggregate | None = None
+        initial: TMutableOrImmutableAggregate | None = (
+            aggregate_cls.__new__(aggregate_cls)
+            if aggregate_cls and projector_func is project_aggregate
+            else None
+        )
         aggregate = projector_func(
             initial,
             chain(
@@ -336,7 +375,7 @@ class Repository(Generic[TAggregateID]):
         )
 
         # Raise exception if "not found".
-        if aggregate is None:
+        if aggregate is None or not hasattr(aggregate, "id"):
             msg = f"Aggregate {aggregate_id!r} version {version!r} not found."
             raise AggregateNotFoundError(msg)
         # Return the aggregate.
@@ -367,14 +406,15 @@ class Repository(Generic[TAggregateID]):
             else:
                 self._fastforward_locks_inuse[aggregate_id] = (lock_, num_users)
 
-    def __contains__(self, item: TAggregateID) -> bool:
-        """Tests to see if an aggregate exists in the repository."""
-        try:
-            self.get(aggregate_id=item)
-        except AggregateNotFoundError:
-            return False
-        else:
-            return True
+    # TODO: We can't do this unless `item` has either a class or a projector function?
+    # def __contains__(self, item: TAggregateID) -> bool:
+    #     """Tests to see if an aggregate exists in the repository."""
+    #     try:
+    #         self.get(aggregate_id=item)
+    #     except AggregateNotFoundError:
+    #         return False
+    #     else:
+    #         return True
 
 
 @dataclass(frozen=True)
@@ -843,6 +883,7 @@ class Application(Generic[TAggregateID]):
                         projector_func = project_aggregate
                     self.take_snapshot(
                         aggregate_id=event.originator_id,
+                        aggregate_cls=type(aggregate),
                         version=event.originator_version,
                         projector_func=projector_func,
                     )
@@ -850,6 +891,8 @@ class Application(Generic[TAggregateID]):
     def take_snapshot(
         self,
         aggregate_id: TAggregateID,
+        aggregate_cls: type[TMutableOrImmutableAggregate] | None = None,
+        *,
         version: int | None = None,
         projector_func: ProjectorFunction[Any, Any] = project_aggregate,
     ) -> None:
@@ -865,8 +908,8 @@ class Application(Generic[TAggregateID]):
                 "application class."
             )
             raise AssertionError(msg)
-        aggregate: BaseAggregate[TAggregateID] = self.repository.get(
-            aggregate_id, version=version, projector_func=projector_func
+        aggregate = self.repository.get(
+            aggregate_id, aggregate_cls, version=version, projector_func=projector_func
         )
         snapshot_class = getattr(type(aggregate), "Snapshot", type(self).snapshot_class)
         if snapshot_class is None:

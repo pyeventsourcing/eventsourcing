@@ -993,7 +993,7 @@ class TestSubsequentEvents(TestCase):
         c1 = MyAggregate1(id=id_a)  # type: ignore[call-arg]
         self.assertNotEqual(a1, c1)
 
-        a1_copy = a1.collect_events()[0].mutate(None)
+        a1_copy = a1.collect_events()[0].mutate(MyAggregate1.__new__(MyAggregate1))
         self.assertEqual(a1, a1_copy)
 
         # Check the aggregate can trigger further events.
@@ -1017,7 +1017,7 @@ class TestSubsequentEvents(TestCase):
         c2 = MyAggregate2(id=id_a)
         self.assertNotEqual(a2, c2)
 
-        a2_copy = a2.collect_events()[0].mutate(None)
+        a2_copy = a2.collect_events()[0].mutate(MyAggregate2.__new__(MyAggregate2))
         self.assertEqual(a2, a2_copy)
 
         # Check the aggregate can trigger further events.

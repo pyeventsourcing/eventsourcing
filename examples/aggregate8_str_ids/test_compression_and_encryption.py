@@ -4,6 +4,7 @@ from unittest import TestCase
 
 from eventsourcing.cipher import AESCipher
 from examples.aggregate8_str_ids.application import DogSchool
+from examples.aggregate8_str_ids.domainmodel import Dog
 
 
 class TestDogSchool(TestCase):
@@ -32,7 +33,7 @@ class TestDogSchool(TestCase):
         assert len(notifications) == 3
 
         # Take snapshot.
-        school.take_snapshot(dog_id, version=3)
+        school.take_snapshot(dog_id, Dog, version=3)
         dog = school.get_dog(dog_id)
         assert dog["name"] == "Fido"
         assert dog["tricks"] == ("roll over", "play dead")

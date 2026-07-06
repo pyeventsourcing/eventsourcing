@@ -30,12 +30,12 @@ the state. These methods depend on the ``Dog`` aggregate class.
             return dog.id
 
         def add_trick(self, dog_id: UUID, trick: str) -> None:
-            dog: Dog = self.repository.get(dog_id)
+            dog = self.repository.get(dog_id, Dog)
             dog.add_trick(trick=trick)
             self.save(dog)
 
         def get_dog(self, dog_id: UUID) -> dict[str, Any]:
-            dog: Dog = self.repository.get(dog_id)
+            dog = self.repository.get(dog_id, Dog)
             return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
 
@@ -390,7 +390,7 @@ demonstrated. The steps are commented for greater readability.
         assert expected_num_visible == actual_num_visible
 
         # Get historical state (at version 3, before 'play dead' happened).
-        old: Dog = app.repository.get(dog_id, version=3)
+        old = app.repository.get(dog_id, Dog, version=3)
         assert len(old.tricks) == 2
         assert old.tricks[-1] == 'fetch ball'  # last thing to have happened was 'fetch ball'
 

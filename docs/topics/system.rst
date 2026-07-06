@@ -61,12 +61,12 @@ Now let's define an application...
             return dog.id
 
         def add_trick(self, dog_id: UUID, trick: str) -> None:
-            dog: Dog = self.repository.get(dog_id)
+            dog = self.repository.get(dog_id, Dog)
             dog.add_trick(trick)
             self.save(dog)
 
         def get_dog(self, dog_id: UUID) -> dict[str, Any]:
-            dog: Dog = self.repository.get(dog_id)
+            dog = self.repository.get(dog_id, Dog)
             return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
 
@@ -106,7 +106,7 @@ Now let's define an analytics application...
             trick = domain_event.trick
             try:
                 counter_id = Counter.create_id(trick)
-                counter: Counter = self.repository.get(counter_id)
+                counter = self.repository.get(counter_id, Counter)
             except AggregateNotFoundError:
                 counter = Counter(trick)
             counter.increment()
@@ -115,7 +115,7 @@ Now let's define an analytics application...
         def get_count(self, trick: str) -> int:
             counter_id = Counter.create_id(trick)
             try:
-                counter: Counter = self.repository.get(counter_id)
+                counter = self.repository.get(counter_id, Counter)
             except AggregateNotFoundError:
                 return 0
             return counter.count

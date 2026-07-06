@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest import TestCase
 
 from examples.aggregate2.application import DogSchool
+from examples.aggregate2.domainmodel import Dog
 
 
 class TestDogSchool(TestCase):
@@ -25,7 +26,7 @@ class TestDogSchool(TestCase):
         assert len(notifications) == 3
 
         # Take snapshot.
-        school.take_snapshot(dog_id, version=3)
+        school.take_snapshot(dog_id, Dog, version=3)
         dog = school.get_dog(dog_id)
         assert dog["name"] == "Fido"
         assert dog["tricks"] == ("roll over", "play dead")

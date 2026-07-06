@@ -158,24 +158,24 @@ class TestInvoice(TestCase):
 
         app.save(invoice)
 
-        copy: Invoice = app.repository.get(invoice.id)
+        copy = app.repository.get(invoice.id, Invoice)
         self.assertEqual(invoice, copy)
 
         assert app.snapshots is not None
         snapshots = list(app.snapshots.get(invoice.id))
         self.assertEqual(len(snapshots), 0)
 
-        app.take_snapshot(invoice.id)
+        app.take_snapshot(invoice.id, Invoice)
 
-        copy = app.repository.get(invoice.id)
+        copy = app.repository.get(invoice.id, Invoice)
         self.assertEqual(invoice, copy)
 
-        copy = app.repository.get(invoice.id, version=1)
+        copy = app.repository.get(invoice.id, Invoice, version=1)
         self.assertNotEqual(invoice, copy)
 
         snapshots = list(app.snapshots.get(invoice.id))
         self.assertEqual(len(snapshots), 1)
 
         snapshot = cast("Snapshot", snapshots[0])
-        copy2 = cast("Invoice", snapshot.mutate(None))
+        copy2 = snapshot.mutate(object.__new__(Invoice))
         self.assertEqual(invoice, copy2)

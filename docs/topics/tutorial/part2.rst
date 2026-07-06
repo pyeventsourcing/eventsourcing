@@ -77,9 +77,9 @@ method.
 
 .. code-block:: python
 
-    copy = events[0].mutate(None)
+    copy = object.__new__(Dog)
+    copy = events[0].mutate(copy)
 
-    assert copy is not None
     assert copy.id == dog.id
 
 Using events to determine the state of an aggregate is the essence of event
@@ -235,9 +235,9 @@ reconstruct the initial state of the aggregate.
 
 .. code-block:: python
 
-    copy = events[0].mutate(None)
+    copy = object.__new__(Dog)
+    copy = events[0].mutate(copy)
 
-    assert copy is not None
     assert copy.id == dog.id
     assert copy.name == dog.name
 
@@ -392,7 +392,7 @@ below.
 
 .. code-block:: python
 
-    copy = None
+    copy = object.__new__(Dog)
     for e in events:
         copy = e.mutate(copy)
 
@@ -470,7 +470,7 @@ We can use the aggregate class in the same way.
     assert dog.tricks == ['roll over']
 
     # Reconstruct aggregate from events.
-    copy = None
+    copy = object.__new__(Dog)
     for e in dog.collect_events():
         copy = e.mutate(copy)
 
@@ -554,7 +554,7 @@ event is triggered when the "private" method ``_add_trick()`` is called by the
         raise AssertionError("Shouldn't get here")
 
     # Reconstruct aggregate from events.
-    copy = None
+    copy = object.__new__(Dog)
     for e in dog.collect_events():
         copy = e.mutate(copy)
     assert copy == dog
@@ -615,7 +615,7 @@ to be ``'ItemAdded'``. Copy the test below and make it pass.
         assert events[3].item == 'eggs'
 
         # Reconstruct aggregate from events.
-        copy = None
+        copy = object.__new__(Todos)
         for e in events:
             copy = e.mutate(copy)
         assert copy == todos1
@@ -627,7 +627,7 @@ to be ``'ItemAdded'``. Copy the test below and make it pass.
         assert len(events) == 1
         assert isinstance(events[0], Todos.Started)
         assert events[0].name == 'Household repairs'
-        assert events[0].mutate(None) == todos2
+        assert events[0].mutate(object.__new__(Todos)) == todos2
 
 
 ..

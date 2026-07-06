@@ -5,6 +5,7 @@ import sys
 from unittest import TestCase, skipIf
 
 from examples.aggregate11.application import DogSchool
+from examples.aggregate11.domainmodel import Dog
 
 with contextlib.suppress(ImportError):
     import eventsourcing_kurrentdb  # noqa: F401  # pyright: ignore[reportMissingImports]
@@ -37,7 +38,7 @@ class TestDogSchool(TestCase):
         self.assertEqual(3, len(notifications))
 
         # Take snapshot.
-        school.take_snapshot(dog_id, version=3)
+        school.take_snapshot(dog_id, Dog, version=3)
         dog = school.get_dog(dog_id)
         self.assertEqual("Fido", dog["name"])
         self.assertEqual(("roll over", "play dead"), dog["tricks"])

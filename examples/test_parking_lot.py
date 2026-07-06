@@ -107,9 +107,7 @@ class ParkingLot(Application):
         self.save(vehicle)
 
     def get_vehicle(self, licence_plate: LicencePlate) -> Vehicle:
-        return cast(
-            "Vehicle", self.repository.get(Vehicle.create_id(licence_plate.number))
-        )
+        return self.repository.get(Vehicle.create_id(licence_plate.number), Vehicle)
 
 
 class TestParkingLot(TestCase):

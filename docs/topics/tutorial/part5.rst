@@ -33,12 +33,12 @@ First, let's define the ``DogSchool`` application and the ``Dog`` aggregate.
             self.save(dog)
 
         def add_trick(self, name: str, trick: str) -> None:
-            dog: Dog = self.repository.get(Dog.create_id(name))
+            dog = self.repository.get(Dog.create_id(name), Dog)
             dog.add_trick(trick=trick)
             self.save(dog)
 
         def get_dog(self, name: str) -> dict[str, Any]:
-            dog: Dog = self.repository.get(Dog.create_id(name))
+            dog = self.repository.get(Dog.create_id(name), Dog)
             return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 
 
@@ -128,7 +128,7 @@ consumption and processing of domain events, so that each domain event is proces
             trick = domain_event.trick
             try:
                 counter_id = Counter.create_id(trick)
-                counter: Counter = self.repository.get(counter_id)
+                counter = self.repository.get(counter_id, Counter)
             except AggregateNotFoundError:
                 counter = Counter(trick)
             counter.increment()
@@ -137,7 +137,7 @@ consumption and processing of domain events, so that each domain event is proces
         def get_count(self, trick: str) -> int:
             counter_id = Counter.create_id(trick)
             try:
-                counter: Counter = self.repository.get(counter_id)
+                counter = self.repository.get(counter_id, Counter)
             except AggregateNotFoundError:
                 return 0
             return counter.count

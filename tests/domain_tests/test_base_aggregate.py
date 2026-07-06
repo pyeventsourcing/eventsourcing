@@ -150,7 +150,7 @@ class TestBaseAggregate(TestCase):
         a_events = a.collect_events()
         self.assertEqual(len(a_events), 2)
 
-        a_copy: Aggregate | None = None
+        a_copy: Aggregate | None = Aggregate.__new__(Aggregate)
         for e in a_events:
             a_copy = e.mutate(a_copy)
         self.assertEqual(a_copy, a)
@@ -160,7 +160,7 @@ class TestBaseAggregate(TestCase):
         b.trigger_event(Aggregate.Event)
         b_events = b.collect_events()
 
-        b_copy = b_events[0].mutate(None)
+        b_copy = b_events[0].mutate(Aggregate.__new__(Aggregate))
         with self.assertRaises(OriginatorIDError):
             a_events[1].mutate(b_copy)
 

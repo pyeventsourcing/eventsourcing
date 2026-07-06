@@ -31,7 +31,7 @@ class Shop(PydanticApplication):
 
     def adjust_product_inventory(self, product_id: UUID, adjustment: int) -> None:
         try:
-            product: Product = self.repository.get(product_id)
+            product = self.repository.get(product_id, Product)
         except AggregateNotFoundError:
             raise ProductNotFoundInShopError from None
         else:
@@ -53,11 +53,7 @@ class Shop(PydanticApplication):
                 limit=1000000,
                 topics=[get_topic(Product.Created)],
             )
-            if (
-                product := cast(
-                    Product, self.repository.get(cast(UUID, n.originator_id))
-                )
-            )
+            if (product := self.repository.get(cast(UUID, n.originator_id), Product))
         )
 
     def get_cart_items(self, cart_id: UUID) -> Sequence[CartItem]:
@@ -92,7 +88,7 @@ class Shop(PydanticApplication):
         requested_products = Counter(i.product_id for i in cart.items)
         for product_id, requested_amount in requested_products.items():
             try:
-                product: Product = self.repository.get(product_id)
+                product = self.repository.get(product_id, Product)
             except AggregateNotFoundError:
                 current_inventory = 0
             else:
@@ -107,6 +103,6 @@ class Shop(PydanticApplication):
 
     def _get_cart(self, cart_id: UUID) -> Cart:
         try:
-            return self.repository.get(cart_id)
+            return self.repository.get(cart_id, Cart)
         except AggregateNotFoundError:
             return Cart(id=cart_id)

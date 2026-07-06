@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest import TestCase
 
 from examples.aggregate1.application import DogSchool
+from examples.aggregate1.domainmodel import Dog
 
 
 class TestDogSchool(TestCase):
@@ -25,7 +26,7 @@ class TestDogSchool(TestCase):
         self.assertEqual(3, len(notifications))
 
         # Take snapshot.
-        school.take_snapshot(dog_id, version=3)
+        school.take_snapshot(dog_id, Dog, version=3)
         dog = school.get_dog(dog_id)
         self.assertEqual("Fido", dog["name"])
         self.assertEqual(("roll over", "play dead"), dog["tricks"])

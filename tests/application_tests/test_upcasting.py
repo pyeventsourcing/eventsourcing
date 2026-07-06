@@ -8,68 +8,37 @@ from uuid import uuid4
 
 from eventsourcing.application import Application
 from eventsourcing.domain import Aggregate, AggregateEvent
-from eventsourcing.utils import EnvType, _topic_cache, get_topic
+from eventsourcing.utils import EnvType, _topic_cache, clear_topic_cache, get_topic
 
 
 class TestUpcasting(TestCase):
     env: ClassVar[EnvType | None] = None
 
-    def setUp(self) -> None:
-        os.environ["IS_SNAPSHOTTING_ENABLED"] = "y"
-
     def tearDown(self) -> None:
-        del os.environ["IS_SNAPSHOTTING_ENABLED"]
         TestUpcasting.UpcastFixtureV1 = TestUpcasting.original_cls_v1  # type: ignore[misc]
         TestUpcasting.UpcastFixtureV2 = TestUpcasting.original_cls_v2  # type: ignore[misc]
         TestUpcasting.UpcastFixtureV3 = TestUpcasting.original_cls_v3  # type: ignore[misc]
-
-        topic_v1 = get_topic(self.UpcastFixtureV1)
-        topic_v1_created = get_topic(self.UpcastFixtureV1.Created)
-
-        if topic_v1 in _topic_cache:
-            del _topic_cache[topic_v1]
-        if topic_v1_created in _topic_cache:
-            del _topic_cache[topic_v1_created]
-
-        topic_v2 = get_topic(self.UpcastFixtureV2)
-        topic_v2_created = get_topic(self.UpcastFixtureV2.Created)
-
-        if topic_v2 in _topic_cache:
-            del _topic_cache[topic_v2]
-        if topic_v2_created in _topic_cache:
-            del _topic_cache[topic_v2_created]
-
-        topic_v3 = get_topic(self.UpcastFixtureV3)
-        topic_v3_created = get_topic(self.UpcastFixtureV3.Created)
-
-        if topic_v3 in _topic_cache:
-            del _topic_cache[topic_v3]
-        if topic_v3_created in _topic_cache:
-            del _topic_cache[topic_v3_created]
+        clear_topic_cache()
 
     def construct_application(self) -> Application:
-        return Application(env=self.env)
+        return Application(env={"IS_SNAPSHOTTING_ENABLED": "y"})
 
     def test_upcast_created_event_from_v1(self) -> None:
         app = self.construct_application()
 
-        topic_v1 = get_topic(self.UpcastFixtureV1)
-        topic_v1_created = get_topic(self.UpcastFixtureV1.Created)
-
         aggregate = self.UpcastFixtureV1.create(a="text")
         app.save(aggregate)
-        copy1: TestUpcasting.UpcastFixtureV1 = app.repository.get(aggregate.id)
+        copy1 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV1)
         self.assertEqual(copy1.a, "text")
         self.assertFalse(hasattr(copy1, "b"))
         self.assertFalse(hasattr(copy1, "c"))
         self.assertFalse(hasattr(copy1, "d"))
 
         # "Deploy" v2.
-        del _topic_cache[topic_v1]
-        del _topic_cache[topic_v1_created]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV1 = self.UpcastFixtureV2  # type: ignore[assignment, misc]
 
-        copy2: TestUpcasting.UpcastFixtureV2 = app.repository.get(aggregate.id)
+        copy2 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV2)
         self.assertFalse(hasattr(copy2, "a"))
         self.assertEqual(copy2.aa, "TEXT")
         self.assertEqual(copy2.b, 0)
@@ -77,21 +46,20 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy2, "d"))
 
         # "Deploy" v3.
-        del _topic_cache[topic_v1]
-        del _topic_cache[topic_v1_created]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV1 = self.UpcastFixtureV3  # type: ignore[assignment, misc]
 
-        copy3: TestUpcasting.UpcastFixtureV3 = app.repository.get(aggregate.id)
+        copy3 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV3)
         self.assertFalse(hasattr(copy3, "a"))
         self.assertEqual(copy3.aa, "TEXT")
         self.assertEqual(copy3.b, 0)
         self.assertEqual(copy3.c, [])
 
         # "Deploy" v4.
-        del _topic_cache[topic_v1]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV1 = self.UpcastFixtureV4  # type: ignore[assignment, misc]
 
-        copy4: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy4 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy4, "a"))
         self.assertEqual(copy4.aa, "TEXT")
         self.assertEqual(copy4.b, 0)
@@ -101,33 +69,31 @@ class TestUpcasting(TestCase):
     def test_upcast_aggregate_snapshot_from_v1(self) -> None:
         app = self.construct_application()
 
-        topic_v1 = get_topic(self.UpcastFixtureV1)
-
         aggregate = self.UpcastFixtureV1.create(a="text")
         app.save(aggregate)
-        copy1: TestUpcasting.UpcastFixtureV1 = app.repository.get(aggregate.id)
+        copy1 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV1)
         self.assertEqual(copy1.a, "text")
         self.assertFalse(hasattr(copy1, "b"))
         self.assertFalse(hasattr(copy1, "c"))
         self.assertFalse(hasattr(copy1, "d"))
 
-        app.take_snapshot(aggregate.id)
+        app.take_snapshot(aggregate.id, TestUpcasting.UpcastFixtureV1)
 
         # "Deploy" v2.
-        del _topic_cache[topic_v1]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV1 = self.UpcastFixtureV2  # type: ignore[assignment, misc]
 
-        copy2: TestUpcasting.UpcastFixtureV2 = app.repository.get(aggregate.id)
+        copy2 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV2)
         self.assertEqual(copy2.aa, "TEXT")
         self.assertEqual(copy2.b, 0)
         self.assertFalse(hasattr(copy2, "c"))
         self.assertFalse(hasattr(copy2, "d"))
 
         # "Deploy" v3.
-        del _topic_cache[topic_v1]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV1 = self.UpcastFixtureV3  # type: ignore[assignment, misc]
 
-        copy3: TestUpcasting.UpcastFixtureV3 = app.repository.get(aggregate.id)
+        copy3 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV2)
         self.assertFalse(hasattr(copy3, "a"))
         self.assertEqual(copy3.aa, "TEXT")
         self.assertEqual(copy3.b, 0)
@@ -135,10 +101,10 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy3, "d"))
 
         # "Deploy" v4.
-        del _topic_cache[topic_v1]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV1 = self.UpcastFixtureV4  # type: ignore[assignment, misc]
 
-        copy4: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy4 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy4, "a"))
         self.assertEqual(copy4.aa, "TEXT")
         self.assertEqual(copy4.b, 0)
@@ -148,12 +114,9 @@ class TestUpcasting(TestCase):
     def test_upcast_created_event_from_v2(self) -> None:
         app = self.construct_application()
 
-        topic_v2 = get_topic(self.UpcastFixtureV2)
-        topic_v2_created = get_topic(self.UpcastFixtureV2.Created)
-
         aggregate = self.UpcastFixtureV2.create(aa="TEXT", b=1)
         app.save(aggregate)
-        copy1: TestUpcasting.UpcastFixtureV2 = app.repository.get(aggregate.id)
+        copy1 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV2)
         self.assertFalse(hasattr(copy1, "a"))
         self.assertEqual(copy1.aa, "TEXT")
         self.assertEqual(copy1.b, 1)
@@ -161,11 +124,10 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy1, "d"))
 
         # "Deploy" v3.
-        del _topic_cache[topic_v2]
-        del _topic_cache[topic_v2_created]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV2 = self.UpcastFixtureV3  # type: ignore[assignment, misc]
 
-        copy2: TestUpcasting.UpcastFixtureV3 = app.repository.get(aggregate.id)
+        copy2 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV3)
         self.assertFalse(hasattr(copy2, "a"))
         self.assertEqual(copy2.aa, "TEXT")
         self.assertEqual(copy2.b, 1)
@@ -173,11 +135,10 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy2, "d"))
 
         # "Deploy" v4.
-        del _topic_cache[topic_v2]
-        del _topic_cache[topic_v2_created]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV2 = self.UpcastFixtureV4  # type: ignore[assignment, misc]
 
-        copy3: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy3 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy3, "a"))
         self.assertEqual(copy3.aa, "TEXT")
         self.assertEqual(copy3.b, 1)
@@ -187,24 +148,22 @@ class TestUpcasting(TestCase):
     def test_upcast_aggregate_snapshot_from_v2(self) -> None:
         app = self.construct_application()
 
-        topic_v2 = get_topic(self.UpcastFixtureV2)
-
         aggregate = self.UpcastFixtureV2.create(aa="TEXT", b=1)
         app.save(aggregate)
-        copy1: TestUpcasting.UpcastFixtureV2 = app.repository.get(aggregate.id)
+        copy1 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV2)
         self.assertFalse(hasattr(copy1, "a"))
         self.assertEqual(copy1.aa, "TEXT")
         self.assertEqual(copy1.b, 1)
         self.assertFalse(hasattr(copy1, "c"))
         self.assertFalse(hasattr(copy1, "d"))
 
-        app.take_snapshot(aggregate.id)
+        app.take_snapshot(aggregate.id, TestUpcasting.UpcastFixtureV2)
 
         # "Deploy" v3.
-        del _topic_cache[topic_v2]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV2 = self.UpcastFixtureV3  # type: ignore[assignment, misc]
 
-        copy2: TestUpcasting.UpcastFixtureV3 = app.repository.get(aggregate.id)
+        copy2 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV3)
         self.assertFalse(hasattr(copy2, "a"))
         self.assertEqual(copy2.aa, "TEXT")
         self.assertEqual(copy2.b, 1)
@@ -212,10 +171,10 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy2, "d"))
 
         # "Deploy" v4.
-        del _topic_cache[topic_v2]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV2 = self.UpcastFixtureV4  # type: ignore[assignment, misc]
 
-        copy3: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy3 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy3, "a"))
         self.assertEqual(copy3.aa, "TEXT")
         self.assertEqual(copy3.b, 1)
@@ -225,12 +184,9 @@ class TestUpcasting(TestCase):
     def test_upcast_created_event_from_v3(self) -> None:
         app = self.construct_application()
 
-        topic_v3 = get_topic(self.UpcastFixtureV3)
-        topic_v3_created = get_topic(self.UpcastFixtureV3.Created)
-
         aggregate = self.UpcastFixtureV3.create(aa="TEXT", b=1, c=[1, 2])
         app.save(aggregate)
-        copy1: TestUpcasting.UpcastFixtureV3 = app.repository.get(aggregate.id)
+        copy1 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV3)
         self.assertFalse(hasattr(copy1, "a"))
         self.assertEqual(copy1.aa, "TEXT")
         self.assertEqual(copy1.b, 1)
@@ -238,11 +194,10 @@ class TestUpcasting(TestCase):
         self.assertFalse(hasattr(copy1, "d"))
 
         # "Deploy" v4.
-        del _topic_cache[topic_v3]
-        del _topic_cache[topic_v3_created]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV3 = self.UpcastFixtureV4  # type: ignore[assignment, misc]
 
-        copy2: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy2 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy2, "a"))
         self.assertEqual(copy2.aa, "TEXT")
         self.assertEqual(copy2.b, 1)
@@ -252,7 +207,7 @@ class TestUpcasting(TestCase):
         copy2.set_d(value=Decimal("10.0"))
         app.save(copy2)
 
-        copy3: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy3 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy3, "a"))
         self.assertEqual(copy3.aa, "TEXT")
         self.assertEqual(copy3.b, 1)
@@ -262,24 +217,22 @@ class TestUpcasting(TestCase):
     def test_upcast_aggregate_snapshot_from_v3(self) -> None:
         app = self.construct_application()
 
-        topic_v3 = get_topic(self.UpcastFixtureV3)
-
         aggregate = self.UpcastFixtureV3.create(aa="TEXT", b=1, c=[1, 2])
         app.save(aggregate)
-        copy1: TestUpcasting.UpcastFixtureV3 = app.repository.get(aggregate.id)
+        copy1 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV3)
         self.assertFalse(hasattr(copy1, "a"))
         self.assertEqual(copy1.aa, "TEXT")
         self.assertEqual(copy1.b, 1)
         self.assertEqual(copy1.c, [1, 2])
         self.assertFalse(hasattr(copy1, "d"))
 
-        app.take_snapshot(aggregate.id)
+        app.take_snapshot(aggregate.id, TestUpcasting.UpcastFixtureV3)
 
         # "Deploy" v4.
-        del _topic_cache[topic_v3]
+        clear_topic_cache()
         TestUpcasting.UpcastFixtureV3 = self.UpcastFixtureV4  # type: ignore[assignment, misc]
 
-        copy2: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy2 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy2, "a"))
         self.assertEqual(copy2.aa, "TEXT")
         self.assertEqual(copy2.b, 1)
@@ -289,16 +242,16 @@ class TestUpcasting(TestCase):
         copy2.set_d(value=Decimal("10.0"))
         app.save(copy2)
 
-        copy3: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy3 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy3, "a"))
         self.assertEqual(copy3.aa, "TEXT")
         self.assertEqual(copy3.b, 1)
         self.assertEqual(copy3.c, [1, 2])
         self.assertEqual(copy3.d, 10)
 
-        app.take_snapshot(aggregate.id)
+        app.take_snapshot(aggregate.id, TestUpcasting.UpcastFixtureV4)
 
-        copy4: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy4 = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy3, "a"))
         self.assertEqual(copy4.aa, "TEXT")
         self.assertEqual(copy4.b, 1)
@@ -310,7 +263,7 @@ class TestUpcasting(TestCase):
 
         aggregate = self.UpcastFixtureV4.create(aa="TEXT", b=1, c=[1, 2])
         app.save(aggregate)
-        copy: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy, "a"))
         self.assertEqual(copy.aa, "TEXT")
         self.assertEqual(copy.b, 1)
@@ -323,9 +276,9 @@ class TestUpcasting(TestCase):
         aggregate = self.UpcastFixtureV4.create(aa="TEXT", b=1, c=[1, 2])
         app.save(aggregate)
 
-        app.take_snapshot(aggregate.id)
+        app.take_snapshot(aggregate.id, TestUpcasting.UpcastFixtureV4)
 
-        copy: TestUpcasting.UpcastFixtureV4 = app.repository.get(aggregate.id)
+        copy = app.repository.get(aggregate.id, TestUpcasting.UpcastFixtureV4)
         self.assertFalse(hasattr(copy, "a"))
         self.assertEqual(copy.aa, "TEXT")
         self.assertEqual(copy.b, 1)

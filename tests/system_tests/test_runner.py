@@ -214,7 +214,7 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
                 domain_event: Result.Created,
                 processing_event: ProcessingEvent,
             ) -> None:
-                command: Command = self.repository.get(domain_event.command_id)
+                command = self.repository.get(domain_event.command_id, Command)
                 command.done(
                     output=domain_event.output,
                     error=domain_event.error,
@@ -222,7 +222,7 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
                 processing_event.collect_events(command)
 
             def get_result(self, command_id: UUID) -> tuple[str | None, str | None]:
-                command: Command = self.repository.get(command_id)
+                command = self.repository.get(command_id, Command)
                 return command.output, command.error
 
         class Results(ProcessApplication):

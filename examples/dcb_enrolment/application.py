@@ -48,12 +48,12 @@ class EnrolmentWithAggregates(Application[str], EnrolmentInterface):
 
     def get_student(self, student_id: StudentID) -> Student:
         try:
-            return self.repository.get(student_id)
+            return self.repository.get(student_id, Student)
         except AggregateNotFoundError:
             raise StudentNotFoundError from None
 
     def get_course(self, course_id: CourseID) -> Course:
         try:
-            return self.repository.get(course_id)
+            return self.repository.get(course_id, Course)
         except AggregateNotFoundError:
             raise CourseNotFoundError from None

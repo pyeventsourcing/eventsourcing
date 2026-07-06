@@ -55,7 +55,7 @@ class TestEventStore(TestCase):
         domain_events = event_store.get(account.id)
 
         # Reconstruct the bank account.
-        copy = None
+        copy = BankAccount.__new__(BankAccount)
         for domain_event in domain_events:
             assert isinstance(domain_event, CanMutateProtocol)
             copy = domain_event.mutate(copy)

@@ -82,11 +82,9 @@ class TestContentManagement(TestCase):
         self.assertEqual(page["modified_by"], user_id4)
 
         # Check we are on version 4.
-        page_id = cast(
-            "Slug", app.repository.get(Slug.create_id("welcome-visitors"))
-        ).page_id
+        page_id = app.repository.get(Slug.create_id("welcome-visitors"), Slug).page_id
         assert page_id is not None
-        page_aggregate_v4: Page = app.repository.get(page_id)
+        page_aggregate_v4 = app.repository.get(page_id, Page)
         self.assertEqual(page_aggregate_v4.version, 4)
 
         # Check there are no snapshots.
@@ -106,7 +104,7 @@ This is a wiki about...
             )
 
         # Check we are on version 5.
-        page_aggregate_v5: Page = app.repository.get(page_id)
+        page_aggregate_v5 = app.repository.get(page_id, Page)
         self.assertEqual(page_aggregate_v5.version, 5)
 
         # Check the body was updated.
@@ -189,7 +187,7 @@ This is a wiki about...
         app.get_page_by_slug(slug="welcome-visitors")
         with self.assertRaises(PageNotFoundError):
             app.get_page_by_slug(slug="welcome")
-        slug: Slug = app.repository.get(Slug.create_id("welcome"))
+        slug = app.repository.get(Slug.create_id("welcome"), Slug)
         self.assertIsNone(slug.page_id)
 
         with put_metadata_in_context({"user_id": str(user_id6)}):

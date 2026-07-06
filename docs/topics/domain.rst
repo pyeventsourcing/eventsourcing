@@ -365,7 +365,7 @@ particular "created" events in your model.
 
 .. code-block:: python
 
-    from eventsourcing.domain import AggregateCreated
+    from eventsourcing.domain import Aggregate, AggregateCreated
 
 
 :class:`~eventsourcing.domain.AggregateCreated` class extends the :class:`~eventsourcing.domain.AggregateEvent` class.
@@ -388,7 +388,7 @@ results in a new aggregate object.
         event_id=uuid4(),
     )
 
-    a = created_event.mutate(None)
+    a = created_event.mutate(object.__new__(Aggregate))
 
     assert a is not None
     assert a.__class__.__name__ == "Aggregate"
@@ -535,7 +535,7 @@ the current state of an aggregate.
 
 .. code-block:: python
 
-    a = created_event.mutate(None)
+    a = created_event.mutate(object.__new__(Aggregate))
     assert a.id == originator_id
     assert a.version == 1
 
@@ -561,12 +561,14 @@ an aggregate projector by iterating over a sequence of events and calling
 .. code-block:: python
 
     from collections.abc import Sequence
+    from typing import TypeVar
 
     from eventsourcing.domain import CanMutateAggregate, BaseAggregate
 
+    TAggregate = TypeVar("TAggregate", bound=BaseAggregate)
 
-    def reconstruct_aggregate_from_events(events: Sequence[CanMutateAggregate[Any]]) -> BaseAggregate[Any] | None:
-        a = None
+    def reconstruct_aggregate_from_events(aggregate_cls: type[TAggregate], events: Sequence[CanMutateAggregate[Any]]) -> TAggregate | None:
+        a = object.__new__(aggregate_cls)
         for event in events:
             a = event.mutate(a)
         return a
@@ -578,7 +580,7 @@ an aggregate projector by iterating over a sequence of events and calling
         my_event,
     ]
 
-    a = reconstruct_aggregate_from_events(events)
+    a = reconstruct_aggregate_from_events(Aggregate, events)
 
     assert a.id == originator_id
     assert a.version == 3
@@ -633,7 +635,7 @@ of events is then used to reconstruct the "current state" of the aggregate. The 
 
     events.append(discarded_event)
 
-    a = reconstruct_aggregate_from_events(events)
+    a = reconstruct_aggregate_from_events(Aggregate, events)
 
     assert a is None
 
@@ -1116,7 +1118,7 @@ the current state of the aggregate, by calling their
 
 .. code-block:: python
 
-    copy = None
+    copy = object.__new__(Dog)
     for new_event in pending_events:
         copy = new_event.mutate(copy)
 
@@ -1472,7 +1474,7 @@ you may wish to express your project's ubiquitous language by doing so.
     assert isinstance(pending_events[0], Task.Started)
 
     # The pending event can be used to reconstruct the aggregate.
-    copy = pending_events[0].mutate(None)
+    copy = pending_events[0].mutate(object.__new__(Task))
     assert copy.id == task.id
     assert copy.created_on == task.created_on
 
@@ -1521,7 +1523,7 @@ that has an attribute ``name``.
     pending_events[0].name == "oliver"
 
     # The "created" event can be used to reconstruct the aggregate.
-    copy = pending_events[0].mutate(None)
+    copy = pending_events[0].mutate(object.__new__(Cat))
     assert copy.name == cat.name
 
 
@@ -1909,7 +1911,7 @@ This decorator also works with the ``__init__()`` methods.
     pending_events[0].name == "My Holiday"
 
     # The "created" event can be used to reconstruct the aggregate.
-    copy = pending_events[0].mutate(None)
+    copy = pending_events[0].mutate(object.__new__(Journey))
     assert copy.name == journey.name
 
 
@@ -2111,7 +2113,7 @@ and used to reconstruct the aggregate object.
 
     assert len(pending_events) == 4
 
-    copy = reconstruct_aggregate_from_events(pending_events)
+    copy = reconstruct_aggregate_from_events(Dog, pending_events)
 
     assert copy.id == dog.id
     assert copy.version == dog.version
@@ -2368,7 +2370,7 @@ and used in future to reconstruct the current state of the order.
     # Collect the aggregate events.
     events = order.collect_events()
 
-    reconstructed = None
+    reconstructed = object.__new__(Order)
     for e in events:
         reconstructed = e.mutate(reconstructed)
 
@@ -3138,7 +3140,7 @@ aggregate object instance.
 
 .. code-block:: python
 
-    copy = snapshot.mutate(None)
+    copy = snapshot.mutate(object.__new__(Dog))
 
     assert isinstance(copy, Dog)
     assert copy.id == dog.id

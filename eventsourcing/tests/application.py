@@ -75,29 +75,31 @@ class ExampleApplicationTestCase(TestCase):
         self.assertEqual(len(section.items), 4)
 
         # Take snapshot (specify version).
-        app.take_snapshot(account_id, version=Aggregate.INITIAL_VERSION + 1)
+        app.take_snapshot(
+            account_id, BankAccount, version=Aggregate.INITIAL_VERSION + 1
+        )
 
         assert app.snapshots is not None  # for mypy
         snapshots = list(app.snapshots.get(account_id))
         self.assertEqual(len(snapshots), 1)
         self.assertEqual(snapshots[0].originator_version, Aggregate.INITIAL_VERSION + 1)
 
-        from_snapshot1: BankAccount = app.repository.get(
-            account_id, version=Aggregate.INITIAL_VERSION + 2
+        from_snapshot1 = app.repository.get(
+            account_id, BankAccount, version=Aggregate.INITIAL_VERSION + 2
         )
         self.assertIsInstance(from_snapshot1, BankAccount)
         self.assertEqual(from_snapshot1.version, Aggregate.INITIAL_VERSION + 2)
         self.assertEqual(from_snapshot1.balance, Decimal("35.00"))
 
         # Take snapshot (don't specify version).
-        app.take_snapshot(account_id)
+        app.take_snapshot(account_id, BankAccount)
         assert app.snapshots is not None  # for mypy
         snapshots = list(app.snapshots.get(account_id))
         self.assertEqual(len(snapshots), 2)
         self.assertEqual(snapshots[0].originator_version, Aggregate.INITIAL_VERSION + 1)
         self.assertEqual(snapshots[1].originator_version, Aggregate.INITIAL_VERSION + 3)
 
-        from_snapshot2: BankAccount = app.repository.get(account_id)
+        from_snapshot2 = app.repository.get(account_id, BankAccount)
         self.assertIsInstance(from_snapshot2, BankAccount)
         self.assertEqual(from_snapshot2.version, Aggregate.INITIAL_VERSION + 3)
         self.assertEqual(from_snapshot2.balance, Decimal("65.00"))
@@ -140,7 +142,7 @@ class BankAccounts(Application):
 
     def get_account(self, account_id: UUID) -> BankAccount:
         try:
-            aggregate: BankAccount = self.repository.get(account_id)
+            aggregate = self.repository.get(account_id, BankAccount)
         except AggregateNotFoundError:
             raise self.AccountNotFoundError(account_id) from None
         else:
@@ -254,7 +256,7 @@ class ApplicationTestCase(TestCase):
             self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
 
         # Getting the aggregate should put aggregate in the cache.
-        app.repository.get(aggregate.id)
+        app.repository.get(aggregate.id, Aggregate)
         self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
 
         # Triggering a subsequent event shouldn't update the cache.
@@ -266,7 +268,7 @@ class ApplicationTestCase(TestCase):
         )
 
         # Getting the aggregate should fastforward the aggregate in the cache.
-        app.repository.get(aggregate.id)
+        app.repository.get(aggregate.id, Aggregate)
         self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
 
     def test_check_aggregate_fastforwarding_nonblocking(self) -> None:
@@ -293,7 +295,7 @@ class ApplicationTestCase(TestCase):
         obj_ids = set()
 
         # Prime the cache.
-        app.repository.get(original_aggregate.id)
+        app.repository.get(original_aggregate.id, Aggregate)
 
         # Remember the aggregate ID.
         aggregate_id = original_aggregate.id
@@ -306,7 +308,7 @@ class ApplicationTestCase(TestCase):
             while not stopped.is_set():
                 try:
                     # Get the aggregate.
-                    aggregate: Aggregate = app.repository.get(aggregate_id)
+                    aggregate = app.repository.get(aggregate_id, Aggregate)
                     original_version = aggregate.version
 
                     # Try to record a new event.
@@ -330,7 +332,7 @@ class ApplicationTestCase(TestCase):
                         continue
 
                     # Fast-forward the cached aggregate.
-                    fastforwarded: Aggregate = app.repository.get(aggregate_id)
+                    fastforwarded = app.repository.get(aggregate_id, Aggregate)
 
                     # Check cached aggregate was fast-forwarded with recorded event.
                     if fastforwarded.version < original_version:
@@ -383,7 +385,7 @@ class ApplicationTestCase(TestCase):
             if len(successful_thread_ids) < 3:
                 self.fail("Insufficient sharing across contentious threads")
 
-            final_aggregate: Aggregate = app.repository.get(aggregate_id)
+            final_aggregate = app.repository.get(aggregate_id, Aggregate)
             # print("Final aggregate version:", final_aggregate.version)
             if final_aggregate.version < 25:
                 self.fail(f"Insufficient version increment: {final_aggregate.version}")
@@ -408,7 +410,7 @@ class ApplicationTestCase(TestCase):
         # Should put the aggregate in the cache.
         assert app.repository.cache is not None  # for mypy
         self.assertEqual(aggregate1, app.repository.cache.get(aggregate_id))
-        app.repository.get(aggregate_id)
+        app.repository.get(aggregate_id, Aggregate)
         self.assertEqual(aggregate1, app.repository.cache.get(aggregate_id))
 
         aggregate2 = Aggregate()
@@ -419,7 +421,7 @@ class ApplicationTestCase(TestCase):
         app.save(aggregate2)
 
         self.assertEqual(aggregate2.version, aggregate1.version + 1)
-        aggregate3: Aggregate = app.repository.get(aggregate_id)
+        aggregate3: Aggregate = app.repository.get(aggregate_id, Aggregate)
         self.assertEqual(aggregate3.version, aggregate3.version)
         self.assertEqual(id(aggregate3.version), id(aggregate3.version))
 
@@ -428,7 +430,7 @@ class ApplicationTestCase(TestCase):
         app.events.put(aggregate3.collect_events())
 
         # And so using the aggregate to record new events will cause an IntegrityError.
-        aggregate4: Aggregate = app.repository.get(aggregate_id)
+        aggregate4: Aggregate = app.repository.get(aggregate_id, Aggregate)
         aggregate4.trigger_event(Aggregate.Event)
         with self.assertRaises(IntegrityError):
             app.save(aggregate4)
@@ -442,11 +444,11 @@ class ApplicationTestCase(TestCase):
         aggregate = Aggregate()
         app.save(aggregate)
         self.assertEqual(aggregate.version, 1)
-        reconstructed: Aggregate = app.repository.get(aggregate.id)
+        reconstructed: Aggregate = app.repository.get(aggregate.id, Aggregate)
         reconstructed.version = 101
         assert app.repository.cache is not None  # for mypy
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 1)
-        cached: Aggregate = app.repository.get(aggregate.id, deepcopy_from_cache=False)
+        cached = app.repository.get(aggregate.id, Aggregate, deepcopy_from_cache=False)
         cached.version = 101
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 101)
 
@@ -459,12 +461,12 @@ class ApplicationTestCase(TestCase):
         aggregate = Aggregate()
         app.save(aggregate)
         self.assertEqual(aggregate.version, 1)
-        reconstructed: Aggregate = app.repository.get(aggregate.id)
+        reconstructed: Aggregate = app.repository.get(aggregate.id, Aggregate)
         reconstructed.version = 101
         assert app.repository.cache is not None  # for mypy
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 1)
         app.repository.deepcopy_from_cache = False
-        cached: Aggregate = app.repository.get(aggregate.id)
+        cached: Aggregate = app.repository.get(aggregate.id, Aggregate)
         cached.version = 101
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 101)
 

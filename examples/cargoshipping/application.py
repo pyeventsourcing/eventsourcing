@@ -123,4 +123,4 @@ class BookingApplication(Application):
         self.save(cargo)
 
     def get_cargo(self, tracking_id: UUID) -> Cargo:
-        return cast("Cargo", self.repository.get(tracking_id))
+        return self.repository.get(tracking_id, Cargo)

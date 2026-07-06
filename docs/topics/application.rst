@@ -149,12 +149,12 @@ as the :ref:`simple example <Aggregate simple example>` in the domain module doc
             return dog.id
 
         def add_trick(self, dog_id: UUID, trick: str) -> None:
-            dog: Dog = self.repository.get(dog_id)
+            dog = self.repository.get(dog_id, Dog)
             dog.add_trick(trick)
             self.save(dog)
 
         def get_tricks(self, dog_id: UUID) -> list[str]:
-            dog: Dog = self.repository.get(dog_id)
+            dog = self.repository.get(dog_id, Dog)
             return list(dog.tricks)
 
 
@@ -221,26 +221,14 @@ aggregate, and then using these to reconstruct an aggregate object.
 
 .. code-block:: python
 
-    dog_latest: Dog = dog_school.repository.get(dog_id)
+    dog_latest = dog_school.repository.get(dog_id, Dog)
 
     assert len(dog_latest.tricks) == 3
     assert dog_latest.version == 4
 
 
-The :class:`~eventsourcing.application.Repository` class implements a
-:func:`~eventsourcing.application.Repository.__contains__` method, so that
-you can use the Python ``in`` keyword to see whether or not an aggregate
-exists in the repository.
-
-.. code-block:: python
-
-    assert dog_id in dog_school.repository
-
-    assert uuid4() not in dog_school.repository
-
-
 The repository :func:`~eventsourcing.application.Repository.get` method accepts
-three arguments: ``aggregate_id``, ``version``, and ``projector_func``.
+three arguments: ``aggregate_id``, ``aggregate_cls``, ``version``, and ``projector_func``.
 The ``aggregate_id`` argument is required, and should be the ID of an already existing
 aggregate. If the aggregate is not found, the exception
 :class:`~eventsourcing.application.AggregateNotFoundError` will be raised.
@@ -249,32 +237,34 @@ The ``version`` argument is optional, and represents the required version of the
 If the requested version is greater than the highest available version of the aggregate, the
 highest available version of the aggregate will be returned.
 
+It is required to supply either an ``aggregate_cls`` or a ``projector_func``.
+
 .. code-block:: python
 
-    dog_v1: Dog = dog_school.repository.get(dog_id, version=1)
+    dog_v1 = dog_school.repository.get(dog_id, Dog, version=1)
 
     assert dog_v1.version == 1
     assert len(dog_v1.tricks) == 0
 
-    dog_v2: Dog = dog_school.repository.get(dog_id, version=2)
+    dog_v2 = dog_school.repository.get(dog_id, Dog, version=2)
 
     assert dog_v2.version == 2
     assert len(dog_v2.tricks) == 1
     assert dog_v2.tricks[-1] == "roll over"
 
-    dog_v3: Dog = dog_school.repository.get(dog_id, version=3)
+    dog_v3 = dog_school.repository.get(dog_id, Dog, version=3)
 
     assert dog_v3.version == 3
     assert len(dog_v3.tricks) == 2
     assert dog_v3.tricks[-1] == "fetch ball"
 
-    dog_v4: Dog = dog_school.repository.get(dog_id, version=4)
+    dog_v4 = dog_school.repository.get(dog_id, Dog, version=4)
 
     assert dog_v4.version == 4
     assert len(dog_v4.tricks) == 3
     assert dog_v4.tricks[-1] == "play dead"
 
-    dog_v5: Dog = dog_school.repository.get(dog_id, version=5)
+    dog_v5 = dog_school.repository.get(dog_id, Dog, version=5)
 
     assert dog_v5.version == 4  # There is no version 5.
     assert len(dog_v5.tricks) == 3
@@ -590,7 +580,7 @@ Then, models that involve date objects can be serialised and deserialised.
     app_with_dates = ApplicationWithDates()
     app_with_dates.save(fido)
 
-    fido_copy: DogWithDateOfBirth = app_with_dates.repository.get(fido.id)
+    fido_copy = app_with_dates.repository.get(fido.id, DogWithDateOfBirth)
     assert fido.date_of_birth == date(2025, 2, 11)
 
 
@@ -709,9 +699,9 @@ and the pages can be retrieved by the new name.
 
         def get_page(self, name: str) -> Page:
             index_id = Index.create_id(name)
-            index: Index = self.repository.get(index_id)
+            index = self.repository.get(index_id, Index)
             page_id = index.ref
-            return self.repository.get(page_id)
+            return self.repository.get(page_id, Page)
 
 
 Now let's construct the application object and create a new page (with a deliberate spelling mistake).
@@ -1219,7 +1209,7 @@ actually recorded state of the aggregate is avoided.
     dog_school.add_trick(dog_id, "fetch ball")
     dog_school.add_trick(dog_id, "play dead")
 
-    dog_school.take_snapshot(dog_id)
+    dog_school.take_snapshot(dog_id, Dog)
 
 
 Snapshots are stored separately from the aggregate events, but snapshot objects are

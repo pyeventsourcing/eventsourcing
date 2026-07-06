@@ -91,7 +91,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         app.save(a1)
 
         with self.assertRaises(AssertionError) as cm1:
-            app.take_snapshot(a1.id)
+            app.take_snapshot(a1.id, MyAggregate1)
 
         self.assertIn(
             "Neither application nor aggregate have a snapshot class.",
@@ -105,7 +105,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         app1 = MyApplication1(env=env)
         a1 = MyAggregate1()
         app1.save(a1)
-        app1.take_snapshot(a1.id)
+        app1.take_snapshot(a1.id, MyAggregate1)
 
         # This is also okay.
         class MyAggregate2(MyAggregate1):
@@ -113,7 +113,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
 
         a2 = MyAggregate2()
         app.save(a2)
-        app.take_snapshot(a2.id)
+        app.take_snapshot(a2.id, MyAggregate2)
 
         # This is not okay - int does not implement snapshot protocol.
         class MyApplication2(Application):
@@ -123,7 +123,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         a1 = MyAggregate1()
         app2.save(a1)
         with self.assertRaises(AttributeError) as cm2:
-            app2.take_snapshot(a1.id)
+            app2.take_snapshot(a1.id, MyAggregate1)
 
         self.assertIn(
             "type object 'int' has no attribute 'take'",
@@ -137,7 +137,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         app3 = MyApplication3(env=env)
         a1 = MyAggregate1()
         app3.save(a1)  # type: ignore[arg-type]
-        app3.take_snapshot(a1.id)  # type: ignore[arg-type]
+        app3.take_snapshot(a1.id, MyAggregate1)  # type: ignore[arg-type]
         # ...but it works!
 
         # This is also not okay - snapshot uses string aggregate IDs.
@@ -165,6 +165,6 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         a1 = MyAggregate1()
         app4.save(a1)  # type: ignore[arg-type]
         with self.assertRaises(AssertionError) as cm3:
-            app4.take_snapshot(a1.id)  # type: ignore[arg-type]
+            app4.take_snapshot(a1.id, MyAggregate1)  # type: ignore[arg-type]
 
         self.assertIn("Not a string", str(cm3.exception))

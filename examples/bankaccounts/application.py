@@ -21,7 +21,7 @@ class BankAccounts(Application):
 
     def get_account(self, account_id: UUID) -> BankAccount:
         try:
-            return self.repository.get(account_id)
+            return self.repository.get(account_id, BankAccount)
         except AggregateNotFoundError:
             raise AccountNotFoundError(account_id) from None
 

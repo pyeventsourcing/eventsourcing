@@ -4,6 +4,7 @@ from datetime import datetime
 from unittest import TestCase
 
 from examples.aggregate8.application import DogSchool
+from examples.aggregate8.domainmodel import Dog
 
 
 class TestDogSchool(TestCase):
@@ -28,7 +29,7 @@ class TestDogSchool(TestCase):
         assert len(notifications) == 3
 
         # Take snapshot.
-        school.take_snapshot(dog_id, version=3)
+        school.take_snapshot(dog_id, Dog, version=3)
         dog = school.get_dog(dog_id)
         self.assertEqual(dog["name"], "Fido")
         self.assertEqual(dog["tricks"], ("roll over", "play dead"))

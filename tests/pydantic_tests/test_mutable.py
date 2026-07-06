@@ -243,7 +243,7 @@ class MutableAggregateTestCase(TestCase, Generic[_T, TAggregateID]):
         self.assertEqual(collected[1].originator_version, 2)
         self.assertIs(collected[1].originator_id_type, self.expected_originator_id_type)
 
-        copy = None
+        copy = self.cls_under_test.__new__(self.cls_under_test)
         for c in collected:
             copy = c.mutate(copy)
         self.assertEqual(copy.id, agg.id)
@@ -260,7 +260,7 @@ class MutableAggregateTestCase(TestCase, Generic[_T, TAggregateID]):
         snapshot_stored = self.mapper.to_stored_event(snapshot)
         snapshot_copy = self.mapper.to_domain_event(snapshot_stored)
 
-        copy = snapshot_copy.mutate(None)
+        copy = snapshot_copy.mutate(self.cls_under_test.__new__(self.cls_under_test))
         assert copy is not None
         self.assertIsInstance(copy, self.cls_under_test)
         self.assertEqual(copy.id, agg.id)

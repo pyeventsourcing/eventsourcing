@@ -71,7 +71,7 @@ class TestSnapshotting(TestCase):
         assert isinstance(snapshot, Snapshot)
 
         # Reconstruct the bank account.
-        copy = snapshot.mutate(None)
+        copy = snapshot.mutate(object.__new__(BankAccount))
         assert isinstance(copy, BankAccount)
 
         # Check copy has correct attribute values.

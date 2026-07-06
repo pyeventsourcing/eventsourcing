@@ -34,4 +34,4 @@ class SearchableTimestampsApplication(BookingApplication):
         version = recorder.get_version_at_timestamp(tracking_id, timestamp)
         if version is None:
             raise CargoNotFoundError((tracking_id, timestamp))
-        return cast("Cargo", self.repository.get(tracking_id, version=version))
+        return self.repository.get(tracking_id, Cargo, version=version)
