@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Literal, cast
 from uuid import UUID
 
+from eventsourcing.domain import NIL_UUID
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
@@ -287,7 +289,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
         self.events_table_name = events_table_name
         super().__init__(datastore)
         self.insert_events_statement = (
-            f"INSERT INTO {self.events_table_name} VALUES (?,?,?,?)"
+            f"INSERT INTO {self.events_table_name} VALUES (?,?,?,?,?,?)"
         )
         self.select_events_statement = (
             f"SELECT * FROM {self.events_table_name} WHERE originator_id=? "
@@ -302,6 +304,8 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
             "originator_version INTEGER, "
             "topic TEXT, "
             "state BLOB, "
+            "event_id TEXT, "
+            "metadata BLOB, "
             "PRIMARY KEY "
             "(originator_id, originator_version)) "
             "WITHOUT ROWID"
@@ -330,6 +334,8 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
                 s.originator_version,
                 s.topic,
                 s.state,
+                s.event_id.hex,
+                json.dumps(s.metadata).encode("utf-8"),
             )
             for s in stored_events
         ]
@@ -371,6 +377,8 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=row["state"],
+                    metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
+                    event_id=row["event_id"] or NIL_UUID,
                 )
                 for row in c.fetchall()
             ]
@@ -398,6 +406,8 @@ class SQLiteApplicationRecorder(
             "originator_version INTEGER, "
             "topic TEXT, "
             "state BLOB, "
+            "event_id TEXT, "
+            "metadata BLOB, "
             "PRIMARY KEY "
             "(originator_id, originator_version))"
         )
@@ -422,6 +432,8 @@ class SQLiteApplicationRecorder(
                     s.originator_version,
                     s.topic,
                     s.state,
+                    s.event_id.hex,
+                    json.dumps(s.metadata).encode("utf-8"),
                 ),
             )
             returning.append(c.lastrowid)
@@ -480,6 +492,8 @@ class SQLiteApplicationRecorder(
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=row["state"],
+                    metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
+                    event_id=row["event_id"] or NIL_UUID,
                 )
                 for row in c.fetchall()
             ]

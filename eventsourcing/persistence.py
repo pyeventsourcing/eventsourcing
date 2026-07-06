@@ -7,7 +7,7 @@ import typing
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Callable, Hashable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from functools import lru_cache
@@ -21,6 +21,7 @@ from uuid import UUID
 from typing_extensions import TypeVar
 
 from eventsourcing.domain import (
+    NIL_UUID,
     DomainEventProtocol,
     EventSourcingError,
     HasOriginatorIDVersion,
@@ -337,10 +338,10 @@ class StoredEvent:
     """Topic of a domain event object class."""
     state: bytes
     """Serialised state of a domain event object."""
-    metadata: bytes = b"{}"
-    """Serialised metadata."""
-    event_id: UUID | None = None
+    event_id: UUID = NIL_UUID
     """Optional event ID."""
+    metadata: dict[str, str] = field(default_factory=dict)
+    """Serialised metadata."""
 
 
 class Compressor(ABC):
@@ -430,7 +431,7 @@ class DataclassMapper(Mapper[TAggregateID]):
             originator_version=originator_version,
             topic=topic,
             state=stored_state,
-            metadata=self.transcoder.encode(domain_event.metadata),
+            metadata=domain_event.metadata,
             event_id=domain_event.event_id,
         )
 
@@ -466,16 +467,12 @@ class DataclassMapper(Mapper[TAggregateID]):
         # Support legacy data by supplementing domain event metadata
         # from separately stored event metadata.
         # TODO: Also maybe store metadata separately from domain event as config option?
-        try:
-            stored_metadata = self.transcoder.decode(stored_event.metadata)
-        except JSONDecodeError:
-            pass
-        else:
-            event_metadata = event_state.get("metadata")
-            if isinstance(stored_metadata, dict) and isinstance(event_metadata, dict):
-                for key, value in stored_metadata.items():
-                    if key not in event_metadata:
-                        event_metadata[key] = value
+        stored_metadata = stored_event.metadata
+        event_metadata = event_state.get("metadata")
+        if isinstance(stored_metadata, dict) and isinstance(event_metadata, dict):
+            for key, value in stored_metadata.items():
+                if key not in event_metadata:
+                    event_metadata[key] = value
 
         if "event_id" not in event_state and stored_event.event_id:
             event_state["event_id"] = stored_event.event_id

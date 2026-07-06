@@ -33,6 +33,7 @@ from eventsourcing.postgres import (
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from uuid import UUID
 
     from psycopg import Connection, Cursor
     from psycopg.abc import Params
@@ -645,6 +646,8 @@ class PsycopgDCBEvent(NamedTuple):
     type: str
     data: bytes
     tags: list[str]
+    uuid: UUID
+    metadata: dict[str, str]
 
 
 class PsycopgDCBQueryItem(NamedTuple):

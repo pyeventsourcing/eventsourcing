@@ -9,7 +9,6 @@ from eventsourcing.domain import (
     CanMutateAggregate,
     DomainEvent,
     HasOriginatorIDVersion,
-    put_metadata_in_context,
 )
 from eventsourcing.persistence import (
     DataclassMapper,
@@ -250,83 +249,6 @@ class TestDataclassMapper(TestCase):
 
         # Check copy has correct values.
         self.assertEqual(copy.event_id, event_id)
-        assert isinstance(copy, BankAccount.TransactionAppended)
-        self.assertEqual(copy.originator_id, domain_event.originator_id)
-        self.assertEqual(copy.originator_version, domain_event.originator_version)
-        self.assertEqual(copy.timestamp, domain_event.timestamp)
-        self.assertEqual(copy.amount, domain_event.amount)
-
-    def test_supplement_domain_event_metadata_from_stored_event_metadata(self) -> None:
-        # Construct mapper with transcoder.
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        mapper = DataclassMapper(transcoder=transcoder)
-
-        # Create a domain event.
-        with put_metadata_in_context({"user_id": "user-1"}):
-            domain_event = BankAccount.TransactionAppended(
-                originator_id=uuid4(),
-                originator_version=123456,
-                amount=Decimal("10.00"),
-            )
-
-        self.assertEqual(domain_event.metadata["user_id"], "user-1")
-
-        # Map to stored event.
-        stored_event = mapper.to_stored_event(domain_event)
-
-        # Check the stored event has the metadata.
-        metadata = json.loads(stored_event.metadata)
-        self.assertEqual(metadata["user_id"], "user-1")
-
-        # Adjust the metadata.
-        metadata = json.dumps(
-            {
-                "user_id": "user-2",
-                "correlation_id": "12345",
-                "causation_id": "67890",
-            }
-        ).encode()
-
-        modified_stored_event = StoredEvent(
-            originator_id=stored_event.originator_id,
-            originator_version=stored_event.originator_version,
-            topic=stored_event.topic,
-            state=stored_event.state,
-            metadata=metadata,
-            event_id=stored_event.event_id,
-        )
-
-        # Map to domain event.
-        copy = mapper.to_domain_event(modified_stored_event)
-
-        # Check copy has correct values.
-        self.assertEqual(copy.metadata["user_id"], "user-1")
-        self.assertEqual(copy.metadata["correlation_id"], "12345")
-        self.assertEqual(copy.metadata["causation_id"], "67890")
-        assert isinstance(copy, BankAccount.TransactionAppended)
-        self.assertEqual(copy.originator_id, domain_event.originator_id)
-        self.assertEqual(copy.originator_version, domain_event.originator_version)
-        self.assertEqual(copy.timestamp, domain_event.timestamp)
-        self.assertEqual(copy.amount, domain_event.amount)
-
-        # Check this is resiliant to non-JSON values.
-        modified_stored_event = StoredEvent(
-            originator_id=stored_event.originator_id,
-            originator_version=stored_event.originator_version,
-            topic=stored_event.topic,
-            state=stored_event.state,
-            metadata=b"",
-            event_id=stored_event.event_id,
-        )
-
-        # Map to domain event.
-        copy = mapper.to_domain_event(modified_stored_event)
-
-        # Check copy has correct values.
-        self.assertEqual(copy.metadata["user_id"], "user-1")
         assert isinstance(copy, BankAccount.TransactionAppended)
         self.assertEqual(copy.originator_id, domain_event.originator_id)
         self.assertEqual(copy.originator_version, domain_event.originator_version)

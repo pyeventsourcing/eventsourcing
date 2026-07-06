@@ -16,6 +16,7 @@ from psycopg.generators import notifies
 from psycopg.rows import DictRow, dict_row
 from psycopg.sql import SQL, Composed, Identifier
 from psycopg.types.composite import CompositeInfo, register_composite
+from psycopg.types.json import Jsonb
 from psycopg_pool.abc import (
     CT,
     ConnectFailedCB,
@@ -25,6 +26,7 @@ from psycopg_pool.abc import (
 )
 from typing_extensions import TypeVar
 
+from eventsourcing.domain import NIL_UUID
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
@@ -76,6 +78,8 @@ class PgStoredEvent(NamedTuple):
     originator_version: int
     topic: str
     state: bytes
+    event_id: UUID
+    metadata: dict[str, str]
 
 
 class ConnectionPool(psycopg_pool.ConnectionPool[CT], Generic[CT]):
@@ -388,6 +392,8 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
                 "originator_version bigint NOT NULL, "
                 "topic text, "
                 "state bytea, "
+                "event_id uuid, "
+                "metadata jsonb, "
                 "PRIMARY KEY "
                 "(originator_id, originator_version)) "
                 "WITH ("
@@ -406,8 +412,20 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
 
         self.insert_events_statement = SQL(
             "    INSERT INTO {schema}.{table} AS t ("
-            "    originator_id, originator_version, topic, state)"
-            "    SELECT originator_id, originator_version, topic, state"
+            "        originator_id,"
+            "        originator_version,"
+            "        topic,"
+            "        state,"
+            "        event_id,"
+            "        metadata"
+            "    )"
+            "    SELECT"
+            "        originator_id,"
+            "        originator_version,"
+            "        topic,"
+            "        state,"
+            "        event_id,"
+            "        metadata"
             "    FROM unnest(%s::{schema}.{stored_event_type}[])"
         ).format(
             schema=Identifier(self.datastore.schema),
@@ -430,7 +448,9 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
                 "AS (originator_id {originator_id_type}, "
                 "originator_version bigint, "
                 "topic text, "
-                "state bytea)"
+                "state bytea, "
+                "event_id uuid, "
+                "metadata jsonb)"
             ).format(
                 schema=Identifier(self.datastore.schema),
                 name=Identifier(self.stored_event_type_name),
@@ -444,10 +464,17 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         originator_version: int,
         topic: str,
         state: bytes,
+        event_id: UUID,
+        metadata: dict[str, str],
     ) -> PgStoredEvent:
         try:
             return self.datastore.psycopg_python_types[self.stored_event_type_name](
-                originator_id, originator_version, topic, state
+                originator_id,
+                originator_version,
+                topic,
+                state,
+                event_id,
+                Jsonb(metadata),
             )
         except KeyError:
             msg = f"Composite type '{self.stored_event_type_name}' not found"
@@ -477,6 +504,8 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
                 stored_event.originator_version,
                 stored_event.topic,
                 stored_event.state,
+                stored_event.event_id,
+                stored_event.metadata,
             )
             for stored_event in stored_events
         ]
@@ -521,6 +550,8 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=bytes(row["state"]),
+                    event_id=row["event_id"] or NIL_UUID,
+                    metadata=row["metadata"] or {},
                 )
                 for row in curs.fetchall()
             ]
@@ -540,6 +571,8 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             "originator_version bigint NOT NULL, "
             "topic text, "
             "state bytea, "
+            "event_id uuid, "
+            "metadata jsonb, "
             "notification_id bigserial, "
             "PRIMARY KEY "
             "(originator_id, originator_version)) "
@@ -607,8 +640,20 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             "    NOTIFY {channel};"
             "    RETURN QUERY"
             "    INSERT INTO {schema}.{table} AS t ("
-            "    originator_id, originator_version, topic, state)"
-            "    SELECT originator_id, originator_version, topic, state"
+            "        originator_id,"
+            "        originator_version,"
+            "        topic,"
+            "        state,"
+            "        event_id,"
+            "        metadata"
+            "    )"
+            "    SELECT"
+            "        originator_id,"
+            "        originator_version,"
+            "        topic,"
+            "        state,"
+            "        event_id,"
+            "        metadata"
             "    FROM unnest(events)"
             "    RETURNING notification_id;"
             "END;"
@@ -635,6 +680,8 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                     originator_version=e.originator_version,
                     topic=e.topic,
                     state=e.state,
+                    event_id=e.event_id,
+                    metadata=e.metadata,
                 )
                 for e in stored_events
             ]
@@ -754,6 +801,8 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=bytes(row["state"]),
+                    event_id=row["event_id"] or NIL_UUID,
+                    metadata=row["metadata"] or {},
                 )
                 for row in curs.fetchall()
             ]

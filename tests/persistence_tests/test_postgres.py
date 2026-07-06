@@ -33,7 +33,6 @@ from eventsourcing.persistence import (
     TrackingRecorder,
 )
 from eventsourcing.postgres import (
-    PgStoredEvent,
     PostgresAggregateRecorder,
     PostgresApplicationRecorder,
     PostgresDatastore,
@@ -1099,13 +1098,15 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
         )
         recorder.create_table()
 
-        def make_events() -> Sequence[PgStoredEvent]:
+        def make_events() -> Sequence[StoredEvent]:
             return [
-                recorder.construct_pg_stored_event(
+                StoredEvent(
                     originator_id=uuid4(),
                     originator_version=1,
                     state=b"",
                     topic="",
+                    event_id=uuid4(),
+                    metadata={},
                 )
             ]
 

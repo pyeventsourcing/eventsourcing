@@ -93,6 +93,8 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
             originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
+            event_id=uuid4(),
+            metadata={"correlation_id": str(uuid4())},
         )
         notification_ids = recorder.insert_events([event1])
         self.assertEqual(notification_ids, None)
@@ -110,6 +112,8 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
             originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
+            event_id=uuid4(),
+            metadata={"correlation_id": str(uuid4())},
         )
         with self.assertRaises(IntegrityError):
             recorder.insert_events([event1, event2])
@@ -126,6 +130,8 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
             originator_version=self.INITIAL_VERSION + 2,
             topic="topic3",
             state=b"state3",
+            event_id=uuid4(),
+            metadata={"correlation_id": str(uuid4())},
         )
         notification_ids = recorder.insert_events([event2, event3])
         self.assertEqual(notification_ids, None)
