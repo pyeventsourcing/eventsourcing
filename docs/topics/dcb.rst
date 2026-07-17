@@ -153,7 +153,7 @@ that has already been recorded, in an :ref:`event store <DCB Recorders>`.
         type="StudentRegistered",
         data=b'{"student_id": "student:123", "name": "Sara", "max_courses": 5}',
         tags=["student:123"],
-        uuid=str(uuid4()),
+        uuid=uuid4(),
         metadata={},
     )
 
@@ -161,7 +161,7 @@ that has already been recorded, in an :ref:`event store <DCB Recorders>`.
         type="CourseRegistered",
         data=b'{"course_id": "course:456", "name": "History", "max_students": 30}',
         tags=["course:456"],
-        uuid=str(uuid4()),
+        uuid=uuid4(),
         metadata={},
     )
 
@@ -401,7 +401,7 @@ The abstractions supporting the higher-level styles of domain modelling with DCB
 Decision
 --------
 
-The :class:`~eventsourcing.dcb.domain.Decision` class is defined as the root of
+The :class:`~eventsourcing.domain_new.Decision` class is defined as the root of
 the decision class hierarchy in domain models that uses DCB.
 
 It represents the general notion of giving form to the settled production of new facts
@@ -450,8 +450,8 @@ The examples below define decision types as Python data classes.
 TDecision
 ---------
 
-The type variable :type:`~eventsourcing.dcb.domain.TDecision` represents
-any subclass of :class:`~eventsourcing.dcb.domain.Decision`. It will be used
+The type variable :type:`~eventsourcing.domain_new.TDecision` represents
+any subclass of :class:`~eventsourcing.domain_new.Decision`. It will be used
 as a type parameter to define generic types that can be specialized to work
 with one kind of decision or another.
 
@@ -460,14 +460,14 @@ with one kind of decision or another.
 Event
 -----
 
-The generic class :class:`~eventsourcing.dcb.domain.Event` encapsulates a
-:class:`~eventsourcing.dcb.domain.Decision`, along with some tag strings,
+The generic class :class:`~eventsourcing.domain_new.Event` encapsulates a
+:class:`~eventsourcing.domain_new.Decision`, along with some tag strings,
 a unique identifier for the decision, and context attributes (metadata).
 It corresponds to the lower-level :ref:`DCB event <DCB Event>` type, which
 is used as a data-transfer object in persistence modules for
-:class:`~eventsourcing.dcb.domain.Event` objects. The
-:data:`~eventsourcing.dcb.domain.Event.uuid` attribute is initialised by
-default with a version 4 UUID. The :data:`~eventsourcing.dcb.domain.Event.metadata`
+:class:`~eventsourcing.domain_new.Event` objects. The
+:data:`~eventsourcing.domain_new.Event.uuid` attribute is initialised by
+default with a version 4 UUID. The :data:`~eventsourcing.domain_new.Event.metadata`
 attribute is initialised by default by calling :func:`~eventsourcing.domain.get_metadata_from_context`.
 You can use :func:`~eventsourcing.domain.put_metadata_in_context` as a context manager in request
 handlers to build up the thread-local metadata context variable that will be automatically
@@ -479,7 +479,7 @@ attached to generated event, with the context reset after a command has executed
 
 .. code-block:: python
 
-    from eventsourcing.dcb.domain import Event
+    from eventsourcing.domain_new import Event
     from eventsourcing.domain import put_metadata_in_context
 
     with put_metadata_in_context({"user_id": "user-1"}):
@@ -497,7 +497,7 @@ Mapper
 ------
 
 The class :class:`~eventsourcing.dcb.persistence.DCBMapper` is an abstract base class that
-defines an interface for converting between the higher-level :class:`~eventsourcing.dcb.domain.Event`
+defines an interface for converting between the higher-level :class:`~eventsourcing.domain_new.Event`
 and lower-level :class:`~eventsourcing.dcb.api.DCBEvent`.
 
 The mapper used by your application will need to support your decision classes.
@@ -506,9 +506,9 @@ The mapper used by your application will need to support your decision classes.
     :pyobject: DCBMapper
 
 Concrete subclasses will implement serialization and deserialization functionality for a subclass of
-:class:`~eventsourcing.dcb.domain.Decision`, with the base class implementing the getting and resolving
-of the decision class topic, and the straightforward transfer of the :data:`~eventsourcing.dcb.domain.Event.uuid`
-and :data:`~eventsourcing.dcb.domain.Event.metadata` attributes.
+:class:`~eventsourcing.domain_new.Decision`, with the base class implementing the getting and resolving
+of the decision class topic, and the straightforward transfer of the :data:`~eventsourcing.domain_new.Event.uuid`
+and :data:`~eventsourcing.domain_new.Event.metadata` attributes.
 
 This library provides three sets of matching mappers and base decision classes:
 
@@ -516,14 +516,14 @@ This library provides three sets of matching mappers and base decision classes:
 * :mod:`eventsourcing.dcb.msgspec` uses :class:`msgspec.Struct` and `MessagePack <https://msgpack.org>`_, and
 * :mod:`eventsourcing.dcb.dataclasses` uses :mod:`dataclasses` and :mod:`json` from the Python Standard Library.
 
-For example, :class:`~eventsourcing.dcb.pydantic.PydanticMapper` supports :class:`eventsourcing.dcb.pydantic.Decision`.
+For example, :class:`~eventsourcing.dcb.pydantic.PydanticTranscoder` supports :class:`eventsourcing.dcb.pydantic.Decision`.
 To use this module, you will need to install `Pydantic <https://pypi.org/project/pydantic/>`_.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.pydantic import Decision, PydanticMapper
+    from eventsourcing.dcb.pydantic import Decision, PydanticTranscoder
 
-    mapper = PydanticMapper()
+    mapper = PydanticTranscoder()
 
     class StudentJoinedCourse(Decision):
         student_id: str
@@ -536,7 +536,7 @@ To use this module, you will need to install `Pydantic <https://pypi.org/project
             student_id="student:123",
             course_id="course:123",
         ),
-        uuid=str(uuid4()),
+        uuid=uuid4(),
         metadata={},
     )
 
@@ -548,7 +548,7 @@ To use this module, you will need to install `Pydantic <https://pypi.org/project
 
 
 
-Alternatively, :class:`~eventsourcing.dcb.msgspec.MsgspecMapper` supports :class:`eventsourcing.dcb.msgspec.Decision`,
+Alternatively, :class:`~eventsourcing.dcb.msgspec.MsgspecTranscoder` supports :class:`eventsourcing.dcb.msgspec.Decision`,
 serialising with the super fast and compact `MessagePack <https://msgpack.org>`_ format.
 To use this module, you will need to install the `Python msgspec package <https://pypi.org/project/msgspec/>`_.
 
@@ -560,9 +560,9 @@ To use this module, you will need to install the `Python msgspec package <https:
 
 .. code-block:: python
 
-    from eventsourcing.dcb.msgspec import Decision, MsgspecMapper
+    from eventsourcing.dcb.msgspec import Decision, MsgspecTranscoder
 
-    mapper = MsgspecMapper()
+    mapper = MsgspecTranscoder()
 
     class StudentJoinedCourse(Decision):
         student_id: str
@@ -575,7 +575,7 @@ To use this module, you will need to install the `Python msgspec package <https:
             student_id="student:123",
             course_id="course:123",
         ),
-        uuid=str(uuid4()),
+        uuid=uuid4(),
         metadata={},
     )
 
@@ -586,7 +586,7 @@ To use this module, you will need to install the `Python msgspec package <https:
     assert copy == student_joined_course
 
 
-Similarly, :class:`~eventsourcing.dcb.dataclasses.DataclassMapper` supports :class:`eventsourcing.dcb.dataclasses.Decision`.
+Similarly, :class:`~eventsourcing.dcb.dataclasses.DataclassTranscoder` supports :class:`eventsourcing.dcb.dataclasses.Decision`.
 Please note, support for custom types is relatively limited. If you need stronger support, please use Pydantic or msgspec.
 
 ..
@@ -596,9 +596,9 @@ Please note, support for custom types is relatively limited. If you need stronge
 
 .. code-block:: python
 
-    from eventsourcing.dcb.dataclasses import Decision, DataclassMapper
+    from eventsourcing.dcb.dataclasses import Decision, DataclassTranscoder
 
-    mapper = DataclassMapper()
+    mapper = DataclassTranscoder()
 
     class StudentJoinedCourse(Decision):
         student_id: str
@@ -611,7 +611,7 @@ Please note, support for custom types is relatively limited. If you need stronge
             student_id="student:123",
             course_id="course:123",
         ),
-        uuid=str(uuid4()),
+        uuid=uuid4(),
         metadata={},
     )
 
@@ -627,13 +627,13 @@ Please note, support for custom types is relatively limited. If you need stronge
 Selector
 --------
 
-A :class:`~eventsourcing.dcb.domain.Selector` defines a criterion for a consistency boundary
+A :class:`~eventsourcing.domain_new.Selector` defines a criterion for a consistency boundary
 in a domain model, in terms of :ref:`decision types <DCB decision>` and tag strings. It corresponds to the
 lower-level :ref:`query item <DCB query item>`.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.domain import Selector
+    from eventsourcing.domain_new import Selector
 
     student_selector = Selector(
         types=[StudentRegistered],
@@ -702,22 +702,22 @@ The optional ``after`` parameter represents a sequence number after which confli
 Perspective
 -----------
 
-The :class:`~eventsourcing.dcb.domain.Perspective` class is an abstract base class for different
-kinds of decision models. It defines an abstract method :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary`
+The :class:`~eventsourcing.domain_new.Perspective` class is an abstract base class for different
+kinds of decision models. It defines an abstract method :func:`~eventsourcing.domain_new.Perspective.consistency_boundary`
 that must be implemented by subclasses to return a :ref:`selector <DCB Selector>` or a sequence of selectors. It also
-defines a :data:`~eventsourcing.dcb.domain.Perspective.last_known_position` attribute for keeping track of the last
+defines a :data:`~eventsourcing.domain_new.Perspective.last_known_position` attribute for keeping track of the last
 known sequence number when a perspective is reconstructed from sequenced events. The consistency boundary of a perspective
 is used as a :ref:`query <DCB query>` when reading events that will be used to reconstruct the perspective. The consistency boundary and
 the last known position is used as an :ref:`append condition <DCB append condition>` when appending new events.
 
-The :class:`~eventsourcing.dcb.domain.Perspective` class also provides
-:func:`~eventsourcing.dcb.domain.Perspective.trigger_event` for generating and applying and appending new events
-to an internal list of pending events, and :func:`~eventsourcing.dcb.domain.Perspective.collect_events` for collecting
+The :class:`~eventsourcing.domain_new.Perspective` class also provides
+:func:`~eventsourcing.domain_new.Perspective.trigger_event` for generating and applying and appending new events
+to an internal list of pending events, and :func:`~eventsourcing.domain_new.Perspective.collect_events` for collecting
 all newly generated events.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.domain import Perspective
+    from eventsourcing.domain_new import Perspective
 
     class MyPerspective(Perspective):
         def consistency_boundary(self) -> list[Selector]:
@@ -752,9 +752,9 @@ all newly generated events.
 Enduring object
 ---------------
 
-The generic base class :class:`~eventsourcing.dcb.domain.EnduringObject` extends the :ref:`perspective <Perspective>` class,
+The generic base class :class:`~eventsourcing.domain_new.EnduringObject` extends the :ref:`perspective <Perspective>` class,
 and is similar to :doc:`event-sourced aggregates </topics/tutorial/part2>`. Each instance has a unique continuity ID,
-which should be stored in the :data:`~eventsourcing.dcb.domain.EnduringObject.id` attribute. The continuity ID is used as a tag
+which should be stored in the :data:`~eventsourcing.domain_new.EnduringObject.id` attribute. The continuity ID is used as a tag
 in its consistency boundary, and to tag new decisions.
 
 The ``__init__`` method and the command methods of enduring objects must be decorated with the library's
@@ -762,7 +762,7 @@ The ``__init__`` method and the command methods of enduring objects must be deco
 class or the command methods will generate and apply a new event. The method body will be used to apply the event
 to the enduring object.
 
-The generated events can be collected by calling :func:`~eventsourcing.dcb.domain.Perspective.collect_events`.
+The generated events can be collected by calling :func:`~eventsourcing.domain_new.Perspective.collect_events`.
 
 The examples below show a student and course modelled as enduring objects. The ``StudentJoinedCourse`` decision
 class, defined in the :ref:`mapper example <DCB mapper>` section above, is mentioned in the projection of both
@@ -771,7 +771,7 @@ enduring objects, in preparation for the :ref:`group example <Group>` in the nex
 .. code-block:: python
 
     from eventsourcing.domain import event
-    from eventsourcing.dcb.domain import EnduringObject
+    from eventsourcing.domain_new import EnduringObject
 
 
     class StudentRegistered(Decision):
@@ -862,12 +862,12 @@ See :ref:`slices <Slice>` for an alternative higher-level abstraction.
 Group
 -----
 
-The :class:`~eventsourcing.dcb.domain.Group` class extends the :ref:`perspective <Perspective>` class, and supports
+The :class:`~eventsourcing.domain_new.Group` class extends the :ref:`perspective <Perspective>` class, and supports
 cross-cutting decision-making across many enduring objects. The consistency boundary of a group is the union
 of the consistency boundaries of the enduring objects in the group.
 
 A group is constructed with already existing enduring objects. Its command methods can trigger a new event,
-using the group's :func:`~eventsourcing.dcb.domain.Group.trigger_event` method. An event generated by
+using the group's :func:`~eventsourcing.domain_new.Group.trigger_event` method. An event generated by
 a group will be tagged with all the continuity IDs of the enduring objects in the group. The event will
 be applied to all of the enduring objects in the group, which will have no effect unless an enduring
 object's projection mentions that event's type of decision.
@@ -878,7 +878,7 @@ the student and the course. Similarly, a ``student_leaves_course()`` method coul
 
 .. code-block:: python
 
-    from eventsourcing.dcb.domain import Group
+    from eventsourcing.domain_new import Group
 
 
     class StudentAndCourse(Group[Decision]):
@@ -922,29 +922,29 @@ can affect many enduring objects.
 Slice
 -----
 
-The :class:`~eventsourcing.dcb.domain.Slice` class  extends the :ref:`perspective <Perspective>` class, and
+The :class:`~eventsourcing.domain_new.Slice` class  extends the :ref:`perspective <Perspective>` class, and
 is designed to support "vertical slice architecture" with DCB. The idea of "vertical slices" is that individual
 use cases can be implemented with pieces of code that are entirely independent of each other.
 Slices can support both command and query use cases.
 
 The three important aspects of a slice are:
 
-* **Consistency Boundary** — implement :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary` to return :ref:`selectors <DCB Selector>`.
+* **Consistency Boundary** — implement :func:`~eventsourcing.domain_new.Perspective.consistency_boundary` to return :ref:`selectors <DCB Selector>`.
 
 * **Projection** — use the :ref:`event decorator <Event decorator>` to define how selected :ref:`decisions <DCB decision>` evolve state.
 
-* **Command Action** — implement :func:`~eventsourcing.dcb.domain.Slice.execute` to generate new :ref:`decisions <DCB decision>`.
+* **Command Action** — implement :func:`~eventsourcing.domain_new.Slice.execute` to generate new :ref:`decisions <DCB decision>`.
 
 The consistency boundary for a slice can be used both to select events for the slice's projection, if it has one,
 and to select conflicting events when appending any new events to an event store.
 
-The example below shows a slice for updating a student's name. The :func:`~eventsourcing.dcb.domain.Perspective.consistency_boundary`
+The example below shows a slice for updating a student's name. The :func:`~eventsourcing.domain_new.Perspective.consistency_boundary`
 involves decision classes mentioned in the projection by using the :data:`projected_types` attribute, which
 automatically collects all decision classes mentioned in the slice's :func:`@event <eventsourcing.domain.event>` decorators.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.domain import Slice
+    from eventsourcing.domain_new import Slice
 
     class UpdateStudentName(Slice[Decision]):
         def __init__(self, student_id: StudentID, new_name: str) -> None:
@@ -1002,7 +1002,7 @@ A repository is constructed with an :ref:`event store <DCB event store>`.
 
     repository = DCBRepository(
         eventstore=DCBEventStore(
-            mapper=DataclassMapper(),
+            mapper=DataclassTranscoder(),
             recorder=InMemoryDCBRecorder(),
         ),
     )
@@ -1175,7 +1175,7 @@ The example below shows how to write command and query methods using :ref:`endur
     # Construct app to use MessagePack and in-memory persistence.
     app = CourseSubscriptions(env={
         "PERSISTENCE_MODULE": "eventsourcing.dcb.popo",
-        "MAPPER_TOPIC": "eventsourcing.dcb.msgspec:MsgspecMapper",
+        "MAPPER_TOPIC": "eventsourcing.dcb.msgspec:MsgspecTranscoder",
     })
 
     # Construct enduring objects.
@@ -1212,7 +1212,7 @@ Code reference
     :undoc-members:
     :special-members: __init__
 
-.. automodule:: eventsourcing.dcb.domain
+.. automodule:: eventsourcing.domain_new
     :show-inheritance:
     :member-order: bysource
     :members:

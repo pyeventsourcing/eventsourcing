@@ -3,27 +3,28 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
-from dataclasses import dataclass
 from queue import Queue
 from threading import Event
 from time import sleep
-from typing import TYPE_CHECKING, Any, Generic, cast
+from typing import TYPE_CHECKING, Any
 from unittest.case import TestCase
 from unittest.mock import MagicMock
-from uuid import UUID
 
 from typing_extensions import TypeVar
 
 from eventsourcing.application import ProcessingEvent  # noqa: TC001
-from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import (
+from eventsourcing.dataclasses.application import DataclassApplication
+from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses.mutable import DataclassAggregate
+from eventsourcing.domain_new import (
     Aggregate,
     AggregateEvent,
-    DomainEventProtocol,
-    TAggregateID,
-    event,
+    EventEnvelope,
+    TDecision,
+    triggers,
 )
-from eventsourcing.persistence import Notification, ProgrammingError, Tracking
+from eventsourcing.errors import ProgrammingError
+from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 from eventsourcing.system import (
     ConvertingThread,
     EventProcessingError,
@@ -41,7 +42,7 @@ from eventsourcing.system import (
     SingleThreadedRunner,
     System,
 )
-from eventsourcing.tests.application import BankAccounts
+from eventsourcing.tests.application import BankAccountsWithPydantic
 from eventsourcing.tests.persistence import tmpfile_uris
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import EnvType, clear_topic_cache, get_topic
@@ -49,6 +50,8 @@ from tests.application_tests.test_processapplication import EmailProcess
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
+
+    from eventsourcing.persistence import Notification, Tracking, Transcoder
 
 
 class EmailProcess2(EmailProcess):
@@ -58,53 +61,59 @@ class EmailProcess2(EmailProcess):
 TRunner = TypeVar(
     "TRunner",
     bound=Runner[Any],
-    default=SingleThreadedRunner[TAggregateID] | NewSingleThreadedRunner[TAggregateID],
+    # default=SingleThreadedRunner[TDecision] | NewSingleThreadedRunner[TDecision],
 )
 
 
-class Command(Aggregate):
-    @dataclass(frozen=True, kw_only=True)
-    class Created(Aggregate.Created):
+class Command(DataclassAggregate):
+    class Created(DataclassDecision):
         text: str
 
+    class Done(DataclassDecision):
+        output: str
+        error: str
+
+    @triggers(Created)
     def __init__(self, text: str):
         self.text = text
         self.output: str | None = None
         self.error: str | None = None
 
-    @event
+    @triggers(Done)
     def done(self, output: str, error: str) -> None:
         self.output = output
         self.error = error
 
 
-class Result(Aggregate):
-    @dataclass(frozen=True, kw_only=True)
-    class Created(Aggregate.Created):
-        command_id: UUID
+class Result(Aggregate[DataclassDecision]):
+    class Created(DataclassDecision):
+        command_id: str
         output: str
         error: str
 
-    def __init__(self, command_id: UUID, output: str, error: str):
+    @triggers(Created)
+    def __init__(self, command_id: str, output: str, error: str):
         self.command_id = command_id
         self.output = output
         self.error = error
 
 
-class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
-    def construct_runner(self, system: System, env: EnvType | None = None) -> TRunner:
-        return cast("TRunner", SingleThreadedRunner(system, env))
+class TestSingleThreadedRunner(TestCase):
+    def construct_runner(
+        self, system: System, env: EnvType | None = None
+    ) -> Runner[Any]:
+        return SingleThreadedRunner(system, env)
 
     def wait_for_runner(self, runner: TRunner) -> None:
         pass
 
     def test_runner_constructed_with_env_has_apps_with_env(self) -> None:
-        system = System(pipes=[[BankAccounts, EmailProcess]])
+        system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
         env = {"MY_ENV_VAR": "my_env_val"}
         with self.construct_runner(system, env) as runner:
 
             # Check leaders get the environment.
-            bank_accounts = runner.get(BankAccounts)
+            bank_accounts = runner.get(BankAccountsWithPydantic)
             self.assertEqual(bank_accounts.env.get("MY_ENV_VAR"), "my_env_val")
 
             # Check followers get the environment.
@@ -112,28 +121,30 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
             self.assertEqual(email_process.env.get("MY_ENV_VAR"), "my_env_val")
 
         # Check singles get the environment.
-        system = System(pipes=[[BankAccounts]])
+        system = System(pipes=[[BankAccountsWithPydantic]])
         env = {"MY_ENV_VAR": "my_env_val"}
         with self.construct_runner(system, env) as runner:
-            bank_accounts = runner.get(BankAccounts)
+            bank_accounts = runner.get(BankAccountsWithPydantic)
             self.assertEqual(bank_accounts.env.get("MY_ENV_VAR"), "my_env_val")
 
     def test_starts_with_single_app(self) -> None:
-        with self.construct_runner(System(pipes=[[BankAccounts]])) as runner:
-            app = runner.get(BankAccounts)
-            self.assertIsInstance(app, BankAccounts)
+        with self.construct_runner(
+            System(pipes=[[BankAccountsWithPydantic]])
+        ) as runner:
+            app = runner.get(BankAccountsWithPydantic)
+            self.assertIsInstance(app, BankAccountsWithPydantic)
 
     def test_calling_start_twice_raises_error(self) -> None:
         with (
-            self.construct_runner(System(pipes=[[BankAccounts]])) as runner,
+            self.construct_runner(System(pipes=[[BankAccountsWithPydantic]])) as runner,
             self.assertRaises(RunnerAlreadyStartedError),
         ):
             runner.start()
 
     def test_system_with_one_edge(self) -> None:
-        system = System(pipes=[[BankAccounts, EmailProcess]])
+        system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
         with self.construct_runner(system) as runner:
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             email_process = runner.get(EmailProcess)
 
             section = email_process.notification_log["1,5"]
@@ -157,11 +168,11 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
         system = System(
             pipes=[
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     EmailProcess,
                 ],
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     EmailProcess2,
                 ],
             ]
@@ -169,7 +180,7 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
         with self.construct_runner(system) as runner:
 
             # Get apps.
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             email_process1 = runner.get(EmailProcess)
             email_process2 = runner.get(EmailProcess2)
 
@@ -194,65 +205,54 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
             self.assertEqual(len(section.items), 10)
 
     def test_system_with_processing_loop(self) -> None:
-        class Commands(ProcessApplication):
-            def create_command(self, text: str) -> UUID:
+        class Commands(DataclassApplication, ProcessApplication[DataclassDecision]):
+            def create_command(self, text: str) -> str:
                 command = Command(text=text)
                 self.save(command)
                 return command.id
 
-            @singledispatchmethod
             def policy(
                 self,
-                domain_event: DomainEventProtocol[TAggregateID],
-                processing_event: ProcessingEvent[TAggregateID],
+                envelope: EventEnvelope[DataclassDecision],
+                processing_event: ProcessingEvent[DataclassDecision],
             ) -> None:
-                pass
+                match envelope.decision:
+                    case Result.Created(
+                        command_id=command_id, output=output, error=error
+                    ):
 
-            @policy.register
-            def result_created(
-                self,
-                domain_event: Result.Created,
-                processing_event: ProcessingEvent,
-            ) -> None:
-                command = self.repository.get(domain_event.command_id, Command)
-                command.done(
-                    output=domain_event.output,
-                    error=domain_event.error,
-                )
-                processing_event.collect_events(command)
+                        command = self.repository.get(command_id, Command)
+                        command.done(
+                            output=output,
+                            error=error,
+                        )
+                        processing_event.collect_events(command)
 
-            def get_result(self, command_id: UUID) -> tuple[str | None, str | None]:
+            def get_result(self, command_id: str) -> tuple[str | None, str | None]:
                 command = self.repository.get(command_id, Command)
                 return command.output, command.error
 
-        class Results(ProcessApplication):
-            @singledispatchmethod
+        class Results(DataclassApplication, ProcessApplication[DataclassDecision]):
             def policy(
                 self,
-                domain_event: DomainEventProtocol,
+                envelope: AggregateEvent[DataclassDecision],
                 processing_event: ProcessingEvent,
             ) -> None:
-                pass
-
-            @policy.register
-            def _(
-                self,
-                domain_event: Command.Created,
-                processing_event: ProcessingEvent,
-            ) -> None:
-                try:
-                    openargs = shlex.split(domain_event.text)
-                    output = subprocess.check_output(openargs)  # noqa: S603
-                    error = ""
-                except Exception as e:
-                    error = str(e)
-                    output = b""
-                result = Result(
-                    command_id=domain_event.originator_id,
-                    output=output.decode("utf8"),
-                    error=error,
-                )
-                processing_event.collect_events(result)
+                match envelope.decision:
+                    case Command.Created(text=text):
+                        try:
+                            openargs = shlex.split(text)
+                            output = subprocess.check_output(openargs)  # noqa: S603
+                            error = ""
+                        except Exception as e:
+                            error = str(e)
+                            output = b""
+                        result = Result(
+                            command_id=envelope.originator_id,
+                            output=output.decode("utf8"),
+                            error=error,
+                        )
+                        processing_event.collect_events(result)
 
         system = System([[Commands, Results, Commands]])
         with self.construct_runner(system) as runner:
@@ -290,11 +290,11 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
 
     def test_catches_up_with_outstanding_notifications(self) -> None:
         # Construct system and runner.
-        system = System(pipes=[[BankAccounts, EmailProcess]])
+        system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
         runner = self.construct_runner(system)
 
         # Get apps.
-        accounts = runner.get(BankAccounts)
+        accounts = runner.get(BankAccountsWithPydantic)
         email_process1 = runner.get(EmailProcess)
 
         # Create an event.
@@ -304,7 +304,9 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
         )
 
         # Check we processed nothing.
-        self.assertEqual(email_process1.recorder.max_tracking_id("BankAccounts"), None)
+        self.assertEqual(
+            email_process1.recorder.max_tracking_id("BankAccountsWithPydantic"), None
+        )
 
         # Start the runner.
         with runner:
@@ -317,16 +319,18 @@ class TestSingleThreadedRunner(TestCase, Generic[TAggregateID, TRunner]):
 
             # Check we processed two events.
             self.wait_for_runner(runner)
-            self.assertEqual(email_process1.recorder.max_tracking_id("BankAccounts"), 2)
+            self.assertEqual(
+                email_process1.recorder.max_tracking_id("BankAccountsWithPydantic"), 2
+            )
 
     def test_filters_notifications_by_topics(self) -> None:
         class MyEmailProcess(EmailProcess):
             topics = (get_topic(AggregateEvent),)
 
-        system = System(pipes=[[BankAccounts, MyEmailProcess]])
+        system = System(pipes=[[BankAccountsWithPydantic, MyEmailProcess]])
         runner = self.construct_runner(system)
 
-        accounts = runner.get(BankAccounts)
+        accounts = runner.get(BankAccountsWithPydantic)
         email_process = runner.get(MyEmailProcess)
 
         accounts.open_account(
@@ -406,10 +410,10 @@ class TestNewSingleThreadedRunner(TestSingleThreadedRunner):
         return NewSingleThreadedRunner(system=system, env=env)
 
     def test_ignores_recording_event_if_seen_subsequent(self) -> None:
-        system = System(pipes=[[BankAccounts, EmailProcess]])
+        system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
         with self.construct_runner(system) as runner:
 
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             email_process = runner.get(EmailProcess)
 
             accounts.open_account(
@@ -432,10 +436,10 @@ class TestNewSingleThreadedRunner(TestSingleThreadedRunner):
             self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
 
     def test_received_notifications_accumulate(self) -> None:
-        system = System([[BankAccounts, EmailProcess]])
+        system = System([[BankAccountsWithPydantic, EmailProcess]])
         with self.construct_runner(system) as runner:
 
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             # Need to get the lock, so that they aren't cleared.
             with runner._processing_lock:
                 accounts.open_account("Alice", "alice@example.com")
@@ -449,14 +453,14 @@ class TestPullingThread(TestCase):
         thread = PullingThread(
             converting_queue=Queue(),
             follower=MagicMock(),
-            leader_name="BankAccounts",
+            leader_name="BankAccountsWithPydantic",
             has_errored=Event(),
         )
         thread.recording_event_queue.maxsize = 1
         self.assertEqual(thread.recording_event_queue.qsize(), 0)
         thread.receive_recording_event(
             RecordingEvent(
-                application_name="BankAccounts",
+                application_name="BankAccountsWithPydantic",
                 recordings=[],
                 previous_max_notification_id=None,
             )
@@ -465,7 +469,7 @@ class TestPullingThread(TestCase):
         self.assertFalse(thread.overflow_event.is_set())
         thread.receive_recording_event(
             RecordingEvent(
-                application_name="BankAccounts",
+                application_name="BankAccountsWithPydantic",
                 recordings=[],
                 previous_max_notification_id=1,
             )
@@ -477,13 +481,13 @@ class TestPullingThread(TestCase):
         thread = PullingThread(
             converting_queue=Queue(),
             follower=MagicMock(),
-            leader_name="BankAccounts",
+            leader_name="BankAccountsWithPydantic",
             has_errored=Event(),
         )
         self.assertEqual(thread.recording_event_queue.qsize(), 0)
         thread.receive_recording_event(
             RecordingEvent(
-                application_name="BankAccounts",
+                application_name="BankAccountsWithPydantic",
                 recordings=[],
                 previous_max_notification_id=None,
             )
@@ -500,7 +504,7 @@ class TestPullingThread(TestCase):
         thread = PullingThread(
             converting_queue=Queue(),
             follower=MagicMock(),
-            leader_name="BankAccounts",
+            leader_name="BankAccountsWithPydantic",
             has_errored=Event(),
         )
         self.assertEqual(thread.recording_event_queue.qsize(), 0)
@@ -511,9 +515,7 @@ class TestPullingThread(TestCase):
         self.assertEqual(thread.recording_event_queue.qsize(), 0)
 
 
-class TestMultiThreadedRunner(
-    TestSingleThreadedRunner[UUID, MultiThreadedRunner | NewMultiThreadedRunner]
-):
+class TestMultiThreadedRunner(TestSingleThreadedRunner):
     def construct_runner(
         self, system: System, env: EnvType | None = None
     ) -> MultiThreadedRunner | NewMultiThreadedRunner:
@@ -529,9 +531,7 @@ class TestMultiThreadedRunner(
 
     def wait_for_runner(
         self,
-        runner: (
-            MultiThreadedRunner[TAggregateID] | NewMultiThreadedRunner[TAggregateID]
-        ),
+        runner: MultiThreadedRunner[TDecision] | NewMultiThreadedRunner[TDecision],
     ) -> None:
         sleep(0.3)
         runner.reraise_thread_errors()
@@ -543,7 +543,7 @@ class TestMultiThreadedRunner(
 
     class BrokenProcessing(EmailProcess):
         def process_event(
-            self, domain_event: DomainEventProtocol[TAggregateID], tracking: Tracking
+            self, envelope: AggregateEvent[DataclassDecision], tracking: Tracking
         ) -> None:
             msg = "Just testing error handling when processing is broken"
             raise TestMultiThreadedRunner.DeliberateError(msg)
@@ -552,7 +552,7 @@ class TestMultiThreadedRunner(
         system = System(
             pipes=[
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     TestMultiThreadedRunner.BrokenInitialisation,
                 ],
             ]
@@ -570,7 +570,7 @@ class TestMultiThreadedRunner(
         system = System(
             pipes=[
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     TestMultiThreadedRunner.BrokenProcessing,
                 ],
             ]
@@ -581,7 +581,7 @@ class TestMultiThreadedRunner(
             self.construct_runner(system) as runner,
         ):
 
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             accounts.open_account(
                 full_name="Alice",
                 email_address="alice@example.com",
@@ -599,7 +599,7 @@ class TestMultiThreadedRunner(
         system = System(
             pipes=[
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     TestMultiThreadedRunner.BrokenProcessing,
                 ],
             ]
@@ -608,7 +608,7 @@ class TestMultiThreadedRunner(
         runner = self.construct_runner(system)
 
         # Create some notifications.
-        accounts = runner.get(BankAccounts)
+        accounts = runner.get(BankAccountsWithPydantic)
         accounts.open_account(
             full_name="Alice",
             email_address="alice@example.com",
@@ -618,7 +618,7 @@ class TestMultiThreadedRunner(
         with self.assertRaises(EventProcessingError) as cm, runner:
 
             # Trigger pulling of notifications.
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             accounts.open_account(
                 full_name="Alice",
                 email_address="alice@example.com",
@@ -637,7 +637,7 @@ class TestMultiThreadedRunner(
         system = System(
             pipes=[
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     EmailProcess,
                 ],
             ]
@@ -651,7 +651,7 @@ class TestMultiThreadedRunner(
         system = System(
             pipes=[
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     TestMultiThreadedRunner.BrokenProcessing,
                 ],
             ]
@@ -662,7 +662,7 @@ class TestMultiThreadedRunner(
             self.construct_runner(system) as runner,
         ):
 
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             accounts.open_account(
                 full_name="Alice",
                 email_address="alice@example.com",
@@ -682,7 +682,9 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
         super().setUp()
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
         uris = tmpfile_uris()
-        os.environ[f"{BankAccounts.name.upper()}_SQLITE_DBNAME"] = next(uris)
+        os.environ[f"{BankAccountsWithPydantic.name.upper()}_SQLITE_DBNAME"] = next(
+            uris
+        )
         os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"] = next(uris)
         os.environ[f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"] = next(uris)
         os.environ[f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"] = next(uris)
@@ -694,7 +696,7 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
 
     def tearDown(self) -> None:
         del os.environ["PERSISTENCE_MODULE"]
-        del os.environ[f"{BankAccounts.name.upper()}_SQLITE_DBNAME"]
+        del os.environ[f"{BankAccountsWithPydantic.name.upper()}_SQLITE_DBNAME"]
         del os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"]
         del os.environ[f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"]
         del os.environ[f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"]
@@ -710,8 +712,8 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
     def setUp(self) -> None:
         super().setUp()
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
-        os.environ[f"{BankAccounts.name.upper()}_SQLITE_DBNAME"] = (
-            f"file:{BankAccounts.name.lower()}?mode=memory&cache=shared"
+        os.environ[f"{BankAccountsWithPydantic.name.upper()}_SQLITE_DBNAME"] = (
+            f"file:{BankAccountsWithPydantic.name.lower()}?mode=memory&cache=shared"
         )
         os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"] = (
             f"file:{EmailProcess.name.lower()}?mode=memory&cache=shared"
@@ -736,7 +738,7 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
 
     def tearDown(self) -> None:
         del os.environ["PERSISTENCE_MODULE"]
-        del os.environ[f"{BankAccounts.name.upper()}_SQLITE_DBNAME"]
+        del os.environ[f"{BankAccountsWithPydantic.name.upper()}_SQLITE_DBNAME"]
         del os.environ[f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"]
         del os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"]
         del os.environ[f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"]
@@ -771,9 +773,7 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
 
     def wait_for_runner(
         self,
-        runner: (
-            MultiThreadedRunner[TAggregateID] | NewMultiThreadedRunner[TAggregateID]
-        ),
+        runner: MultiThreadedRunner[TDecision] | NewMultiThreadedRunner[TDecision],
     ) -> None:
         sleep(0.6)
         super().wait_for_runner(runner)
@@ -807,10 +807,10 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
 
     # This duplicates test method above.
     def test_ignores_recording_event_if_seen_subsequent(self) -> None:
-        system = System(pipes=[[BankAccounts, EmailProcess]])
+        system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
 
         with self.construct_runner(system) as runner:
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             email_process = runner.get(EmailProcess)
 
             accounts.open_account(
@@ -833,11 +833,11 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
             self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
 
     def test_queue_task_done_is_called(self) -> None:
-        system = System(pipes=[[BankAccounts, EmailProcess]])
+        system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
 
         with self.construct_runner(system) as runner:
 
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             email_process1 = runner.get(EmailProcess)
 
             accounts.open_account(
@@ -857,7 +857,7 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
         system = System(
             pipes=[
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     TestNewMultiThreadedRunner.BrokenConverting,
                 ],
             ]
@@ -867,7 +867,7 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
         runner = self.construct_runner(system)
 
         # Create some notifications.
-        accounts = runner.get(BankAccounts)
+        accounts = runner.get(BankAccountsWithPydantic)
         accounts.open_account(
             full_name="Alice",
             email_address="alice@example.com",
@@ -877,7 +877,7 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
         with self.assertRaises(NotificationConvertingError) as cm, runner:
 
             # Trigger pulling of notifications.
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             accounts.open_account(
                 full_name="Alice",
                 email_address="alice@example.com",
@@ -895,7 +895,7 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
         system = System(
             pipes=[
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     TestNewMultiThreadedRunner.BrokenPulling,
                 ],
             ]
@@ -905,7 +905,7 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
         runner = self.construct_runner(system)
 
         # Create some notifications.
-        accounts = runner.get(BankAccounts)
+        accounts = runner.get(BankAccountsWithPydantic)
         accounts.open_account(
             full_name="Alice",
             email_address="alice@example.com",
@@ -915,7 +915,7 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
         with self.assertRaises(NotificationPullingError) as cm, runner:
 
             # Trigger pulling of notifications.
-            accounts = runner.get(BankAccounts)
+            accounts = runner.get(BankAccountsWithPydantic)
             accounts.open_account(
                 full_name="Alice",
                 email_address="alice@example.com",

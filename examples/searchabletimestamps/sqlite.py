@@ -109,7 +109,7 @@ class SearchableTimestampsApplicationRecorder(
         for originator_id, timestamp, originator_version in event_timestamps_data:
             c.execute(
                 self.insert_event_timestamp_statement,
-                (originator_id.hex, timestamp, originator_version),
+                (originator_id, timestamp, originator_version),
             )
 
         return notification_ids
@@ -118,9 +118,7 @@ class SearchableTimestampsApplicationRecorder(
         self, originator_id: UUID, timestamp: datetime.datetime
     ) -> int | None:
         with self.datastore.transaction(commit=False) as c:
-            c.execute(
-                self.select_event_timestamp_statement, (originator_id.hex, timestamp)
-            )
+            c.execute(self.select_event_timestamp_statement, (originator_id, timestamp))
             for row in c.fetchall():
                 return row["originator_version"]
             return None

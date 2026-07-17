@@ -4,13 +4,10 @@ from typing import Any, ClassVar
 
 from psycopg.sql import SQL, Identifier
 
-from eventsourcing.application import (
-    Application,
-)
-from eventsourcing.domain import (
-    Aggregate,
-)
+from eventsourcing.msgspec.application import MsgspecApplication
+from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 from eventsourcing.persistence import (
+    AggregateEventMapper,
     InfrastructureFactory,
     Tracking,
 )
@@ -23,13 +20,14 @@ from eventsourcing.projection import (
 )
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.tests.projection import (
-    AggregateEventCountersProjection,
     AggregateEventCountersProjectionTestCase,
     EventCountersView,
     EventCountersViewTestCase,
     SpannerThrownError,
+    Student,
+    StudentEventCountersProjection,
 )
-from eventsourcing.utils import Environment
+from eventsourcing.utils import Environment, get_topic
 
 
 class PostgresEventCounters(PostgresTrackingRecorder, EventCountersView):
@@ -74,16 +72,16 @@ class PostgresEventCounters(PostgresTrackingRecorder, EventCountersView):
             Identifier(self.counters_table_name),
         )
 
-    def get_created_event_counter(self) -> int:
+    def get_student_registered_counter(self) -> int:
         return self._select_counter(self._created_event_counter_name)
 
-    def get_subsequent_event_counter(self) -> int:
+    def get_student_name_changed_counter(self) -> int:
         return self._select_counter(self._subsequent_event_counter_name)
 
-    def incr_created_event_counter(self, tracking: Tracking) -> None:
+    def incr_student_registered_counter(self, tracking: Tracking) -> None:
         self._incr_counter(self._created_event_counter_name, tracking)
 
-    def incr_subsequent_event_counter(self, tracking: Tracking) -> None:
+    def incr_student_name_changed_counter(self, tracking: Tracking) -> None:
         self._incr_counter(self._subsequent_event_counter_name, tracking)
 
     def _select_counter(self, name: str) -> int:
@@ -134,18 +132,12 @@ class TestAggregateEventCountersProjectionWithPostgres(
 ):
     view_class = PostgresEventCounters
     env: ClassVar[dict[str, str]] = {
-        "APPLICATION_PERSISTENCE_MODULE": "eventsourcing.postgres",
-        "APPLICATION_POSTGRES_DBNAME": "eventsourcing",
-        "APPLICATION_POSTGRES_HOST": "127.0.0.1",
-        "APPLICATION_POSTGRES_PORT": "5432",
-        "APPLICATION_POSTGRES_USER": "eventsourcing",
-        "APPLICATION_POSTGRES_PASSWORD": "eventsourcing",
-        "EVENTCOUNTERS_PERSISTENCE_MODULE": "eventsourcing.postgres",
-        "EVENTCOUNTERS_POSTGRES_DBNAME": "eventsourcing",
-        "EVENTCOUNTERS_POSTGRES_HOST": "127.0.0.1",
-        "EVENTCOUNTERS_POSTGRES_PORT": "5432",
-        "EVENTCOUNTERS_POSTGRES_USER": "eventsourcing",
-        "EVENTCOUNTERS_POSTGRES_PASSWORD": "eventsourcing",
+        "PERSISTENCE_MODULE": "eventsourcing.postgres",
+        "POSTGRES_DBNAME": "eventsourcing",
+        "POSTGRES_HOST": "127.0.0.1",
+        "POSTGRES_PORT": "5432",
+        "POSTGRES_USER": "eventsourcing",
+        "POSTGRES_PASSWORD": "eventsourcing",
     }
 
     def setUp(self) -> None:
@@ -161,30 +153,29 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
         # Resume....
         with ProjectionRunner(
-            application_class=Application,
-            projection_class=AggregateEventCountersProjection,
+            application_class=MsgspecApplication,
+            projection_class=StudentEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ):
 
             # Construct separate instance of "write model".
-            write_model = Application(self.env)
+            write_model = MsgspecApplication(self.env)
 
             # Construct separate instance of "read model".
-            read_model = (
-                InfrastructureFactory[EventCountersView]
-                .construct(
+            factory: InfrastructureFactory[EventCountersView] = (
+                InfrastructureFactory.construct(
                     env=Environment(
-                        name=AggregateEventCountersProjection.name, env=self.env
+                        name=StudentEventCountersProjection.name, env=self.env
                     )
                 )
-                .tracking_recorder(self.view_class)
             )
+            read_model = factory.tracking_recorder(self.view_class)
 
             # Write some events.
-            aggregate = Aggregate()
-            aggregate.trigger_event(event_class=Aggregate.Event)
-            aggregate.trigger_event(event_class=Aggregate.Event)
+            aggregate = Student()
+            aggregate.trigger_event(Student.NameChanged)
+            aggregate.trigger_event(Student.NameChanged)
             recordings = write_model.save(aggregate)
 
             # Wait for events to be processed.
@@ -194,13 +185,13 @@ class TestAggregateEventCountersProjectionWithPostgres(
             )
 
             # Query the read model.
-            self.assertEqual(read_model.get_created_event_counter(), 3)
-            self.assertEqual(read_model.get_subsequent_event_counter(), 6)
+            self.assertEqual(read_model.get_student_registered_counter(), 3)
+            self.assertEqual(read_model.get_student_name_changed_counter(), 6)
 
             # Write some more events.
-            aggregate = Aggregate()
-            aggregate.trigger_event(event_class=Aggregate.Event)
-            aggregate.trigger_event(event_class=Aggregate.Event)
+            aggregate = Student()
+            aggregate.trigger_event(Student.NameChanged)
+            aggregate.trigger_event(Student.NameChanged)
             recordings = write_model.save(aggregate)
 
             # Wait for events to be processed.
@@ -210,28 +201,26 @@ class TestAggregateEventCountersProjectionWithPostgres(
             )
 
             # Query the read model.
-            self.assertEqual(read_model.get_created_event_counter(), 4)
-            self.assertEqual(read_model.get_subsequent_event_counter(), 8)
+            self.assertEqual(read_model.get_student_registered_counter(), 4)
+            self.assertEqual(read_model.get_student_name_changed_counter(), 8)
 
     def test_run_forever_raises_projection_error(self) -> None:
         super().test_run_forever_raises_projection_error()
 
         # Resume...
         with ProjectionRunner(
-            application_class=Application,
-            projection_class=AggregateEventCountersProjection,
+            application_class=MsgspecApplication,
+            projection_class=StudentEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
 
             # Construct separate instance of "write model".
-            write_model = Application(self.env)
+            write_model = MsgspecApplication(self.env)
 
             # Construct separate instance of "read model".
             read_model = InfrastructureFactory.construct(
-                env=Environment(
-                    name=AggregateEventCountersProjection.name, env=self.env
-                )
+                env=Environment(name=StudentEventCountersProjection.name, env=self.env)
             ).tracking_recorder(self.view_class)
 
             # Still terminates with projection error.

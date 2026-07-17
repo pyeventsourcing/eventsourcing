@@ -6,7 +6,12 @@ from typing import TYPE_CHECKING, Any, Generic
 
 from typing_extensions import TypeVar
 
-from eventsourcing.dcb.domain import (
+from eventsourcing.dcb.persistence import (
+    DCBEventStore,
+    DCBInfrastructureFactory,
+    NotFoundError,
+)
+from eventsourcing.domain_new import (
     EnduringObject,
     Perspective,
     Selector,
@@ -14,15 +19,9 @@ from eventsourcing.dcb.domain import (
     TGroup,
     TPerspective,
     TSlice,
+    set_metadata_in_context,
 )
-from eventsourcing.dcb.persistence import (
-    DCBEventStore,
-    DCBInfrastructureFactory,
-    DCBMapper,
-    NotFoundError,
-)
-from eventsourcing.domain import set_metadata_in_context
-from eventsourcing.persistence import TrackingRecorder
+from eventsourcing.persistence import TaggedEventMapper, TrackingRecorder
 from eventsourcing.utils import Environment, EnvType, resolve_topic
 
 if TYPE_CHECKING:
@@ -42,15 +41,16 @@ class DCBApplication(Generic[TDecision]):
     def __init__(self, env: EnvType | None = None):
         env_ = self.construct_env(self.name, env)
         self.env = env_
-        self.factory = DCBInfrastructureFactory[TrackingRecorder].construct(env_)
+        self.factory: DCBInfrastructureFactory[TrackingRecorder] = (
+            DCBInfrastructureFactory.construct(env_)
+        )
+
         self.recorder = self.factory.dcb_recorder()
-        mapper_topic = env_.get("MAPPER_TOPIC")
-        if mapper_topic:
+        if "TRANSCODER_TOPIC" in self.env:
             # Only need a mapper, event store, and repository
             # if we are using the higher-level abstractions.
-            mapper_cls: type[DCBMapper[TDecision]] = resolve_topic(mapper_topic)
-            assert issubclass(mapper_cls, DCBMapper)
-            self.mapper = mapper_cls(
+            self.mapper = TaggedEventMapper(
+                transcoder=self.factory.transcoder(),
                 compressor=self.factory.compressor(),
                 cipher=self.factory.cipher(),
             )
@@ -116,8 +116,7 @@ class DCBRepository(Generic[TDecision]):
         count_events = 0
         for event in events:
             count_events += 1
-            with set_metadata_in_context(event.metadata):
-                obj = event.decision.mutate(obj)
+            obj = event.mutate(obj)
         if count_events == 0 or obj is None:
             raise NotFoundError
         obj.last_known_position = events.head
@@ -144,9 +143,7 @@ class DCBRepository(Generic[TDecision]):
                 event_counts[tag] += 1
                 obj = objs.get(tag)
                 if obj is not None:
-                    # TODO: Write a text for this case of setting metadata in context.
-                    with set_metadata_in_context(event.metadata):
-                        objs[tag] = event.decision.mutate(obj)
+                    objs[tag] = event.mutate(obj)
         for id_ in ids:
             obj = objs.get(id_)
             if obj is None or event_counts[id_] == 0:
@@ -177,8 +174,6 @@ class DCBRepository(Generic[TDecision]):
             after=p.last_known_position,
         )
         for event in read_response:
-            # TODO: Write a text for this case of setting metadata in context.
-            with set_metadata_in_context(event.metadata):
-                event.decision.mutate(p)
+            event.mutate(p)
         p.last_known_position = read_response.head
         return p

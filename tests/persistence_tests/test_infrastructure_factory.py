@@ -1,13 +1,13 @@
 from unittest.case import TestCase
 
 import eventsourcing.popo
+from eventsourcing.dataclasses.legacy import LegacyJSONTranscoder
+from eventsourcing.errors import InfrastructureFactoryError, ProgrammingError
 from eventsourcing.persistence import (
+    AggregateEventMapper,
     ApplicationRecorder,
-    DataclassMapper,
     EventStore,
     InfrastructureFactory,
-    InfrastructureFactoryError,
-    JSONTranscoder,
     Mapper,
 )
 from eventsourcing.utils import Environment, get_topic
@@ -36,88 +36,45 @@ class TestInfrastructureFactory(TestCase):
                 )
             )
 
-    def test_construct_transcoder(self) -> None:
-        # No environment variables.
-        factory = InfrastructureFactory.construct()
-        transcoder = factory.transcoder()
-        self.assertIsInstance(transcoder, JSONTranscoder)
-
-        # TRANSCODER_TOPIC set to JSONTranscoder.
-        transcoder_topic = get_topic(JSONTranscoder)
-        env = Environment(
-            env={InfrastructureFactory.TRANSCODER_TOPIC: transcoder_topic}
-        )
-        factory = InfrastructureFactory.construct(env)
-        transcoder = factory.transcoder()
-        self.assertIsInstance(transcoder, JSONTranscoder)
-
-        class MyTranscoder(JSONTranscoder):
-            pass
-
-        # TRANSCODER_TOPIC set to MyTranscoder.
-        transcoder_topic = get_topic(MyTranscoder)
-        env = Environment(
-            env={InfrastructureFactory.TRANSCODER_TOPIC: transcoder_topic}
-        )
-        factory = InfrastructureFactory.construct(env)
-        transcoder = factory.transcoder()
-        self.assertIsInstance(transcoder, MyTranscoder)
-
-        # MYAPP_TRANSCODER_TOPIC set to MyTranscoder.
-        env = Environment(
-            name="MyApp",
-            env={"MYAPP_" + InfrastructureFactory.TRANSCODER_TOPIC: transcoder_topic},
-        )
-        factory = InfrastructureFactory.construct(env)
-        transcoder = factory.transcoder()
-        self.assertIsInstance(transcoder, MyTranscoder)
-
     def test_construct_mapper(self) -> None:
         # No environment variables.
         factory: InfrastructureFactory = InfrastructureFactory.construct()
-        mapper: Mapper = factory.mapper()
-        self.assertIsInstance(mapper, DataclassMapper)
-        self.assertIsInstance(mapper.transcoder, JSONTranscoder)
+        with self.assertRaises(ProgrammingError) as cm:
+            factory.mapper()
+        self.assertIn("Please set TRANSCODER_TOPIC", str(cm.exception))
 
-        # MAPPER_TOPIC set to Mapper.
-        env = Environment(
-            env={InfrastructureFactory.MAPPER_TOPIC: get_topic(DataclassMapper)}
-        )
+        env = {
+            InfrastructureFactory.TRANSCODER_TOPIC: get_topic(LegacyJSONTranscoder),
+        }
+
         factory = InfrastructureFactory.construct(env)
         mapper = factory.mapper()
-        self.assertIsInstance(mapper, DataclassMapper)
 
-        class MyMapper(DataclassMapper):
-            pass
-
-        # MAPPER_TOPIC set to MyMapper.
-        pydantic_topic = get_topic(MyMapper)
-        env = Environment(
-            env={
-                InfrastructureFactory.MAPPER_TOPIC: pydantic_topic,
-            }
-        )
-        factory = InfrastructureFactory.construct(env)
-        mapper = factory.mapper()
-        self.assertIsInstance(mapper, MyMapper)
+        self.assertIsInstance(mapper, AggregateEventMapper)
+        self.assertIsInstance(mapper.transcoder, LegacyJSONTranscoder)
 
         # MYAPP_MAPPER_TOPIC set to MyMapper.
-        env = Environment(
-            name="MyApp",
-            env={
-                "MYAPP_" + InfrastructureFactory.MAPPER_TOPIC: pydantic_topic,
-            },
-        )
-
-        factory = InfrastructureFactory.construct(env=env)
+        env = {
+            "MYAPP_"
+            + InfrastructureFactory.MAPPER_TOPIC: get_topic(AggregateEventMapper),
+            "MYAPP_"
+            + InfrastructureFactory.TRANSCODER_TOPIC: get_topic(LegacyJSONTranscoder),
+        }
+        factory = InfrastructureFactory.construct(env=Environment("MyApp", env))
         mapper = factory.mapper()
-        self.assertIsInstance(mapper, MyMapper)
+        self.assertIsInstance(mapper, AggregateEventMapper)
+        self.assertIsInstance(mapper.transcoder, LegacyJSONTranscoder)
 
     def test_construct_event_store(self) -> None:
-        factory: InfrastructureFactory = InfrastructureFactory.construct()
+        factory: InfrastructureFactory = InfrastructureFactory.construct(
+            env={
+                "MAPPER_TOPIC": get_topic(AggregateEventMapper),
+                "TRANSCODER_TOPIC": get_topic(LegacyJSONTranscoder),
+            }
+        )
         event_store: EventStore = factory.event_store()
         self.assertIsInstance(event_store, EventStore)
-        self.assertIsInstance(event_store.mapper, DataclassMapper)
+        self.assertIsInstance(event_store.mapper, AggregateEventMapper)
         self.assertIsInstance(event_store.recorder, ApplicationRecorder)
 
         my_mapper: Mapper = factory.mapper()

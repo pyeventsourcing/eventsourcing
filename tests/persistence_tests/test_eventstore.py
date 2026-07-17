@@ -1,24 +1,21 @@
 from decimal import Decimal
 from unittest.case import TestCase
 
-from eventsourcing.domain import CanMutateProtocol
+from eventsourcing.domain_new import AggregateEvent
 from eventsourcing.persistence import (
-    DataclassMapper,
-    DatetimeAsISO,
-    DecimalAsStr,
+    AggregateEventMapper,
     EventStore,
-    JSONTranscoder,
-    UUIDAsHex,
 )
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.transcoder import PydanticTranscoder
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
-from eventsourcing.tests.application import EmailAddressAsStr
-from eventsourcing.tests.domain import BankAccount
+from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 
 
 class TestEventStore(TestCase):
     def test(self) -> None:
         # Open an account.
-        account = BankAccount.open(
+        account = BankAccountWithPydantic.open(
             full_name="Alice",
             email_address="alice@example.com",
         )
@@ -32,14 +29,11 @@ class TestEventStore(TestCase):
         pending = account.collect_events()
 
         # Construct event store.
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        transcoder.register(EmailAddressAsStr())
-        recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
+        recorder = SQLiteAggregateRecorder(
+            SQLiteDatastore(":memory:", originator_id_type="text")
+        )
         event_store = EventStore(
-            mapper=DataclassMapper(transcoder),
+            mapper=AggregateEventMapper(PydanticTranscoder()),
             recorder=recorder,
         )
         recorder.create_table()
@@ -52,13 +46,14 @@ class TestEventStore(TestCase):
         event_store.put(pending)
 
         # Get domain events.
-        domain_events = event_store.get(account.id)
+        events = event_store.get(account.id)
 
         # Reconstruct the bank account.
-        copy = BankAccount.__new__(BankAccount)
-        for domain_event in domain_events:
-            assert isinstance(domain_event, CanMutateProtocol)
-            copy = domain_event.mutate(copy)
+        copy = BankAccountWithPydantic.__new__(BankAccountWithPydantic)
+        for event in events:
+            assert isinstance(event, AggregateEvent)
+            assert isinstance(event.decision, PydanticDecision)
+            copy = event.mutate(copy)
 
         # Check copy has correct attribute values.
         assert copy is not None
@@ -71,4 +66,4 @@ class TestEventStore(TestCase):
         last_event = events[0]
 
         self.assertEqual(last_event.originator_id, account.id)
-        assert type(last_event) is BankAccount.TransactionAppended
+        assert type(last_event.decision) is BankAccountWithPydantic.TransactionAppended

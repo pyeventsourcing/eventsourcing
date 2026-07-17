@@ -4,7 +4,8 @@ import sys
 from typing import TYPE_CHECKING, ClassVar
 from unittest import skipIf
 
-from eventsourcing.dcb.msgspec import MsgspecMapper
+from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+from eventsourcing.persistence import AggregateEventMapper, TaggedEventMapper
 from eventsourcing.popo import POPOTrackingRecorder
 from eventsourcing.tests.projection import (
     AggregateEventCountersProjectionTestCase,
@@ -24,19 +25,19 @@ class POPOEventCounters(POPOTrackingRecorder, EventCountersView):
         self._created_event_counter = 0
         self._subsequent_event_counter = 0
 
-    def get_created_event_counter(self) -> int:
+    def get_student_registered_counter(self) -> int:
         return self._created_event_counter
 
-    def get_subsequent_event_counter(self) -> int:
+    def get_student_name_changed_counter(self) -> int:
         return self._subsequent_event_counter
 
-    def incr_created_event_counter(self, tracking: Tracking) -> None:
+    def incr_student_registered_counter(self, tracking: Tracking) -> None:
         with self._database_lock:
             self._assert_tracking_uniqueness(tracking)
             self._insert_tracking(tracking)
             self._created_event_counter += 1
 
-    def incr_subsequent_event_counter(self, tracking: Tracking) -> None:
+    def incr_student_name_changed_counter(self, tracking: Tracking) -> None:
         with self._database_lock:
             self._assert_tracking_uniqueness(tracking)
             self._insert_tracking(tracking)
@@ -51,6 +52,10 @@ class TestPOPOEventCounters(EventCountersViewTestCase):
 class TestAggregateEventCountersProjectionWithPOPO(
     AggregateEventCountersProjectionTestCase
 ):
+    env: ClassVar[dict[str, str]] = {
+        "MAPPER_TOPIC": get_topic(AggregateEventMapper),
+        "TRANSCODER_TOPIC": get_topic(MsgspecTranscoder),
+    }
     view_class: type[EventCountersView] = POPOEventCounters
 
 
@@ -59,9 +64,12 @@ class TestAggregateEventCountersProjectionWithPOPO(
 #  - was happening when run alone when DCBSpannerThrown has no attributes
 #  - maybe something to do with deepcopy() in InMemoryRecorder?
 @skipIf(sys.version_info[0:2] == (3, 13), "Weird occasional segmentation violation")
-class TestDecisionCountersProjectionWithPOPO(DecisionCountersProjectionTestCase):
+class TestTaggedEventCountersProjectionWithPOPO(DecisionCountersProjectionTestCase):
 
-    env: ClassVar[dict[str, str]] = {"MAPPER_TOPIC": get_topic(MsgspecMapper)}
+    env: ClassVar[dict[str, str]] = {
+        "MAPPER_TOPIC": get_topic(TaggedEventMapper),
+        "TRANSCODER_TOPIC": get_topic(MsgspecTranscoder),
+    }
     view_class: type[EventCountersView] = POPOEventCounters
 
 

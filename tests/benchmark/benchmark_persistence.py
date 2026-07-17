@@ -7,7 +7,8 @@ from uuid import UUID, uuid4
 import pytest
 
 from eventsourcing.application import Application
-from eventsourcing.domain import Aggregate, event
+from eventsourcing.domain_new import event
+from eventsourcing.domain_old import Aggregate
 from eventsourcing.persistence import InfrastructureFactory, StoredEvent
 from eventsourcing.postgres import PostgresApplicationRecorder
 from eventsourcing.tests.postgres_utils import drop_tables

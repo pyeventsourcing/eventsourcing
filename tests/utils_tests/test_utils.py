@@ -4,8 +4,6 @@ from unittest import TestCase
 from typing_extensions import TypeVar
 
 import eventsourcing
-import eventsourcing.domain
-from eventsourcing.domain import Aggregate
 from eventsourcing.utils import (
     TopicError,
     clear_topic_cache,
@@ -151,74 +149,109 @@ class TestStrtobool(TestCase):
     def test_raises_type_error(self) -> None:
         for x in (None, True, False, 1, 2, 3):
             with self.assertRaises(TypeError):
-                strtobool(cast("str", x))
+                strtobool(cast(str, x))
+
+
+class Outer:
+    class Inner:
+        pass
+
+
+class OuterWithTopic:
+    TOPIC = "outertopic"
+
+    class InnerWithTopic:
+        TOPIC = "innertopic"
 
 
 class TestTopics(TestCase):
+    def setUp(self) -> None:
+        clear_topic_cache()
+
+    def tearDown(self) -> None:
+        clear_topic_cache()
+
     def test_get_topic(self) -> None:
-        self.assertEqual("eventsourcing.domain:Aggregate", get_topic(Aggregate))
+        self.assertEqual(
+            "tests.utils_tests.test_utils:Outer",
+            get_topic(Outer),
+        )
+        self.assertEqual(
+            "tests.utils_tests.test_utils:Outer.Inner",
+            get_topic(Outer.Inner),
+        )
 
-        class MyClass:
-            TOPIC = "mytopic"
-
-        self.assertEqual("mytopic", get_topic(MyClass))
+        self.assertEqual("outertopic", get_topic(OuterWithTopic))
+        self.assertEqual("innertopic", get_topic(OuterWithTopic.InnerWithTopic))
 
     def test_resolve_topic(self) -> None:
-        self.assertEqual(Aggregate, resolve_topic("eventsourcing.domain:Aggregate"))
+        self.assertEqual(Outer, resolve_topic("tests.utils_tests.test_utils:Outer"))
 
     def test_register_topic_rename_class(self) -> None:
-        register_topic("eventsourcing.domain:OldClass", Aggregate)
-        self.assertEqual(Aggregate, resolve_topic("eventsourcing.domain:OldClass"))
+        old_topic = "tests.utils_tests.test_utils:OldClass"
+        register_topic(old_topic, Outer)
+        self.assertEqual(Outer, resolve_topic(old_topic))
         self.assertEqual(
-            Aggregate.Created, resolve_topic("eventsourcing.domain:OldClass.Created")
+            Outer.Inner,
+            resolve_topic(old_topic + ".Inner"),
         )
 
     def test_register_topic_move_module_into_package(self) -> None:
-        register_topic("oldmodule", eventsourcing.domain)
-        self.assertEqual(Aggregate, resolve_topic("oldmodule:Aggregate"))
-        self.assertEqual(
-            Aggregate.Created, resolve_topic("oldmodule:Aggregate.Created")
-        )
+        this = resolve_topic(Outer.__module__)
+        clear_topic_cache()
+        old_topic = "oldmodule"
+        register_topic(old_topic, this)
+        self.assertEqual(Outer, resolve_topic("oldmodule:Outer"))
+        self.assertEqual(Outer.Inner, resolve_topic("oldmodule:Outer.Inner"))
 
     def test_register_topic_rename_package(self) -> None:
-        register_topic("oldpackage", eventsourcing)
-        self.assertEqual(Aggregate, resolve_topic("oldpackage.domain:Aggregate"))
+        tests = resolve_topic("tests")
+        clear_topic_cache()
+        register_topic("oldpackage", tests)
         self.assertEqual(
-            Aggregate.Created, resolve_topic("oldpackage.domain:Aggregate.Created")
+            Outer, resolve_topic("oldpackage.utils_tests.test_utils:Outer")
+        )
+        self.assertEqual(
+            Outer.Inner, resolve_topic("oldpackage.utils_tests.test_utils:Outer.Inner")
         )
 
     def test_register_topic_move_package(self) -> None:
-        register_topic("old.eventsourcing.domain", eventsourcing.domain)
-        self.assertEqual(Aggregate, resolve_topic("old.eventsourcing.domain:Aggregate"))
+        this = resolve_topic(Outer.__module__)
+        clear_topic_cache()
+        old_topic = "old." + Outer.__module__
+        register_topic(old_topic, this)
+        self.assertEqual(Outer, resolve_topic(f"{old_topic}:Outer"))
 
     def test_register_topic_rename_package_and_module(self) -> None:
-        register_topic("old.old", eventsourcing.domain)
-        self.assertEqual(Aggregate, resolve_topic("old.old:Aggregate"))
+        this = resolve_topic(Outer.__module__)
+        clear_topic_cache()
+        register_topic("old.old", this)
+        self.assertEqual(Outer, resolve_topic("old.old:Outer"))
 
     def test_topic_errors(self) -> None:
         # Wrong module name.
         with self.assertRaises(TopicError) as cm:
-            resolve_topic("oldmodule:Aggregate")
+            resolve_topic("oldmodule:Outer")
         expected_msg = (
-            "Failed to resolve topic 'oldmodule:Aggregate': No module named 'oldmodule'"
+            "Failed to resolve topic 'oldmodule:Outer': No module named 'oldmodule'"
         )
         self.assertEqual(expected_msg, cm.exception.args[0])
 
         # Wrong class name.
         with self.assertRaises(TopicError) as cm:
-            resolve_topic("eventsourcing.domain:OldClass")
+            resolve_topic(f"{Outer.__module__}:OldClass")
         expected_msg = (
-            "Failed to resolve topic 'eventsourcing.domain:OldClass': "
-            "module 'eventsourcing.domain' has no attribute 'OldClass'"
+            f"Failed to resolve topic '{Outer.__module__}:OldClass': "
+            f"module '{Outer.__module__}' has no attribute 'OldClass'"
         )
         self.assertEqual(expected_msg, cm.exception.args[0])
 
         # Wrong class attribute.
         with self.assertRaises(TopicError) as cm:
-            resolve_topic("eventsourcing.domain:Aggregate.OldClass")
+            resolve_topic(f"{Outer.__module__}:Outer.OldClass")
         expected_msg = (
-            "Failed to resolve topic 'eventsourcing.domain:Aggregate.OldClass': "
-            "type object 'Aggregate' has no attribute 'OldClass'"
+            f"Failed to resolve topic '{Outer.__module__}:Outer.OldClass': "
+            "type object 'Outer' has no attribute 'OldClass'"
         )
         self.assertEqual(expected_msg, cm.exception.args[0])
 
@@ -230,9 +263,6 @@ class TestTopics(TestCase):
         with self.assertRaises(TopicError) as cm:
             register_topic("old", TestCase)
         self.assertIn("is already registered for topic 'old'", cm.exception.args[0])
-
-    def tearDown(self) -> None:
-        clear_topic_cache()
 
 
 class TestResolveMultiGenericTargets(TestCase):

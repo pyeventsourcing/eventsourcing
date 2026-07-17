@@ -6,25 +6,27 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Literal, cast
 from uuid import UUID
 
-from eventsourcing.domain import NIL_UUID
+from eventsourcing.domain_new import NIL_UUID
+from eventsourcing.errors import (
+    DatabaseError,
+    DataError,
+    InterfaceError,
+    NotSupportedError,
+    OperationalError,
+    PersistenceError,
+    ProgrammingError,
+)
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
     Connection,
     ConnectionPool,
     Cursor,
-    DatabaseError,
-    DataError,
     InfrastructureFactory,
     IntegrityError,
-    InterfaceError,
     InternalError,
     Notification,
-    NotSupportedError,
-    OperationalError,
-    PersistenceError,
     ProcessRecorder,
-    ProgrammingError,
     Recorder,
     StoredEvent,
     Subscription,
@@ -215,7 +217,7 @@ class SQLiteDatastore:
         max_age: float | None = None,
         pre_ping: bool = False,
         single_row_tracking: bool = True,
-        originator_id_type: Literal["uuid", "text"] = "uuid",
+        originator_id_type: Literal["uuid", "text"] = "text",
     ):
         self.pool = SQLiteConnectionPool(
             db_name=db_name,
@@ -334,7 +336,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
                 s.originator_version,
                 s.topic,
                 s.state,
-                s.event_id.hex,
+                s.uuid.hex,
                 json.dumps(s.metadata).encode("utf-8"),
             )
             for s in stored_events
@@ -378,7 +380,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
                     topic=row["topic"],
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
-                    event_id=row["event_id"] or NIL_UUID,
+                    uuid=row["event_id"] or NIL_UUID,
                 )
                 for row in c.fetchall()
             ]
@@ -432,7 +434,7 @@ class SQLiteApplicationRecorder(
                     s.originator_version,
                     s.topic,
                     s.state,
-                    s.event_id.hex,
+                    s.uuid.hex,
                     json.dumps(s.metadata).encode("utf-8"),
                 ),
             )
@@ -493,7 +495,7 @@ class SQLiteApplicationRecorder(
                     topic=row["topic"],
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
-                    event_id=row["event_id"] or NIL_UUID,
+                    uuid=row["event_id"] or NIL_UUID,
                 )
                 for row in c.fetchall()
             ]
@@ -739,7 +741,7 @@ class SQLiteFactory(InfrastructureFactory[SQLiteTrackingRecorder]):
 
         originator_id_type = cast(
             Literal["uuid", "text"],
-            self.env.get(self.ORIGINATOR_ID_TYPE, "uuid"),
+            self.env.get(self.ORIGINATOR_ID_TYPE, "text"),
         )
         if originator_id_type.lower() not in ("uuid", "text"):
             msg = (

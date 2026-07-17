@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from eventsourcing.domain import event
-from eventsourcing.msgspec.mutablemodel import Aggregate
+from eventsourcing.domain_new import event
+from eventsourcing.msgspec.mutable import MsgspecAggregate
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseID,
@@ -11,7 +11,8 @@ from examples.dcb_enrolment.interface import (
 )
 
 
-class Student(Aggregate[StudentID]):
+class Student(MsgspecAggregate):
+    @event("Regsitered")
     def __init__(self, name: str, max_courses: int) -> None:
         self.name = name
         self.max_courses = max_courses
@@ -24,7 +25,8 @@ class Student(Aggregate[StudentID]):
         self.course_ids.append(course_id)
 
 
-class Course(Aggregate[CourseID]):
+class Course(MsgspecAggregate):
+    @event("Created")
     def __init__(self, name: str, places: int) -> None:
         self.name = name
         self.places = places

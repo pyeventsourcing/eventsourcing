@@ -18,7 +18,8 @@ from eventsourcing.dcb.api import (
     DCBSequencedEvent,
     DCBSubscription,
 )
-from eventsourcing.persistence import IntegrityError, ProgrammingError
+from eventsourcing.errors import ProgrammingError
+from eventsourcing.persistence import IntegrityError
 from eventsourcing.postgres import PostgresDatastore, PostgresRecorder
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import Environment
@@ -77,7 +78,7 @@ class TestDCBObjects(TestCase):
 
     def test_event(self) -> None:
         # Must contain "type" and "data".
-        uuid = str(uuid4())
+        uuid = uuid4()
         event = DCBEvent(type="EventType1", data=b"data", uuid=uuid, metadata={})
         self.assertEqual("EventType1", event.type)
         self.assertEqual(b"data", event.data)
@@ -90,7 +91,7 @@ class TestDCBObjects(TestCase):
             type="EventType1",
             data=b"data",
             tags=["tag1", "tag2"],
-            uuid=str(uuid4()),
+            uuid=uuid4(),
             metadata={},
         )
         self.assertEqual("EventType1", event.type)
@@ -99,9 +100,7 @@ class TestDCBObjects(TestCase):
 
     def test_sequenced_event(self) -> None:
         sequenced_event = DCBSequencedEvent(
-            event=DCBEvent(
-                type="EventType1", data=b"data", uuid=str(uuid4()), metadata={}
-            ),
+            event=DCBEvent(type="EventType1", data=b"data", uuid=uuid4(), metadata={}),
             position=3,
         )
         self.assertEqual("EventType1", sequenced_event.event.type)
@@ -313,7 +312,7 @@ class ConcurrentAppendTestCase(TestCase):
                 type="CommitOrderTest",
                 data=b"",
                 tags=[tag],
-                uuid=str(uuid4()),
+                uuid=uuid4(),
                 metadata={},
             )
             for _ in range(self.insert_num)
@@ -561,7 +560,7 @@ def generate_events(num_events: int) -> list[DCBEvent]:
             type=f"topic{i}",
             data=b"state{i}",
             tags=[str(uuid4())],
-            uuid=str(uuid4()),
+            uuid=uuid4(),
             metadata={},
         )
         for i in range(num_events)

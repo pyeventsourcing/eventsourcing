@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple, TypedDict
+from uuid import UUID
 
 from psycopg.sql import SQL, Identifier
 from psycopg.types.json import Jsonb
@@ -19,8 +20,9 @@ from eventsourcing.dcb.persistence import (
     DCBInfrastructureFactory,
 )
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
-from eventsourcing.domain import NIL_UUID_STR
-from eventsourcing.persistence import IntegrityError, ProgrammingError
+from eventsourcing.domain_new import NIL_UUID, NIL_UUID_STR
+from eventsourcing.errors import ProgrammingError
+from eventsourcing.persistence import IntegrityError
 from eventsourcing.postgres import (
     BasePostgresFactory,
     PostgresDatastore,
@@ -41,7 +43,7 @@ CREATE TYPE {schema}.{type_name} AS (
     data bytea,
     tags text[],
     text_vector tsvector,
-    uuid text,
+    uuid uuid,
     metadata jsonb
 )
 """)
@@ -53,7 +55,7 @@ CREATE TABLE IF NOT EXISTS {schema}.{table_name} (
     data bytea,
     tags text[] NOT NULL,
     text_vector tsvector,
-    uuid text,
+    uuid uuid,
     metadata jsonb
 ) WITH (
   autovacuum_enabled = true,
@@ -86,7 +88,7 @@ RETURNS TABLE (
     type text,
     data bytea,
     tags text[],
-    uuid text,
+    uuid uuid,
     metadata jsonb
 )
 LANGUAGE plpgsql
@@ -104,7 +106,7 @@ BEGIN
 
     -- Return the max position as the first row
     RETURN QUERY SELECT max_pos, NULL::text, NULL::bytea,
-    NULL::text[], NULL::text, NULL::jsonb;
+    NULL::text[], NULL::uuid, NULL::jsonb;
 
     IF text_query <> '' THEN
        -- There's a text query...
@@ -345,7 +347,7 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
                         type=row["type"],
                         data=row["data"],
                         tags=row["tags"],
-                        uuid=row["uuid"] or NIL_UUID_STR,
+                        uuid=row["uuid"] or NIL_UUID,
                         metadata=row["metadata"] or {},
                     ),
                     position=row["sequence_position"],
@@ -453,7 +455,7 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
         type: str,  # noqa: A002
         data: bytes,
         tags: list[str],
-        uuid: str,
+        uuid: UUID,
         metadata: dict[str, str],
     ) -> PgDCBEvent:
         return self.datastore.psycopg_python_types[PG_TYPE_NAME_DCB_EVENT_TS](
@@ -471,7 +473,7 @@ class PgDCBEvent(NamedTuple):
     data: bytes
     tags: list[str]
     text_vector: str
-    uuid: str
+    uuid: UUID
     metadata: dict[str, str]
 
 
@@ -480,7 +482,7 @@ class PgDCBEventRow(TypedDict):
     type: str
     data: bytes
     tags: list[str]
-    uuid: str
+    uuid: UUID
     metadata: dict[str, str]
 
 

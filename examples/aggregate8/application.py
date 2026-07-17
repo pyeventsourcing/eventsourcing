@@ -27,6 +27,4 @@ class DogSchool(PydanticApplication):
         return {
             "name": dog.name,
             "tricks": tuple([t.name for t in dog.tricks]),
-            "created_on": dog.created_on,
-            "modified_on": dog.modified_on,
         }

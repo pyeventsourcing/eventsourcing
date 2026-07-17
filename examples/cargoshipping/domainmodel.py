@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import Enum
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import Aggregate, datetime_now_with_tzinfo
+from pydantic import BaseModel, Field
+
+from eventsourcing.domain_new import datetime_now_with_tzinfo, triggers
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.mutable import PydanticAggregate
 
 
 class Location(Enum):
@@ -22,32 +25,20 @@ class Location(Enum):
     AUMEL = "AUMEL"
 
 
-class Leg:
+class Leg(BaseModel):
     """Leg of an itinerary."""
 
-    def __init__(
-        self,
-        origin: str,
-        destination: str,
-        voyage_number: str,
-    ):
-        self.origin: str = origin
-        self.destination: str = destination
-        self.voyage_number: str = voyage_number
+    origin: str
+    destination: str
+    voyage_number: str
 
 
-class Itinerary:
+class Itinerary(BaseModel):
     """An itinerary along which cargo is shipped."""
 
-    def __init__(
-        self,
-        origin: str,
-        destination: str,
-        legs: tuple[Leg, ...],
-    ):
-        self.origin = origin
-        self.destination = destination
-        self.legs = legs
+    origin: str
+    destination: str
+    legs: tuple[Leg, ...]
 
 
 class HandlingActivity(Enum):
@@ -106,12 +97,38 @@ REGISTERED_ROUTES = {
 }
 
 
-class Cargo(Aggregate):
+class CargoEvent(PydanticDecision):
+    timestamp: datetime = Field(default_factory=datetime_now_with_tzinfo)
+
+
+class BookingStarted(CargoEvent):
+    origin: Location
+    destination: Location
+    arrival_deadline: datetime
+
+
+class DestinationChanged(CargoEvent):
+    destination: Location
+
+
+class RouteAssigned(CargoEvent):
+    route: Itinerary
+
+
+class HandlingEventRegistered(CargoEvent):
+    tracking_id: UUID
+    voyage_number: str | None
+    location: Location
+    handling_activity: HandlingActivity
+
+
+class Cargo(PydanticAggregate):
     """The Cargo aggregate is an event-sourced domain model aggregate that
     specifies the routing from origin to destination, and can track what
     happens to the cargo after it has been booked.
     """
 
+    @triggers(BookingStarted)
     def __init__(
         self,
         origin: Location,
@@ -183,49 +200,17 @@ class Cargo(Aggregate):
         destination: Location,
         arrival_deadline: datetime,
     ) -> Cargo:
-        return cls._create(
-            event_class=cls.BookingStarted,
-            id=uuid4(),
-            origin=origin,
-            destination=destination,
-            arrival_deadline=arrival_deadline,
+        return Cargo(
+            origin=origin, destination=destination, arrival_deadline=arrival_deadline
         )
 
-    class BookingStarted(Aggregate.Created):
-        origin: Location
-        destination: Location
-        arrival_deadline: datetime
-
-    class Event(Aggregate.Event):
-        def apply(self, aggregate: Cargo) -> None:
-            aggregate.when(self)
-
-    @singledispatchmethod
-    def when(self, event: Event) -> None:
-        """Default method to apply an aggregate event to the aggregate object."""
-
+    @triggers(DestinationChanged)
     def change_destination(self, destination: Location) -> None:
-        self.trigger_event(
-            self.DestinationChanged,
-            destination=destination,
-        )
+        self._destination = destination
 
-    class DestinationChanged(Event):
-        destination: Location
-
-    @when.register
-    def _(self, event: Cargo.DestinationChanged) -> None:
-        self._destination = event.destination
-
-    def assign_route(self, itinerary: Itinerary) -> None:
-        self.trigger_event(self.RouteAssigned, route=itinerary)
-
-    class RouteAssigned(Event):
-        route: Itinerary
-
-    @when.register
-    def _(self, event: Cargo.RouteAssigned) -> None:
-        self._route = event.route
+    @triggers(RouteAssigned)
+    def assign_route(self, route: Itinerary) -> None:
+        self._route = route
         self._routing_status = "ROUTED"
         self._estimated_time_of_arrival = datetime_now_with_tzinfo() + timedelta(
             weeks=1
@@ -233,6 +218,7 @@ class Cargo(Aggregate):
         self._next_expected_activity = (HandlingActivity.RECEIVE, self.origin, "")
         self._is_misdirected = False
 
+    @triggers(HandlingEventRegistered)
     def register_handling_event(
         self,
         tracking_id: UUID,
@@ -240,70 +226,51 @@ class Cargo(Aggregate):
         location: Location,
         handling_activity: HandlingActivity,
     ) -> None:
-        self.trigger_event(
-            self.HandlingEventRegistered,
-            tracking_id=tracking_id,
-            voyage_number=voyage_number,
-            location=location,
-            handling_activity=handling_activity,
-        )
-
-    class HandlingEventRegistered(Event):
-        tracking_id: UUID
-        voyage_number: str
-        location: Location
-        handling_activity: str
-
-    @when.register
-    def _(self, event: Cargo.HandlingEventRegistered) -> None:
         assert self.route is not None
-        if event.handling_activity == HandlingActivity.RECEIVE:
+        if handling_activity == HandlingActivity.RECEIVE:
             self._transport_status = "IN_PORT"
-            self._last_known_location = event.location
+            self._last_known_location = location
             self._next_expected_activity = (
                 HandlingActivity.LOAD,
-                event.location,
+                location,
                 self.route.legs[0].voyage_number,
             )
-        elif event.handling_activity == HandlingActivity.LOAD:
+        elif handling_activity == HandlingActivity.LOAD:
             self._transport_status = "ONBOARD_CARRIER"
-            self._current_voyage_number = event.voyage_number
+            self._current_voyage_number = voyage_number
             for leg in self.route.legs:
-                if (
-                    leg.origin == event.location.value
-                    and leg.voyage_number == event.voyage_number
-                ):
+                if leg.origin == location.value and leg.voyage_number == voyage_number:
                     self._next_expected_activity = (
                         HandlingActivity.UNLOAD,
                         Location[leg.destination],
-                        event.voyage_number,
+                        voyage_number,
                     )
                     break
             else:
                 msg = (
-                    f"Can't find leg with origin={event.location} "
-                    f"and voyage_number={event.voyage_number}"
+                    f"Can't find leg with origin={location} "
+                    f"and voyage_number={voyage_number}"
                 )
                 raise ValueError(msg)
 
-        elif event.handling_activity == HandlingActivity.UNLOAD:
+        elif handling_activity == HandlingActivity.UNLOAD:
             self._current_voyage_number = None
-            self._last_known_location = event.location
+            self._last_known_location = location
             self._transport_status = "IN_PORT"
-            if event.location == self.destination:
+            if location == self.destination:
                 self._next_expected_activity = (
                     HandlingActivity.CLAIM,
-                    event.location,
+                    location,
                     "",
                 )
-            elif event.location.value in [leg.destination for leg in self.route.legs]:
+            elif location.value in [leg.destination for leg in self.route.legs]:
                 for i, leg in enumerate(self.route.legs):
-                    if leg.voyage_number == event.voyage_number:
+                    if leg.voyage_number == voyage_number:
                         next_leg: Leg = self.route.legs[i + 1]
-                        assert Location[next_leg.origin] == event.location
+                        assert Location[next_leg.origin] == location
                         self._next_expected_activity = (
                             HandlingActivity.LOAD,
-                            event.location,
+                            location,
                             next_leg.voyage_number,
                         )
                         break
@@ -311,10 +278,10 @@ class Cargo(Aggregate):
                 self._is_misdirected = True
                 self._next_expected_activity = None
 
-        elif event.handling_activity == HandlingActivity.CLAIM:
+        elif handling_activity == HandlingActivity.CLAIM:
             self._next_expected_activity = None
             self._transport_status = "CLAIMED"
 
         else:
-            msg = f"Unsupported handling activity: {event.handling_activity}"
+            msg = f"Unsupported handling activity: {handling_activity}"
             raise ValueError(msg)

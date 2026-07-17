@@ -1,36 +1,38 @@
 from __future__ import annotations
 
-from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import Aggregate
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.mutable import PydanticAggregate
 
 
-class Dog(Aggregate):
-    class Event(Aggregate.Event):
+class Dog(PydanticAggregate):
+    class Event(PydanticDecision):
         def apply(self, aggregate: Dog) -> None:
             aggregate.apply(self)
 
-    class Registered(Event, Aggregate.Created):
+    class Registered(Event):
         name: str
 
     class TrickAdded(Event):
         trick: str
 
+    def __init__(self):
+        self.name: str = ""
+        self.tricks: list[str] = []
+
     @classmethod
     def register(cls, name: str) -> Dog:
-        return cls._create(cls.Registered, name=name)
+        dog = Dog._create()
+        dog.trigger_event(cls.Registered, name=name)
+        return dog
 
     def add_trick(self, trick: str) -> None:
         self.trigger_event(self.TrickAdded, trick=trick)
 
-    @singledispatchmethod
-    def apply(self, event: Event) -> None:
+    def apply(self, decision: Event) -> None:
         """Applies event to aggregate."""
-
-    @apply.register
-    def _(self, event: Dog.Registered) -> None:
-        self.name = event.name
-        self.tricks: list[str] = []
-
-    @apply.register
-    def _(self, event: Dog.TrickAdded) -> None:
-        self.tricks.append(event.trick)
+        match decision:
+            case Dog.Registered(name=name):
+                self.name = name
+                self.tricks = []
+            case Dog.TrickAdded(trick=trick):
+                self.tricks.append(trick)

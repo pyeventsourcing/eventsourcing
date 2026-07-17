@@ -8,33 +8,34 @@ from eventsourcing.application import (
     Application,
     EventSourcedLog,
 )
+from eventsourcing.pydantic.application import PydanticApplication
 from examples.contentmanagement.domainmodel import Page, PageLogged, Slug
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from eventsourcing.domain import MutableOrImmutableAggregate
+    from eventsourcing.domain_old import MutableOrImmutableAggregate
     from eventsourcing.utils import EnvType
 
 PageDetailsType = dict[str, str | Any]
 
 
-class ContentManagement(Application):
+class ContentManagement(PydanticApplication):
     env: ClassVar[dict[str, str]] = {"CONTENTMANAGEMENT_COMPRESSOR_TOPIC": "gzip"}
-    snapshotting_intervals: ClassVar[dict[type[MutableOrImmutableAggregate], int]] = {
-        Page: 5
-    }
+    # snapshotting_intervals: ClassVar[dict[type[MutableOrImmutableAggregate], int]] = {
+    #     Page: 5
+    # }
 
     def __init__(self, env: EnvType | None = None) -> None:
         super().__init__(env)
         self.page_log: EventSourcedLog[PageLogged] = EventSourcedLog(
-            self.events, uuid5(NAMESPACE_URL, "/page_log"), PageLogged
+            self.events, str(uuid5(NAMESPACE_URL, "/page_log")), PageLogged
         )
 
     def create_page(self, title: str, slug: str) -> int:
         page = Page(title=title, slug=slug, body="")
         page_logged = self.page_log.trigger_event(page_id=page.id)
-        index_entry = Slug(slug, page_id=page.id)
+        index_entry = Slug(name=slug, page_id=page.id)
         recordings = self.save(page, page_logged, index_entry)
         return recordings[-1].notification.id
 
@@ -68,7 +69,7 @@ class ContentManagement(Application):
         try:
             new_slug_aggregate = self._get_slug(new_slug)
         except AggregateNotFoundError:
-            new_slug_aggregate = Slug(new_slug, page.id)
+            new_slug_aggregate = Slug(name=new_slug, page_id=page.id)
         else:
             if new_slug_aggregate.page_id is None:
                 new_slug_aggregate.update_page(page.id)
@@ -93,7 +94,7 @@ class ContentManagement(Application):
         page_id = index.page_id
         return self._get_page_by_id(page_id)
 
-    def _get_page_by_id(self, page_id: UUID) -> Page:
+    def _get_page_by_id(self, page_id: str) -> Page:
         return self.repository.get(page_id, Page)
 
     def _get_slug(self, slug: str) -> Slug:
@@ -108,7 +109,7 @@ class ContentManagement(Application):
         limit: int | None = None,
     ) -> Iterator[PageDetailsType]:
         for page_logged in self.page_log.get(gt=gt, lte=lte, desc=desc, limit=limit):
-            page = self._get_page_by_id(page_logged.page_id)
+            page = self._get_page_by_id(page_logged.decision.page_id)
             yield self._details_from_page(page)
 
 

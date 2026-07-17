@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class PageInfo:
-    id: UUID
-    slug: str
+    id: str
     title: str
+    slug: str
     body: str
 
 
@@ -29,11 +29,11 @@ class FtsRecorder(Recorder, ABC):
         """Update a sequence of pages (id, slug, title, body)."""
 
     @abstractmethod
-    def search_pages(self, query: str) -> list[UUID]:
+    def search_pages(self, query: str) -> list[str]:
         """Returns IDs for pages that match query."""
 
     @abstractmethod
-    def select_page(self, page_id: UUID) -> PageInfo:
+    def select_page(self, page_id: str) -> PageInfo:
         """Returns slug, title and body for given ID."""
 
     def search(self, query: str) -> Sequence[PageInfo]:

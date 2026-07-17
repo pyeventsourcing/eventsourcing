@@ -16,77 +16,62 @@ from typing import (
     cast,
     overload,
 )
-from uuid import UUID
-from warnings import warn
 
-from eventsourcing.domain import (
+from eventsourcing.domain_new import (
+    NIL_UUID_STR,
     Aggregate,
-    BaseAggregate,
+    AggregateEvent,
     CanMutateProtocol,
     CollectEventsProtocol,
-    DomainEventProtocol,
-    EventSourcingError,
-    MutableOrImmutableAggregate,
+    EventEnvelope,
     ProjectorFunction,
-    SDomainEvent,
-    SnapshotProtocol,
-    TAggregateID,
-    TDomainEvent,
-    TMutableAggregate,
-    TMutableOrImmutableAggregate,
-    datetime_now_with_tzinfo,
-    project_aggregate,
+    TDecision,
+    WorksWithDecisions,
+    default_aggregate_projector,
 )
+from eventsourcing.errors import EventSourcingError, ProgrammingError
 from eventsourcing.persistence import (
     ApplicationRecorder,
-    DatetimeAsISO,
-    DecimalAsStr,
     EventStore,
     InfrastructureFactory,
-    JSONTranscoder,
     Mapper,
     Notification,
     Recording,
     Tracking,
     Transcoder,
-    UUIDAsHex,
 )
 from eventsourcing.utils import (
     Environment,
     EnvType,
-    resolve_multi_generic_target,
     strtobool,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Sequence
+    from collections.abc import Iterator, Sequence
     from types import TracebackType
     from typing import Self
+    from uuid import UUID
+
+_KT = TypeVar("_KT")
+_VT = TypeVar("_VT")
+_T = TypeVar("_T")
 
 
-class ProgrammingError(Exception):
-    pass
-
-
-S = TypeVar("S")
-T = TypeVar("T")
-
-
-class Cache(Generic[S, T]):
+class Cache(Generic[_KT, _VT]):
     def __init__(self) -> None:
-        self.cache: dict[S, Any] = {}
+        self.cache: dict[_KT, Any] = {}
 
-    def get(self, key: S, *, evict: bool = False) -> T:
+    def get(self, key: _KT, *, evict: bool = False) -> _VT:
         if evict:
             return self.cache.pop(key)
         return self.cache[key]
 
-    def put(self, key: S, value: T | None) -> None:
+    def put(self, key: _KT, value: _VT | None) -> None:
         if value is not None:
             self.cache[key] = value
 
 
-class LRUCache(Cache[S, T]):
+class LRUCache(Cache[_KT, _VT]):
     """Size limited caching that tracks accesses by recency.
 
     This is basically copied from functools.lru_cache. But
@@ -114,7 +99,7 @@ class LRUCache(Cache[S, T]):
             None,
         ]  # initialize by pointing to self
 
-    def get(self, key: S, *, evict: bool = False) -> T:
+    def get(self, key: _KT, *, evict: bool = False) -> _VT:
         with self.lock:
             link = self.cache.get(key)
             if link is not None:
@@ -137,7 +122,7 @@ class LRUCache(Cache[S, T]):
                 return result
             raise KeyError
 
-    def put(self, key: S, value: T | None) -> Any | None:
+    def put(self, key: _KT, value: _VT | None) -> Any | None:
         evicted_key = None
         evicted_value = None
         with self.lock:
@@ -185,7 +170,7 @@ class LRUCache(Cache[S, T]):
         return evicted_key, evicted_value
 
 
-class Repository(Generic[TAggregateID]):
+class Repository(WorksWithDecisions[TDecision]):
     """Reconstructs aggregates from events in an
     :class:`~eventsourcing.persistence.EventStore`,
     possibly using snapshot store to avoid replaying
@@ -196,9 +181,9 @@ class Repository(Generic[TAggregateID]):
 
     def __init__(
         self,
-        event_store: EventStore[TAggregateID],
+        event_store: EventStore[TDecision],
         *,
-        snapshot_store: EventStore[TAggregateID] | None = None,
+        snapshot_store: EventStore[TDecision] | None = None,
         cache_maxsize: int | None = None,
         fastforward: bool = True,
         fastforward_skipping: bool = False,
@@ -211,13 +196,11 @@ class Repository(Generic[TAggregateID]):
         :class:`~eventsourcing.persistence.EventStore` for aggregate
         :class:`~eventsourcing.domain.Snapshot` objects).
         """
-        self.event_store: EventStore[TAggregateID] = event_store
-        self.snapshot_store: EventStore[TAggregateID] | None = snapshot_store
+        self.event_store = event_store
+        self.snapshot_store = snapshot_store
 
         if cache_maxsize is None:
-            self.cache: (
-                Cache[TAggregateID, MutableOrImmutableAggregate[TAggregateID]] | None
-            ) = None
+            self.cache: Cache[str, Any] | None = None
         elif cache_maxsize <= 0:
             self.cache = Cache()
         else:
@@ -228,51 +211,50 @@ class Repository(Generic[TAggregateID]):
 
         # Because fast-forwarding a cached aggregate isn't thread-safe.
         self._fastforward_locks_lock = Lock()
-        self._fastforward_locks_cache: LRUCache[TAggregateID, Lock] = LRUCache(
+        self._fastforward_locks_cache: LRUCache[str, Lock] = LRUCache(
             maxsize=self.FASTFORWARD_LOCKS_CACHE_MAXSIZE
         )
-        self._fastforward_locks_inuse: dict[TAggregateID, tuple[Lock, int]] = {}
+        self._fastforward_locks_inuse: dict[str, tuple[Lock, int]] = {}
 
     @overload
     def get(
         self,
-        aggregate_id: TAggregateID,
-        aggregate_cls: type[TMutableAggregate],
+        aggregate_id: str,
+        aggregate_cls: type[_T],
         *,
         version: int | None = None,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
-    ) -> TMutableAggregate: ...
+    ) -> _T: ...
 
     @overload
     def get(
         self,
-        aggregate_id: TAggregateID,
+        aggregate_id: str,
         *,
         version: int | None = None,
-        projector_func: ProjectorFunction[TMutableOrImmutableAggregate, TDomainEvent],
+        projector_func: ProjectorFunction[_T, TDecision],
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
-    ) -> TMutableAggregate: ...
+    ) -> _T: ...
 
     def get(
         self,
-        aggregate_id: TAggregateID,
-        aggregate_cls: type[TMutableOrImmutableAggregate] | None = None,
+        aggregate_id: str,
+        aggregate_cls: type[_T] | None = None,
         *,
         version: int | None = None,
-        projector_func: ProjectorFunction[
-            TMutableOrImmutableAggregate, TDomainEvent
-        ] = project_aggregate,
+        projector_func: ProjectorFunction[_T, TDecision] = default_aggregate_projector,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
-    ) -> TMutableOrImmutableAggregate:
+    ) -> _T:
         """Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
         given ID from stored events, optionally at a particular version.
         """
+
         # Need to know what type of thing we are dealing with, either from
         # the `aggregate_cls` or from a custom projector function.
-        if aggregate_cls is None and projector_func is project_aggregate:
+        if aggregate_cls is None and projector_func is default_aggregate_projector:
             msg = (
                 "Please supply either a mutable aggregate "
                 "class or a projector function for the aggregate"
@@ -282,9 +264,7 @@ class Repository(Generic[TAggregateID]):
         if self.cache and version is None:
             try:
                 # Look for aggregate in the cache.
-                aggregate = cast(
-                    "TMutableOrImmutableAggregate", self.cache.get(aggregate_id)
-                )
+                aggregate = cast(_T, self.cache.get(aggregate_id))
             except KeyError:
                 # Reconstruct aggregate from stored events.
                 aggregate = self._reconstruct_aggregate(
@@ -306,10 +286,7 @@ class Repository(Generic[TAggregateID]):
                                 )
                                 _aggregate = projector_func(
                                     aggregate,
-                                    cast(
-                                        "Iterable[TDomainEvent]",
-                                        new_events,
-                                    ),
+                                    new_events,
                                 )
                                 if _aggregate is None:
                                     raise AggregateNotFoundError(aggregate_id)
@@ -331,11 +308,11 @@ class Repository(Generic[TAggregateID]):
 
     def _reconstruct_aggregate(
         self,
-        aggregate_id: TAggregateID,
-        aggregate_cls: TMutableOrImmutableAggregate | None,
+        aggregate_id: str,
+        aggregate_cls: _T | None,
         version: int | None,
-        projector_func: ProjectorFunction[TMutableOrImmutableAggregate, TDomainEvent],
-    ) -> TMutableOrImmutableAggregate:
+        projector_func: ProjectorFunction[_T, TDecision],
+    ) -> _T:
         gt: int | None = None
 
         if self.snapshot_store is not None:
@@ -361,27 +338,29 @@ class Repository(Generic[TAggregateID]):
         )
 
         # Reconstruct the aggregate from its events.
-        initial: TMutableOrImmutableAggregate | None = (
+        initial: _T | None = (
             aggregate_cls.__new__(aggregate_cls)
-            if aggregate_cls and projector_func is project_aggregate
+            if aggregate_cls and projector_func is default_aggregate_projector
             else None
         )
+
+        iterable_of_events = chain(snapshots, aggregate_events)
+
+        iterable_of_events = list(iterable_of_events)
+
         aggregate = projector_func(
             initial,
-            chain(
-                cast("Iterable[TDomainEvent]", snapshots),
-                cast("Iterable[TDomainEvent]", aggregate_events),
-            ),
+            iterable_of_events,
         )
 
         # Raise exception if "not found".
-        if aggregate is None or not hasattr(aggregate, "id"):
+        if aggregate is None or getattr(aggregate, "id", NIL_UUID_STR) == NIL_UUID_STR:
             msg = f"Aggregate {aggregate_id!r} version {version!r} not found."
             raise AggregateNotFoundError(msg)
         # Return the aggregate.
         return aggregate
 
-    def _use_fastforward_lock(self, aggregate_id: TAggregateID) -> Lock:
+    def _use_fastforward_lock(self, aggregate_id: str) -> Lock:
         lock: Lock | None = None
         with self._fastforward_locks_lock:
             num_users = 0
@@ -396,7 +375,7 @@ class Repository(Generic[TAggregateID]):
             self._fastforward_locks_inuse[aggregate_id] = (lock, num_users)
             return lock
 
-    def _disuse_fastforward_lock(self, aggregate_id: TAggregateID) -> None:
+    def _disuse_fastforward_lock(self, aggregate_id: str) -> None:
         with self._fastforward_locks_lock:
             lock_, num_users = self._fastforward_locks_inuse[aggregate_id]
             num_users -= 1
@@ -407,7 +386,7 @@ class Repository(Generic[TAggregateID]):
                 self._fastforward_locks_inuse[aggregate_id] = (lock_, num_users)
 
     # TODO: We can't do this unless `item` has either a class or a projector function?
-    # def __contains__(self, item: TAggregateID) -> bool:
+    # def __contains__(self, item: str) -> bool:
     #     """Tests to see if an aggregate exists in the repository."""
     #     try:
     #         self.get(aggregate_id=item)
@@ -569,7 +548,7 @@ class LocalNotificationLog(NotificationLog):
         return f"{first_id},{last_id}"
 
 
-class ProcessingEvent(Generic[TAggregateID]):
+class ProcessingEvent(Generic[TDecision]):
     """Keeps together a :class:`~eventsourcing.persistence.Tracking`
     object, which represents the position of a domain event notification
     in the notification log of a particular application, and the
@@ -579,24 +558,20 @@ class ProcessingEvent(Generic[TAggregateID]):
     def __init__(self, tracking: Tracking | None = None):
         """Initialises the process event with the given tracking object."""
         self.tracking = tracking
-        self.events: list[DomainEventProtocol[TAggregateID]] = []
-        self.aggregates: dict[
-            TAggregateID, MutableOrImmutableAggregate[TAggregateID]
-        ] = {}
+        self.events: list[EventEnvelope[TDecision]] = []
+        self.aggregates: dict[str, _T] = {}
         self.saved_kwargs: dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: MutableOrImmutableAggregate[TAggregateID]
-        | DomainEventProtocol[TAggregateID]
-        | None,
+        *objs: CollectEventsProtocol[TDecision] | EventEnvelope[TDecision] | None,
         **kwargs: Any,
     ) -> None:
         """Collects pending domain events from the given aggregate."""
         for obj in objs:
             if obj is None:
                 continue
-            if isinstance(obj, DomainEventProtocol):
+            if isinstance(obj, EventEnvelope):
                 self.events.append(obj)
             else:
                 if isinstance(obj, CollectEventsProtocol):
@@ -606,38 +581,21 @@ class ProcessingEvent(Generic[TAggregateID]):
 
         self.saved_kwargs.update(kwargs)
 
-    def save(
-        self,
-        *aggregates: MutableOrImmutableAggregate[TAggregateID]
-        | DomainEventProtocol[TAggregateID]
-        | None,
-        **kwargs: Any,
-    ) -> None:
-        warn(
-            "'save()' is deprecated, use 'collect_events()' instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
 
-        self.collect_events(*aggregates, **kwargs)
-
-
-class Application(Generic[TAggregateID]):
+class Application(WorksWithDecisions[TDecision]):
     """Base class for event-sourced applications."""
 
     name = "Application"
     env: ClassVar[dict[str, str]] = {}
     is_snapshotting_enabled: bool = False
-    snapshotting_intervals: ClassVar[
-        dict[type[MutableOrImmutableAggregate[Any]], int]
-    ] = {}
+    snapshotting_intervals: ClassVar[dict[type[Any], int]] = {}
     snapshotting_projectors: ClassVar[
         dict[
-            type[MutableOrImmutableAggregate[Any]],
+            type[Any],
             ProjectorFunction[Any, Any],
         ]
     ] = {}
-    snapshot_class: type[SnapshotProtocol[TAggregateID]] | None = None
+    snapshot_class: type[Any] | None = None
     log_section_size = 10
     notify_topics: Sequence[str] = []
 
@@ -646,27 +604,27 @@ class Application(Generic[TAggregateID]):
     AGGREGATE_CACHE_FASTFORWARD_SKIPPING = "AGGREGATE_CACHE_FASTFORWARD_SKIPPING"
     DEEPCOPY_FROM_AGGREGATE_CACHE = "DEEPCOPY_FROM_AGGREGATE_CACHE"
 
-    aggregate_id_type: ClassVar[type[UUID | str]] = UUID
+    # aggregate_id_type: ClassVar[type[UUID | str]] = UUID
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         if "name" not in cls.__dict__:
             cls.name = cls.__name__
-        if "aggregate_id_type" not in cls.__dict__:
-            application_type_args = resolve_multi_generic_target(cls, Application)
-            assert len(application_type_args) == 1, application_type_args
-            aggregate_id_type = application_type_args[0]
-            if aggregate_id_type in [UUID, str]:
-                cls.aggregate_id_type = aggregate_id_type
-            else:
-                msg = (
-                    f"Invalid type argument for Application[TAggregateID]:"
-                    f" {aggregate_id_type}"
-                )
-                raise TypeError(msg)
-        if cls.snapshot_class is not None and not isinstance(cls.snapshot_class, type):
-            msg = f"The 'snapshot_class' of {cls} is not a class: {cls.snapshot_class}"
-            raise ProgrammingError(msg)
+        # if "aggregate_id_type" not in cls.__dict__:
+        #     application_type_args = resolve_multi_generic_target(cls, Application)
+        #     assert len(application_type_args) == 1, application_type_args
+        #     aggregate_id_type = application_type_args[0]
+        #     if aggregate_id_type in [UUID, str]:
+        #         cls.aggregate_id_type = aggregate_id_type
+        #     else:
+        #         msg = (
+        #             f"Invalid type argument for Application[TAggregateID]:"
+        #             f" {aggregate_id_type}"
+        #         )
+        #         raise TypeError(msg)
+        # if cls.snapshot_class is not None and not isinstance(cls.snapshot_class, type):
+        #     msg = f"The 'snapshot_class' of {cls} is not a class: {cls.snapshot_class}"
+        #     raise ProgrammingError(msg)
 
     def __init__(self, env: EnvType | None = None) -> None:
         """Initialises an application with an
@@ -680,17 +638,17 @@ class Application(Generic[TAggregateID]):
         self.closing = Event()
         self.env = self.construct_env(self.name, env)  # type: ignore[misc]
         self.factory = self.construct_factory(self.env)
-        self.mapper: Mapper[TAggregateID] = self.construct_mapper()
+        self.mapper: Mapper[TDecision] = self.construct_mapper()
         self.recorder = self.construct_recorder()
-        self.events: EventStore[TAggregateID] = self.construct_event_store()
-        self.snapshots: EventStore[TAggregateID] | None = None
+        self.events: EventStore[TDecision] = self.construct_event_store()
+        self.snapshots: EventStore[TDecision] | None = None
         if self.factory.is_snapshotting_enabled():
             self.snapshots = self.construct_snapshot_store()
-        self._repository: Repository[TAggregateID] = self.construct_repository()
+        self._repository: Repository[TDecision] = self.construct_repository()
         self._notification_log = self.construct_notification_log()
 
     @property
-    def repository(self) -> Repository[TAggregateID]:
+    def repository(self) -> Repository[TDecision]:
         """An application's repository reconstructs aggregates from stored events."""
         return self._repository
 
@@ -702,15 +660,6 @@ class Application(Generic[TAggregateID]):
         """
         return self._notification_log
 
-    @property
-    def log(self) -> LocalNotificationLog:
-        warn(
-            "'log' is deprecated, use 'notification_log' instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._notification_log
-
     def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
         """Constructs environment from which application will be configured."""
         # Construct a dict to gather environment variables.
@@ -720,18 +669,18 @@ class Application(Generic[TAggregateID]):
         if type(self).is_snapshotting_enabled or type(self).snapshotting_intervals:
             _env["IS_SNAPSHOTTING_ENABLED"] = "y"
 
-        # Set the 'originator id type' environment variable.
-        try:
-            _env["ORIGINATOR_ID_TYPE"] = {
-                UUID: "uuid",
-                str: "text",
-            }[type(self).aggregate_id_type]
-        except KeyError:
-            msg = (
-                f"Invalid type argument for Application[TAggregateID]:"
-                f" {type(self).aggregate_id_type}"
-            )
-            raise TypeError(msg) from None
+        # # Set the 'originator id type' environment variable.
+        # try:
+        #     _env["ORIGINATOR_ID_TYPE"] = {
+        #         UUID: "uuid",
+        #         str: "text",
+        #     }[type(self).aggregate_id_type]
+        # except KeyError:
+        #     msg = (
+        #         f"Invalid type argument for Application[TAggregateID]:"
+        #         f" {type(self).aggregate_id_type}"
+        #     )
+        #     raise TypeError(msg) from None
 
         # Override with the defined environment variables.
         _env.update(type(self).env)
@@ -750,28 +699,19 @@ class Application(Generic[TAggregateID]):
         """
         return InfrastructureFactory.construct(env)
 
-    def construct_mapper(self) -> Mapper[TAggregateID]:
+    def construct_mapper(self) -> Mapper[TDecision]:
         """Constructs a :class:`~eventsourcing.persistence.Mapper`
         for use by the application.
         """
-        return self.factory.mapper(transcoder=self.construct_transcoder())
+        transcoder = self.construct_transcoder()
+        self._check_decision_type(transcoder)
+        return self.factory.mapper(transcoder=transcoder)
 
     def construct_transcoder(self) -> Transcoder:
         """Constructs a :class:`~eventsourcing.persistence.Transcoder`
         for use by the application.
         """
-        transcoder = self.factory.transcoder()
-        if isinstance(transcoder, JSONTranscoder):
-            self.register_transcodings(transcoder)
-        return transcoder
-
-    def register_transcodings(self, transcoder: JSONTranscoder) -> None:
-        """Registers :class:`~eventsourcing.persistence.Transcoding`
-        objects on given :class:`~eventsourcing.persistence.JSONTranscoder`.
-        """
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
+        return self.factory.transcoder()
 
     def construct_recorder(self) -> ApplicationRecorder:
         """Constructs an :class:`~eventsourcing.persistence.ApplicationRecorder`
@@ -779,7 +719,7 @@ class Application(Generic[TAggregateID]):
         """
         return self.factory.application_recorder()
 
-    def construct_event_store(self) -> EventStore[TAggregateID]:
+    def construct_event_store(self) -> EventStore[TDecision]:
         """Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
         :class:`~eventsourcing.domain.AggregateEvent` objects.
@@ -789,7 +729,7 @@ class Application(Generic[TAggregateID]):
             recorder=self.recorder,
         )
 
-    def construct_snapshot_store(self) -> EventStore[TAggregateID]:
+    def construct_snapshot_store(self) -> EventStore[TDecision]:
         """Constructs an :py:class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
         :class:`~eventsourcing.domain.Snapshot` objects.
@@ -800,7 +740,7 @@ class Application(Generic[TAggregateID]):
             recorder=recorder,
         )
 
-    def construct_repository(self) -> Repository[TAggregateID]:
+    def construct_repository(self) -> Repository[TDecision]:
         """Constructs a :py:class:`Repository` for use by the application."""
         cache_maxsize_envvar = self.env.get(self.AGGREGATE_CACHE_MAXSIZE)
         cache_maxsize = int(cache_maxsize_envvar) if cache_maxsize_envvar else None
@@ -823,25 +763,30 @@ class Application(Generic[TAggregateID]):
 
     def save(
         self,
-        *objs: MutableOrImmutableAggregate[TAggregateID]
-        | DomainEventProtocol[TAggregateID]
-        | None,
+        *objs: CollectEventsProtocol[TDecision] | EventEnvelope[TDecision] | None,
         **kwargs: Any,
-    ) -> list[Recording[TAggregateID]]:
+    ) -> list[Recording[TDecision]]:
         """Collects pending events from given aggregates and
         puts them in the application's event store.
         """
-        processing_event: ProcessingEvent[TAggregateID] = ProcessingEvent()
+        for obj in objs:
+            match obj:
+                case None:
+                    continue
+                case EventEnvelope(decision=decision):
+                    self._check_decision_type(type(decision))
+                case _:
+                    self._check_decision_type(type(obj))
+        processing_event: ProcessingEvent[TDecision] = ProcessingEvent()
         processing_event.collect_events(*objs, **kwargs)
         recordings = self._record(processing_event)
         self._take_snapshots(processing_event)
         self._notify(recordings)
-        self.notify(processing_event.events)  # Deprecated.
         return recordings
 
     def _record(
-        self, processing_event: ProcessingEvent[TAggregateID]
-    ) -> list[Recording[TAggregateID]]:
+        self, processing_event: ProcessingEvent[TDecision]
+    ) -> list[Recording[TDecision]]:
         """Records given process event in the application's recorder."""
         recordings = self.events.put(
             processing_event.events,
@@ -853,7 +798,7 @@ class Application(Generic[TAggregateID]):
                 self.repository.cache.put(aggregate_id, aggregate)
         return recordings
 
-    def _take_snapshots(self, processing_event: ProcessingEvent[TAggregateID]) -> None:
+    def _take_snapshots(self, processing_event: ProcessingEvent[TDecision]) -> None:
         # Take snapshots using IDs and types.
         if self.snapshots and self.snapshotting_intervals:
             for event in processing_event.events:
@@ -880,7 +825,7 @@ class Application(Generic[TAggregateID]):
                             )
                             raise ProgrammingError(msg) from None
 
-                        projector_func = project_aggregate
+                        projector_func = default_aggregate_projector
                     self.take_snapshot(
                         aggregate_id=event.originator_id,
                         aggregate_cls=type(aggregate),
@@ -890,11 +835,11 @@ class Application(Generic[TAggregateID]):
 
     def take_snapshot(
         self,
-        aggregate_id: TAggregateID,
-        aggregate_cls: type[TMutableOrImmutableAggregate] | None = None,
+        aggregate_id: str,
+        aggregate_cls: type[_T] | None = None,
         *,
         version: int | None = None,
-        projector_func: ProjectorFunction[Any, Any] = project_aggregate,
+        projector_func: ProjectorFunction[Any, Any] = default_aggregate_projector,
     ) -> None:
         """Takes a snapshot of the recorded state of the aggregate,
         and puts the snapshot in the snapshot store.
@@ -911,28 +856,24 @@ class Application(Generic[TAggregateID]):
         aggregate = self.repository.get(
             aggregate_id, aggregate_cls, version=version, projector_func=projector_func
         )
-        snapshot_class = getattr(type(aggregate), "Snapshot", type(self).snapshot_class)
+        snapshot_class = getattr(type(aggregate), "Snapshot", None)
         if snapshot_class is None:
             msg = (
-                "Neither application nor aggregate have a snapshot class. "
-                f"Please either define a nested 'Snapshot' class on {type(aggregate)} "
-                f"or set class attribute 'snapshot_class' on {type(self)}."
+                "Aggregate does not have a snapshot class. "
+                f"Please define a nested 'Snapshot' class on {type(aggregate)}."
             )
             raise AssertionError(msg)
 
-        snapshot = snapshot_class.take(aggregate)
-        self.snapshots.put([snapshot])
+        snapshot_decision = snapshot_class.take(aggregate)
+        snapshot_envelope = AggregateEvent(
+            decision=snapshot_decision,
+            originator_id=aggregate.id,
+            originator_version=aggregate.version,
+        )
 
-    def notify(self, new_events: list[DomainEventProtocol[TAggregateID]]) -> None:
-        """Deprecated.
+        self.snapshots.put([snapshot_envelope])
 
-        Called after new aggregate events have been saved. This
-        method on this class doesn't actually do anything,
-        but this method may be implemented by subclasses that
-        need to take action when new domain events have been saved.
-        """
-
-    def _notify(self, recordings: list[Recording[TAggregateID]]) -> None:
+    def _notify(self, recordings: list[Recording[TDecision]]) -> None:
         """Called after new aggregate events have been saved. This
         method on this class doesn't actually do anything,
         but this method may be implemented by subclasses that
@@ -970,7 +911,7 @@ class AggregateNotFoundError(EventSourcingError):
     """
 
 
-class EventSourcedLog(Generic[TDomainEvent]):
+class EventSourcedLog(Generic[TDecision]):
     """Constructs a sequence of domain events, like an aggregate.
     But unlike an aggregate the events can be triggered
     and selected for use in an application without
@@ -987,31 +928,31 @@ class EventSourcedLog(Generic[TDomainEvent]):
     def __init__(
         self,
         events: EventStore[Any],
-        originator_id: UUID,
-        logged_cls: type[TDomainEvent],  # TODO: Rename to 'event_class' in v10.
+        originator_id: str,
+        event_cls: type[TDecision],
     ):
         self.events = events
         self.originator_id = originator_id
-        self.logged_cls = logged_cls  # TODO: Rename to 'event_class' in v10.
+        self.event_cls = event_cls
 
     def trigger_event(
         self,
         next_originator_version: int | None = None,
         **kwargs: Any,
-    ) -> TDomainEvent:
+    ) -> AggregateEvent[TDecision]:
         """Constructs and returns a new log event."""
         return self._trigger_event(
-            logged_cls=self.logged_cls,
+            logged_cls=self.event_cls,
             next_originator_version=next_originator_version,
             **kwargs,
         )
 
     def _trigger_event(
         self,
-        logged_cls: type[SDomainEvent],
+        logged_cls: type[TDecision],
         next_originator_version: int | None = None,
         **kwargs: Any,
-    ) -> SDomainEvent:
+    ) -> AggregateEvent[TDecision]:
         """Constructs and returns a new log event."""
         if next_originator_version is None:
             last_logged = self.get_last()
@@ -1020,21 +961,23 @@ class EventSourcedLog(Generic[TDomainEvent]):
             else:
                 next_originator_version = last_logged.originator_version + 1
 
-        return logged_cls(
+        return AggregateEvent(
             originator_id=self.originator_id,
             originator_version=next_originator_version,
-            timestamp=datetime_now_with_tzinfo(),
-            **kwargs,
+            decision=logged_cls(
+                # timestamp=datetime_now_with_tzinfo(),
+                **kwargs,
+            ),
         )
 
-    def get_first(self) -> TDomainEvent | None:
+    def get_first(self) -> AggregateEvent[TDecision] | None:
         """Selects the first logged event."""
         try:
             return next(self.get(limit=1))
         except StopIteration:
             return None
 
-    def get_last(self) -> TDomainEvent | None:
+    def get_last(self) -> AggregateEvent[TDecision] | None:
         """Selects the last logged event."""
         try:
             return next(self.get(desc=True, limit=1))
@@ -1048,17 +991,14 @@ class EventSourcedLog(Generic[TDomainEvent]):
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> Iterator[TDomainEvent]:
+    ) -> Iterator[AggregateEvent[TDecision]]:
         """Selects a range of logged events with limit,
         with ascending or descending order.
         """
-        return cast(
-            "Iterator[TDomainEvent]",
-            self.events.get(
-                originator_id=self.originator_id,
-                gt=gt,
-                lte=lte,
-                desc=desc,
-                limit=limit,
-            ),
+        return self.events.get(
+            originator_id=self.originator_id,
+            gt=gt,
+            lte=lte,
+            desc=desc,
+            limit=limit,
         )

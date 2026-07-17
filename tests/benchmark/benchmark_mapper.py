@@ -7,47 +7,42 @@ from uuid import uuid4
 
 import pytest
 
-import eventsourcing.domain
-import eventsourcing.msgspec.immutablemodel
-import eventsourcing.pydantic.immutablemodel
-from eventsourcing.msgspec.mapper import MsgspecMapper
-from eventsourcing.persistence import (
-    DataclassMapper,
-    DatetimeAsISO,
-    DecimalAsStr,
-    JSONTranscoder,
-    NullTranscoder,
-    UUIDAsHex,
-)
-from eventsourcing.pydantic.mapper import PydanticMapper
+import eventsourcing.dataclasses.immutable
+import eventsourcing.domain_old
+import eventsourcing.msgspec.immutable
+import eventsourcing.pydantic.immutable
+from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+from eventsourcing.persistence import AggregateEventMapper
+from eventsourcing.pydantic.transcoder import PydanticTranscoder
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
 
 
 @pytest.mark.benchmark(group="mapper-encode")
-def test_encode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
+def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
     @dataclass(frozen=True, kw_only=True)
-    class MyObj(eventsourcing.domain.DomainEvent):
+    class MyObj(eventsourcing.dataclasses.immutable.DataclassDecision):
         a: int
         b: str
         c: float
         d: Decimal
 
-    obj = MyObj(
+    obj = AggregateEvent(
         originator_id=uuid4(),
         originator_version=1,
-        a=1,
-        b="abc" * 10,
-        c=0.12345,
-        d=Decimal("0.12345"),
+        decision=MyObj(
+            a=1,
+            b="abc" * 10,
+            c=0.12345,
+            d=Decimal("0.12345"),
+        ),
     )
 
-    transcoder = JSONTranscoder()
-    transcoder.register(UUIDAsHex())
-    transcoder.register(DatetimeAsISO())
-    transcoder.register(DecimalAsStr())
-    mapper = DataclassMapper(transcoder=transcoder)
+    transcoder = DataclassTranscoder()
+    mapper = AggregateEventMapper(transcoder=transcoder)
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -58,26 +53,25 @@ def test_encode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
 @pytest.mark.benchmark(group="mapper-decode")
 def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
     @dataclass(frozen=True, kw_only=True)
-    class MyObj(eventsourcing.domain.DomainEvent):
+    class MyObj(eventsourcing.dataclasses.immutable.DataclassDecision):
         a: int
         b: str
         c: float
         d: Decimal
 
-    obj = MyObj(
+    obj = AggregateEvent(
         originator_id=uuid4(),
         originator_version=1,
-        a=1,
-        b="abc" * 10,
-        c=0.12345,
-        d=Decimal("0.12345"),
+        decision=MyObj(
+            a=1,
+            b="abc" * 10,
+            c=0.12345,
+            d=Decimal("0.12345"),
+        ),
     )
 
-    transcoder = JSONTranscoder()
-    transcoder.register(UUIDAsHex())
-    transcoder.register(DatetimeAsISO())
-    transcoder.register(DecimalAsStr())
-    mapper = DataclassMapper(transcoder=transcoder)
+    transcoder = DataclassTranscoder()
+    mapper = AggregateEventMapper(transcoder=transcoder)
 
     stored_event = mapper.to_stored_event(obj)
 
@@ -89,22 +83,24 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-encode")
 def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
-    class MyObj(eventsourcing.pydantic.immutablemodel.DomainEvent):
+    class MyObj(eventsourcing.pydantic.immutable.PydanticDecision):
         a: int
         b: str
         c: float
         d: Decimal
 
-    obj = MyObj(
+    obj = AggregateEvent(
         originator_id=uuid4(),
         originator_version=1,
-        a=1,
-        b="abc" * 10,
-        c=0.12345,
-        d=Decimal("0.12345"),
+        decision=MyObj(
+            a=1,
+            b="abc" * 10,
+            c=0.12345,
+            d=Decimal("0.12345"),
+        ),
     )
 
-    mapper = PydanticMapper(transcoder=(NullTranscoder()))
+    mapper = AggregateEventMapper(transcoder=PydanticTranscoder)
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -114,23 +110,24 @@ def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-decode")
 def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
-    class MyObj(eventsourcing.pydantic.immutablemodel.DomainEvent):
+    class MyObj(eventsourcing.pydantic.immutable.PydanticDecision):
         a: int
         b: str
         c: float
         d: Decimal
 
-    obj = MyObj(
+    obj = AggregateEvent(
         originator_id=uuid4(),
         originator_version=1,
-        a=1,
-        b="abc" * 10,
-        c=0.12345,
-        d=Decimal("0.12345"),
+        decision=MyObj(
+            a=1,
+            b="abc" * 10,
+            c=0.12345,
+            d=Decimal("0.12345"),
+        ),
     )
 
-    # Not actually needed
-    mapper = PydanticMapper(transcoder=(NullTranscoder()))
+    mapper = AggregateEventMapper(transcoder=PydanticTranscoder)
 
     stored_event = mapper.to_stored_event(obj)
 
@@ -142,22 +139,24 @@ def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-encode")
 def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
-    class MyObj(eventsourcing.msgspec.immutablemodel.DomainEvent):
+    class MyObj(eventsourcing.msgspec.immutable.MsgspecDecision):
         a: int
         b: str
         c: float
         d: Decimal
 
-    obj = MyObj(
+    obj = AggregateEvent(
         originator_id=uuid4(),
         originator_version=1,
-        a=1,
-        b="abc" * 10,
-        c=0.12345,
-        d=Decimal("0.12345"),
+        decision=MyObj(
+            a=1,
+            b="abc" * 10,
+            c=0.12345,
+            d=Decimal("0.12345"),
+        ),
     )
 
-    mapper = MsgspecMapper(transcoder=NullTranscoder())
+    mapper = AggregateEventMapper(transcoder=MsgspecTranscoder)
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -167,22 +166,24 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-decode")
 def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
-    class MyObj(eventsourcing.msgspec.immutablemodel.DomainEvent):
+    class MyObj(eventsourcing.msgspec.immutable.MsgspecDecision):
         a: int
         b: str
         c: float
         d: Decimal
 
-    obj = MyObj(
+    obj = AggregateEvent(
         originator_id=uuid4(),
         originator_version=1,
-        a=1,
-        b="abc" * 10,
-        c=0.12345,
-        d=Decimal("0.12345"),
+        decision=MyObj(
+            a=1,
+            b="abc" * 10,
+            c=0.12345,
+            d=Decimal("0.12345"),
+        ),
     )
 
-    mapper = MsgspecMapper(transcoder=NullTranscoder())
+    mapper = AggregateEventMapper(transcoder=MsgspecTranscoder)
 
     stored_event = mapper.to_stored_event(obj)
 

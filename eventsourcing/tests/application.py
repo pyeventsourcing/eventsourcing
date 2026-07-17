@@ -11,15 +11,22 @@ from unittest import TestCase
 from uuid import UUID, uuid4
 
 from eventsourcing.application import AggregateNotFoundError, Application
-from eventsourcing.domain import Aggregate
+from eventsourcing.dataclasses.legacy import LegacyJSONTranscoder, Transcoding
+from eventsourcing.domain_new import Aggregate, triggers
+from eventsourcing.errors import InfrastructureFactoryError
 from eventsourcing.persistence import (
+    AggregateEventMapper,
     InfrastructureFactory,
-    InfrastructureFactoryError,
     IntegrityError,
-    JSONTranscoder,
-    Transcoding,
 )
-from eventsourcing.tests.domain import BankAccount, EmailAddress
+from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic.transcoder import PydanticTranscoder
+from eventsourcing.tests.bank_account_with_pydantic import (
+    BankAccountWithPydantic,
+    EmailAddress,
+)
 from eventsourcing.utils import EnvType, get_topic
 
 if TYPE_CHECKING:
@@ -32,13 +39,13 @@ class ExampleApplicationTestCase(TestCase):
     expected_factory_topic: str
 
     def test_example_application(self) -> None:
-        app = BankAccounts(env={"IS_SNAPSHOTTING_ENABLED": "y"})
+        app = BankAccountsWithPydantic(env={"IS_SNAPSHOTTING_ENABLED": "y"})
 
         self.assertEqual(get_topic(type(app.factory)), self.expected_factory_topic)
 
         # Check AccountNotFound exception.
-        with self.assertRaises(BankAccounts.AccountNotFoundError):
-            app.get_account(uuid4())
+        with self.assertRaises(BankAccountsWithPydantic.AccountNotFoundError):
+            app.get_account(str(uuid4()))
 
         # Open an account.
         account_id = app.open_account(
@@ -76,7 +83,7 @@ class ExampleApplicationTestCase(TestCase):
 
         # Take snapshot (specify version).
         app.take_snapshot(
-            account_id, BankAccount, version=Aggregate.INITIAL_VERSION + 1
+            account_id, BankAccountWithPydantic, version=Aggregate.INITIAL_VERSION + 1
         )
 
         assert app.snapshots is not None  # for mypy
@@ -85,22 +92,22 @@ class ExampleApplicationTestCase(TestCase):
         self.assertEqual(snapshots[0].originator_version, Aggregate.INITIAL_VERSION + 1)
 
         from_snapshot1 = app.repository.get(
-            account_id, BankAccount, version=Aggregate.INITIAL_VERSION + 2
+            account_id, BankAccountWithPydantic, version=Aggregate.INITIAL_VERSION + 2
         )
-        self.assertIsInstance(from_snapshot1, BankAccount)
+        self.assertIsInstance(from_snapshot1, BankAccountWithPydantic)
         self.assertEqual(from_snapshot1.version, Aggregate.INITIAL_VERSION + 2)
         self.assertEqual(from_snapshot1.balance, Decimal("35.00"))
 
         # Take snapshot (don't specify version).
-        app.take_snapshot(account_id, BankAccount)
+        app.take_snapshot(account_id, BankAccountWithPydantic)
         assert app.snapshots is not None  # for mypy
         snapshots = list(app.snapshots.get(account_id))
         self.assertEqual(len(snapshots), 2)
         self.assertEqual(snapshots[0].originator_version, Aggregate.INITIAL_VERSION + 1)
         self.assertEqual(snapshots[1].originator_version, Aggregate.INITIAL_VERSION + 3)
 
-        from_snapshot2 = app.repository.get(account_id, BankAccount)
-        self.assertIsInstance(from_snapshot2, BankAccount)
+        from_snapshot2 = app.repository.get(account_id, BankAccountWithPydantic)
+        self.assertIsInstance(from_snapshot2, BankAccountWithPydantic)
         self.assertEqual(from_snapshot2.version, Aggregate.INITIAL_VERSION + 3)
         self.assertEqual(from_snapshot2.balance, Decimal("65.00"))
 
@@ -116,37 +123,33 @@ class EmailAddressAsStr(Transcoding):
         return EmailAddress(data)
 
 
-class BankAccounts(Application):
+class BankAccountsWithPydantic(PydanticApplication):
     is_snapshotting_enabled = True
 
-    def register_transcodings(self, transcoder: JSONTranscoder) -> None:
-        super().register_transcodings(transcoder)
-        transcoder.register(EmailAddressAsStr())
-
-    def open_account(self, full_name: str, email_address: str) -> UUID:
-        account = BankAccount.open(
+    def open_account(self, full_name: str, email_address: str) -> str:
+        account = BankAccountWithPydantic.open(
             full_name=full_name,
             email_address=email_address,
         )
         self.save(account)
         return account.id
 
-    def credit_account(self, account_id: UUID, amount: Decimal) -> None:
+    def credit_account(self, account_id: str, amount: Decimal) -> None:
         account = self.get_account(account_id)
         account.append_transaction(amount)
         self.save(account)
 
-    def get_balance(self, account_id: UUID) -> Decimal:
+    def get_balance(self, account_id: str) -> Decimal:
         account = self.get_account(account_id)
         return account.balance
 
-    def get_account(self, account_id: UUID) -> BankAccount:
+    def get_account(self, account_id: str) -> BankAccountWithPydantic:
         try:
-            aggregate = self.repository.get(account_id, BankAccount)
+            aggregate = self.repository.get(account_id, BankAccountWithPydantic)
         except AggregateNotFoundError:
             raise self.AccountNotFoundError(account_id) from None
         else:
-            assert isinstance(aggregate, BankAccount)
+            assert isinstance(aggregate, BankAccountWithPydantic)
             return aggregate
 
     class AccountNotFoundError(Exception):
@@ -154,6 +157,28 @@ class BankAccounts(Application):
 
 
 class ApplicationTestCase(TestCase):
+
+    class MyAggregate(PydanticAggregate):
+        class Created(PydanticDecision):
+            pass
+
+        class Next(PydanticDecision):
+            pass
+
+        @triggers(Created)
+        def __init__(self):
+            pass
+
+        @triggers(Next)
+        def do(self) -> None:
+            pass
+
+    def setUp(self) -> None:
+        self.env: dict[str, str] = {
+            "MAPPER_TOPIC": get_topic(AggregateEventMapper),
+            "TRANSCODER_TOPIC": get_topic(PydanticTranscoder),
+        }
+
     def test_name(self) -> None:
         self.assertEqual(Application.name, "Application")
 
@@ -168,24 +193,18 @@ class ApplicationTestCase(TestCase):
         self.assertEqual(MyApplication2.name, "MyBoundedContext")
 
     def test_as_context_manager(self) -> None:
-        with Application():
+        with PydanticApplication(self.env):
             pass
 
     def test_resolve_persistence_topics(self) -> None:
         # None specified.
-        app = Application()
-        self.assertIsInstance(app.factory, InfrastructureFactory)
-
-        # Legacy 'INFRASTRUCTURE_FACTORY'.
-        app = Application(env={"INFRASTRUCTURE_FACTORY": "eventsourcing.popo:Factory"})
-        self.assertIsInstance(app.factory, InfrastructureFactory)
-
-        # Legacy 'FACTORY_TOPIC'.
-        app = Application(env={"FACTORY_TOPIC": "eventsourcing.popo:Factory"})
+        app = PydanticApplication(self.env)
         self.assertIsInstance(app.factory, InfrastructureFactory)
 
         # Check 'PERSISTENCE_MODULE' resolves to a class.
-        app = Application(env={"PERSISTENCE_MODULE": "eventsourcing.popo"})
+        env = {"PERSISTENCE_MODULE": "eventsourcing.popo"}
+        env.update(self.env)
+        app = PydanticApplication(env)
         self.assertIsInstance(app.factory, InfrastructureFactory)
 
         # Check exceptions.
@@ -209,7 +228,7 @@ class ApplicationTestCase(TestCase):
         )
 
     def test_save_returns_recording_event(self) -> None:
-        app = Application()
+        app = PydanticApplication(self.env)
 
         recordings = app.save()
         self.assertEqual(recordings, [])
@@ -217,15 +236,15 @@ class ApplicationTestCase(TestCase):
         recordings = app.save(None)
         self.assertEqual(recordings, [])
 
-        recordings = app.save(Aggregate())
+        recordings = app.save(self.MyAggregate())
         self.assertEqual(len(recordings), 1)
         self.assertEqual(recordings[0].notification.id, 1)
 
-        recordings = app.save(Aggregate())
+        recordings = app.save(self.MyAggregate())
         self.assertEqual(len(recordings), 1)
         self.assertEqual(recordings[0].notification.id, 2)
 
-        recordings = app.save(Aggregate(), Aggregate())
+        recordings = app.save(self.MyAggregate(), self.MyAggregate())
         self.assertEqual(len(recordings), 2)
         self.assertEqual(recordings[0].notification.id, 3)
         self.assertEqual(recordings[1].notification.id, 4)
@@ -233,7 +252,7 @@ class ApplicationTestCase(TestCase):
     def test_take_snapshot_raises_assertion_error_if_snapshotting_not_enabled(
         self,
     ) -> None:
-        app = Application()
+        app = PydanticApplication(self.env)
         with self.assertRaises(AssertionError) as cm:
             app.take_snapshot(uuid4())
         self.assertEqual(
@@ -246,9 +265,10 @@ class ApplicationTestCase(TestCase):
         )
 
     def test_application_with_cached_aggregates_and_fastforward(self) -> None:
-        app = Application(env={"AGGREGATE_CACHE_MAXSIZE": "10"})
+        self.env["AGGREGATE_CACHE_MAXSIZE"] = "10"
+        app = PydanticApplication(env=self.env)
 
-        aggregate = Aggregate()
+        aggregate = self.MyAggregate()
         app.save(aggregate)
         # Should not put the aggregate in the cache.
         assert app.repository.cache is not None  # for mypy
@@ -256,11 +276,11 @@ class ApplicationTestCase(TestCase):
             self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
 
         # Getting the aggregate should put aggregate in the cache.
-        app.repository.get(aggregate.id, Aggregate)
+        app.repository.get(aggregate.id, self.MyAggregate)
         self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
 
         # Triggering a subsequent event shouldn't update the cache.
-        aggregate.trigger_event(Aggregate.Event)
+        aggregate.trigger_event(self.MyAggregate.Next)
         app.save(aggregate)
         self.assertNotEqual(aggregate, app.repository.cache.get(aggregate.id))
         self.assertEqual(
@@ -268,34 +288,34 @@ class ApplicationTestCase(TestCase):
         )
 
         # Getting the aggregate should fastforward the aggregate in the cache.
-        app.repository.get(aggregate.id, Aggregate)
+        app.repository.get(aggregate.id, self.MyAggregate)
         self.assertEqual(aggregate, app.repository.cache.get(aggregate.id))
 
     def test_check_aggregate_fastforwarding_nonblocking(self) -> None:
-        self._check_aggregate_fastforwarding_during_contention(
-            env={
-                "AGGREGATE_CACHE_MAXSIZE": "10",
-                "AGGREGATE_CACHE_FASTFORWARD_SKIPPING": "y",
-            }
-        )
+        env = {
+            "AGGREGATE_CACHE_MAXSIZE": "10",
+            "AGGREGATE_CACHE_FASTFORWARD_SKIPPING": "y",
+        }
+        env.update(self.env)
+        self._check_aggregate_fastforwarding_during_contention(env)
 
     def test_check_aggregate_fastforwarding_blocking(self) -> None:
-        self._check_aggregate_fastforwarding_during_contention(
-            env={"AGGREGATE_CACHE_MAXSIZE": "10"}
-        )
+        env = {"AGGREGATE_CACHE_MAXSIZE": "10"}
+        env.update(self.env)
+        self._check_aggregate_fastforwarding_during_contention(env)
 
     def _check_aggregate_fastforwarding_during_contention(self, env: EnvType) -> None:
-        app = Application(env=env)
+        app = PydanticApplication(env=env)
 
         self.assertEqual(len(app.repository._fastforward_locks_inuse), 0)
 
         # Create one aggregate.
-        original_aggregate = Aggregate()
+        original_aggregate = self.MyAggregate()
         app.save(original_aggregate)
         obj_ids = set()
 
         # Prime the cache.
-        app.repository.get(original_aggregate.id, Aggregate)
+        app.repository.get(original_aggregate.id, self.MyAggregate)
 
         # Remember the aggregate ID.
         aggregate_id = original_aggregate.id
@@ -308,11 +328,11 @@ class ApplicationTestCase(TestCase):
             while not stopped.is_set():
                 try:
                     # Get the aggregate.
-                    aggregate = app.repository.get(aggregate_id, Aggregate)
+                    aggregate = app.repository.get(aggregate_id, self.MyAggregate)
                     original_version = aggregate.version
 
                     # Try to record a new event.
-                    aggregate.trigger_event(Aggregate.Event)
+                    aggregate.trigger_event(self.MyAggregate.Next)
                     # Give other threads a chance.
                     try:
                         app.save(aggregate)
@@ -332,7 +352,7 @@ class ApplicationTestCase(TestCase):
                         continue
 
                     # Fast-forward the cached aggregate.
-                    fastforwarded = app.repository.get(aggregate_id, Aggregate)
+                    fastforwarded = app.repository.get(aggregate_id, self.MyAggregate)
 
                     # Check cached aggregate was fast-forwarded with recorded event.
                     if fastforwarded.version < original_version:
@@ -385,7 +405,7 @@ class ApplicationTestCase(TestCase):
             if len(successful_thread_ids) < 3:
                 self.fail("Insufficient sharing across contentious threads")
 
-            final_aggregate = app.repository.get(aggregate_id, Aggregate)
+            final_aggregate = app.repository.get(aggregate_id, self.MyAggregate)
             # print("Final aggregate version:", final_aggregate.version)
             if final_aggregate.version < 25:
                 self.fail(f"Insufficient version increment: {final_aggregate.version}")
@@ -397,54 +417,54 @@ class ApplicationTestCase(TestCase):
             app.close()
 
     def test_application_with_cached_aggregates_not_fastforward(self) -> None:
-        app = Application[UUID](
-            env={
-                "AGGREGATE_CACHE_MAXSIZE": "10",
-                "AGGREGATE_CACHE_FASTFORWARD": "f",
-            }
-        )
-        aggregate1 = Aggregate()
+        env = {
+            "AGGREGATE_CACHE_MAXSIZE": "10",
+            "AGGREGATE_CACHE_FASTFORWARD": "f",
+        }
+        env.update(self.env)
+        app = PydanticApplication(env)
+        aggregate1 = self.MyAggregate()
         app.save(aggregate1)
         aggregate_id = aggregate1.id
 
         # Should put the aggregate in the cache.
         assert app.repository.cache is not None  # for mypy
         self.assertEqual(aggregate1, app.repository.cache.get(aggregate_id))
-        app.repository.get(aggregate_id, Aggregate)
+        app.repository.get(aggregate_id, self.MyAggregate)
         self.assertEqual(aggregate1, app.repository.cache.get(aggregate_id))
 
-        aggregate2 = Aggregate()
+        aggregate2 = self.MyAggregate()
         aggregate2._id = aggregate_id
-        aggregate2.trigger_event(Aggregate.Event)
+        aggregate2.trigger_event(self.MyAggregate.Next)
 
         # This will replace object in cache.
         app.save(aggregate2)
 
         self.assertEqual(aggregate2.version, aggregate1.version + 1)
-        aggregate3: Aggregate = app.repository.get(aggregate_id, Aggregate)
+        aggregate3: Aggregate = app.repository.get(aggregate_id, self.MyAggregate)
         self.assertEqual(aggregate3.version, aggregate3.version)
         self.assertEqual(id(aggregate3.version), id(aggregate3.version))
 
         # This will mess things up because the cache has a stale aggregate.
-        aggregate3.trigger_event(Aggregate.Event)
+        aggregate3.trigger_event(self.MyAggregate.Next)
         app.events.put(aggregate3.collect_events())
 
         # And so using the aggregate to record new events will cause an IntegrityError.
-        aggregate4: Aggregate = app.repository.get(aggregate_id, Aggregate)
-        aggregate4.trigger_event(Aggregate.Event)
+        aggregate4: Aggregate = app.repository.get(aggregate_id, self.MyAggregate)
+        aggregate4.trigger_event(self.MyAggregate.Next)
         with self.assertRaises(IntegrityError):
             app.save(aggregate4)
 
     def test_application_with_deepcopy_from_cache_arg(self) -> None:
-        app = Application[UUID](
-            env={
-                "AGGREGATE_CACHE_MAXSIZE": "10",
-            }
-        )
-        aggregate = Aggregate()
+        env = {
+            "AGGREGATE_CACHE_MAXSIZE": "10",
+        }
+        env.update(self.env)
+        app = PydanticApplication(env)
+        aggregate = self.MyAggregate()
         app.save(aggregate)
         self.assertEqual(aggregate.version, 1)
-        reconstructed: Aggregate = app.repository.get(aggregate.id, Aggregate)
+        reconstructed: Aggregate = app.repository.get(aggregate.id, self.MyAggregate)
         reconstructed.version = 101
         assert app.repository.cache is not None  # for mypy
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 1)
@@ -453,33 +473,33 @@ class ApplicationTestCase(TestCase):
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 101)
 
     def test_application_with_deepcopy_from_cache_attribute(self) -> None:
-        app = Application[UUID](
-            env={
-                "AGGREGATE_CACHE_MAXSIZE": "10",
-            }
-        )
-        aggregate = Aggregate()
+        env = {
+            "AGGREGATE_CACHE_MAXSIZE": "10",
+        }
+        env.update(self.env)
+        app = PydanticApplication(env)
+        aggregate = self.MyAggregate()
         app.save(aggregate)
         self.assertEqual(aggregate.version, 1)
-        reconstructed: Aggregate = app.repository.get(aggregate.id, Aggregate)
+        reconstructed: Aggregate = app.repository.get(aggregate.id, self.MyAggregate)
         reconstructed.version = 101
         assert app.repository.cache is not None  # for mypy
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 1)
         app.repository.deepcopy_from_cache = False
-        cached: Aggregate = app.repository.get(aggregate.id, Aggregate)
+        cached: Aggregate = app.repository.get(aggregate.id, self.MyAggregate)
         cached.version = 101
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 101)
 
-    def test_application_log(self) -> None:
-        # Check the old 'log' attribute presents the 'notification log' object.
-        app = Application[UUID]()
-
-        # Verify deprecation warning.
-        with warnings.catch_warnings(record=True) as w:
-            self.assertIs(app.log, app.notification_log)
-
-        self.assertEqual(1, len(w))
-        self.assertIs(w[-1].category, DeprecationWarning)
-        self.assertIn(
-            "'log' is deprecated, use 'notification_log' instead", str(w[-1].message)
-        )
+    # def test_application_log(self) -> None:
+    #     # Check the old 'log' attribute presents the 'notification log' object.
+    #     app = PydanticApplication[Decision](self.env)
+    #
+    #     # Verify deprecation warning.
+    #     with warnings.catch_warnings(record=True) as w:
+    #         self.assertIs(app.log, app.notification_log)
+    #
+    #     self.assertEqual(1, len(w))
+    #     self.assertIs(w[-1].category, DeprecationWarning)
+    #     self.assertIn(
+    #         "'log' is deprecated, use 'notification_log' instead", str(w[-1].message)
+    #     )

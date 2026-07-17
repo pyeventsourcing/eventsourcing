@@ -1,19 +1,24 @@
-from collections.abc import Sequence
-from decimal import Decimal
-from uuid import UUID
+from __future__ import annotations
 
-from eventsourcing.pydantic.immutablemodel import Immutable
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
+from eventsourcing.pydantic.immutable import Immutable
 from eventsourcing.utils import get_topic
 from examples.shopvertical.common import Query, get_all_events
 from examples.shopvertical.events import (
     AddedProductToShop,
     AdjustedProductInventory,
-    DomainEvents,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from examples.shopvertical.common import Events
 
 
 class ProductDetails(Immutable):
-    id: UUID
+    id: str
     name: str
     description: str
     price: Decimal
@@ -22,25 +27,28 @@ class ProductDetails(Immutable):
 
 class ListProductsInShop(Query):
     @staticmethod
-    def projection(events: DomainEvents) -> Sequence[ProductDetails]:
-        products: dict[UUID, ProductDetails] = {}
+    def projection(events: Events) -> Sequence[ProductDetails]:
+        products: dict[str, ProductDetails] = {}
         for event in events:
-            if isinstance(event, AddedProductToShop):
-                products[event.originator_id] = ProductDetails(
-                    id=event.originator_id,
-                    name=event.name,
-                    description=event.description,
-                    price=event.price,
-                )
-            elif isinstance(event, AdjustedProductInventory):
-                product = products[event.originator_id]
-                products[event.originator_id] = ProductDetails(
-                    id=event.originator_id,
-                    name=product.name,
-                    description=product.description,
-                    price=product.price,
-                    inventory=product.inventory + event.adjustment,
-                )
+            match event.decision:
+                case AddedProductToShop(
+                    name=name, description=description, price=price
+                ):
+                    products[event.originator_id] = ProductDetails(
+                        id=event.originator_id,
+                        name=name,
+                        description=description,
+                        price=price,
+                    )
+                case AdjustedProductInventory(adjustment=adjustment):
+                    product = products[event.originator_id]
+                    products[event.originator_id] = ProductDetails(
+                        id=event.originator_id,
+                        name=product.name,
+                        description=product.description,
+                        price=product.price,
+                        inventory=product.inventory + adjustment,
+                    )
         return tuple(products.values())
 
     def execute(self) -> Sequence[ProductDetails]:

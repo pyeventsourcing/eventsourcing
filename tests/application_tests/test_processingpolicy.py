@@ -1,43 +1,37 @@
 from __future__ import annotations
 
-import warnings
+from typing import TYPE_CHECKING
 from unittest.case import TestCase
-from uuid import uuid4
 
 from eventsourcing.application import ProcessingEvent
-from eventsourcing.domain import Aggregate, DomainEventProtocol
+from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.domain_new import Aggregate, triggers
 from eventsourcing.persistence import Tracking
-from eventsourcing.tests.domain import BankAccount
+from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
+
+if TYPE_CHECKING:
+    from eventsourcing.domain_new import AggregateEvent, TDecision
 
 
 def policy(
-    domain_event: DomainEventProtocol, processing_event: ProcessingEvent
+    envelope: AggregateEvent[TDecision], processing_event: ProcessingEvent
 ) -> None:
-    if isinstance(domain_event, BankAccount.Opened):
-        notification = EmailNotification.create(
-            to=domain_event.email_address,
-            subject="Your New Account",
-            message=f"Dear {domain_event.full_name}",
-        )
-        processing_event.collect_events(notification)
-
-
-def policy_legacy_save(
-    domain_event: DomainEventProtocol, processing_event: ProcessingEvent
-) -> None:
-    if isinstance(domain_event, BankAccount.Opened):
-        notification = EmailNotification.create(
-            to=domain_event.email_address,
-            subject="Your New Account",
-            message=f"Dear {domain_event.full_name}",
-        )
-        processing_event.save(notification)
+    match envelope.decision:
+        case BankAccountWithPydantic.Opened(
+            email_address=email_address, full_name=full_name
+        ):
+            notification = EmailNotification(
+                to=email_address,
+                subject="Your New Account",
+                message=f"Dear {full_name}",
+            )
+            processing_event.collect_events(notification)
 
 
 class TestProcessingPolicy(TestCase):
     def test_policy(self) -> None:
         # Open an account.
-        account = BankAccount.open(
+        account = BankAccountWithPydantic.open(
             full_name="Alice",
             email_address="alice@example.com",
         )
@@ -55,61 +49,19 @@ class TestProcessingPolicy(TestCase):
 
         self.assertEqual(len(processing_event.events), 1)
         self.assertIsInstance(
-            processing_event.events[0],
-            EmailNotification.Created,
-        )
-
-    def test_legacy_save(self) -> None:
-        # Open an account.
-        account = BankAccount.open(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-        events = account.collect_events()
-        created_event = events[0]
-
-        processing_event = ProcessingEvent(
-            tracking=Tracking(
-                application_name="upstream_app",
-                notification_id=5,
-            )
-        )
-
-        # Verify deprecation warning.
-        with warnings.catch_warnings(record=True) as w:
-            policy_legacy_save(created_event, processing_event)
-
-        self.assertEqual(1, len(w))
-        self.assertIs(w[-1].category, DeprecationWarning)
-        self.assertIn(
-            "'save()' is deprecated, use 'collect_events()' instead",
-            str(w[-1].message),
-        )
-
-        self.assertEqual(len(processing_event.events), 1)
-        self.assertIsInstance(
-            processing_event.events[0],
+            processing_event.events[0].decision,
             EmailNotification.Created,
         )
 
 
-class EmailNotification(Aggregate):
+class EmailNotification(Aggregate[DataclassDecision]):
+    class Created(DataclassDecision):
+        to: str
+        subject: str
+        message: str
+
+    @triggers(Created)
     def __init__(self, to: str, subject: str, message: str) -> None:
         self.to = to
         self.subject = subject
         self.message = message
-
-    @classmethod
-    def create(cls, to: str, subject: str, message: str) -> EmailNotification:
-        return cls._create(
-            cls.Created,
-            id=uuid4(),
-            to=to,
-            subject=subject,
-            message=message,
-        )
-
-    class Created(Aggregate.Created):
-        to: str
-        subject: str
-        message: str

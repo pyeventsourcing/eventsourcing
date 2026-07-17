@@ -6,7 +6,7 @@ from time import sleep
 from typing import ClassVar
 from unittest import TestCase
 
-from eventsourcing.domain import datetime_now_with_tzinfo
+from eventsourcing.domain_new import datetime_now_with_tzinfo
 from eventsourcing.tests.postgres_utils import drop_tables
 from examples.cargoshipping.domainmodel import Location
 from examples.searchabletimestamps.application import (

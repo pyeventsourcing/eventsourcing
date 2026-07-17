@@ -3,14 +3,20 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from eventsourcing.application import Application
+from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.persistence import Transcoder
+from examples.aggregate4.baseclasses import DomainEvent
 from examples.aggregate4.domainmodel import Dog
 
 if TYPE_CHECKING:
     from uuid import UUID
 
 
-class DogSchool(Application):
+class DogSchool(Application[DomainEvent]):
     is_snapshotting_enabled = True
+
+    def construct_transcoder(self) -> Transcoder[DomainEvent]:
+        return DataclassTranscoder()
 
     def register_dog(self, name: str) -> UUID:
         dog = Dog.register(name)

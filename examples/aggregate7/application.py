@@ -4,14 +4,10 @@ from typing import Any
 from uuid import UUID
 
 from eventsourcing.pydantic.application import PydanticApplication
-from eventsourcing.pydantic.immutablemodel import Snapshot
 from examples.aggregate7.domainmodel import Trick, add_trick, project_dog, register_dog
 
 
 class DogSchool(PydanticApplication):
-    is_snapshotting_enabled = True
-    snapshot_class = Snapshot[UUID]
-
     def register_dog(self, name: str) -> UUID:
         event = register_dog(name)
         self.save(event)

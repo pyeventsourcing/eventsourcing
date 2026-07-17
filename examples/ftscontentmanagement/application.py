@@ -7,7 +7,10 @@ from examples.contentmanagement.domainmodel import Page
 from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
-    from eventsourcing.domain import DomainEventProtocol, MutableOrImmutableAggregate
+    from eventsourcing.domain_old import (
+        DomainEventProtocol,
+        MutableOrImmutableAggregate,
+    )
     from eventsourcing.persistence import Recording
 
 
@@ -21,7 +24,7 @@ class FtsContentManagement(ContentManagement):
         update_pages: list[PageInfo] = []
         for obj in objs:
             if isinstance(obj, Page):
-                if obj.version == len(obj.pending_events):
+                if obj.version == len(obj.new_decisions):
                     insert_pages.append(PageInfo(obj.id, obj.slug, obj.title, obj.body))
                 else:
                     update_pages.append(PageInfo(obj.id, obj.slug, obj.title, obj.body))
@@ -31,7 +34,7 @@ class FtsContentManagement(ContentManagement):
 
     def search(self, query: str) -> list[PageDetailsType]:
         pages = []
-        recorder = cast("FtsRecorder", self.recorder)
+        recorder = cast(FtsRecorder, self.recorder)
         for page_id in recorder.search_pages(query):
             page = self.get_page_by_id(page_id)
             pages.append(page)

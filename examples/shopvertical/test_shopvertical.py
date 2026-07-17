@@ -38,11 +38,11 @@ class TestShop(TestCase):
         reset_application()
 
     def test(self) -> None:
-        product_id1 = uuid4()
-        product_id2 = uuid4()
-        product_id3 = uuid4()
-        product_id4 = uuid4()
-        product_id5 = uuid4()
+        product_id1 = str(uuid4())
+        product_id2 = str(uuid4())
+        product_id3 = str(uuid4())
+        product_id4 = str(uuid4())
+        product_id5 = str(uuid4())
 
         # Add products to shop.
         AddProductToShop(
@@ -119,7 +119,7 @@ class TestShop(TestCase):
         self.assertEqual(products[3].inventory, 0)
 
         # Get cart items - should be 0.
-        cart_id = uuid4()
+        cart_id = str(uuid4())
         cart_items = GetCartItems(cart_id=cart_id).execute()
         self.assertEqual(len(cart_items), 0)
 

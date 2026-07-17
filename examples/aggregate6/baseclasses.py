@@ -4,10 +4,10 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import uuid4
 
-from eventsourcing.domain import (
+from eventsourcing.domain_new import (
     MutatorFunction,
     ProjectorFunction,
-    TDomainEvent,
+    TDecision,
     datetime_now_with_tzinfo,
     get_metadata_from_context,
 )
@@ -52,10 +52,10 @@ TAggregate = TypeVar("TAggregate", bound=Aggregate)
 
 
 def aggregate_projector(
-    mutator: MutatorFunction[TDomainEvent, TAggregate],
-) -> ProjectorFunction[TAggregate, TDomainEvent]:
+    mutator: MutatorFunction[TDecision, TAggregate],
+) -> ProjectorFunction[TAggregate, TDecision]:
     def project_aggregate(
-        aggregate: TAggregate | None, events: Iterable[TDomainEvent]
+        aggregate: TAggregate | None, events: Iterable[TDecision]
     ) -> TAggregate | None:
         for event in events:
             aggregate = mutator(event, aggregate)

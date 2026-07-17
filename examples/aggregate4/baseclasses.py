@@ -5,7 +5,11 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
+from eventsourcing.domain_new import (
+    AbstractDecision,
+    datetime_now_with_tzinfo,
+    get_metadata_from_context,
+)
 from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
@@ -18,12 +22,11 @@ TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
 @dataclass(frozen=True, kw_only=True)
-class DomainEvent:
-    originator_version: int
-    originator_id: UUID
+class DomainEvent(AbstractDecision):
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
-    metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
-    event_id: UUID = field(default_factory=uuid4)
+
+    def as_dict(self) -> dict[str, Any]:
+        return self.__dict__.copy()
 
 
 @dataclass

@@ -16,7 +16,8 @@ from eventsourcing.dcb.persistence import (
     DCBInfrastructureFactory,
     DCBListenNotifySubscription,
 )
-from eventsourcing.persistence import IntegrityError, ProgrammingError
+from eventsourcing.errors import ProgrammingError
+from eventsourcing.persistence import IntegrityError
 from eventsourcing.popo import POPOFactory, POPORecorder, POPOTrackingRecorder
 
 if TYPE_CHECKING:

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from eventsourcing.domain import Aggregate, event
+from eventsourcing.domain_new import event
+from eventsourcing.pydantic.mutable import PydanticAggregate
 
 
-class BankAccount(Aggregate):
+class BankAccount(PydanticAggregate):
     @event("Opened")
     def __init__(self, full_name: str, email_address: str):
         self.full_name = full_name

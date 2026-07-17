@@ -2,22 +2,12 @@ from unittest import TestCase
 from unittest.mock import Mock
 from uuid import uuid4
 
+from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import (
     ApplicationRecorder,
     ListenNotifySubscription,
     Notification,
-    NullTranscoder,
-    ProgrammingError,
 )
-
-
-class TestNullTranscoder(TestCase):
-    def test(self) -> None:
-        t = NullTranscoder()
-        with self.assertRaises(ProgrammingError):
-            t.encode(None)
-        with self.assertRaises(ProgrammingError):
-            t.decode(b"")
 
 
 class TestListNotifySubscriptionSubscription(TestCase):

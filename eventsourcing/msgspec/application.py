@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from eventsourcing.application import Application
-from eventsourcing.domain import TAggregateID
-from eventsourcing.msgspec.mapper import MsgspecMapper
-from eventsourcing.persistence import Mapper, NullTranscoder
+from eventsourcing.msgspec.immutable import MsgspecDecision
+from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+
+if TYPE_CHECKING:
+    from eventsourcing.persistence import Transcoder
 
 
-class MsgspecApplication(Application[TAggregateID]):
-    def construct_mapper(self) -> Mapper[TAggregateID]:
-        return MsgspecMapper(
-            transcoder=NullTranscoder(),
-            cipher=self.factory.cipher(),
-            compressor=self.factory.compressor(),
-        )
+class MsgspecApplication(Application[MsgspecDecision]):
+    def construct_transcoder(self) -> Transcoder[MsgspecDecision]:
+        return MsgspecTranscoder()

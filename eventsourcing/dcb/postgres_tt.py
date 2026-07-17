@@ -21,8 +21,9 @@ from eventsourcing.dcb.persistence import (
     DCBListenNotifySubscription,
 )
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
-from eventsourcing.domain import NIL_UUID_STR
-from eventsourcing.persistence import IntegrityError, InternalError, ProgrammingError
+from eventsourcing.domain_new import NIL_UUID, NIL_UUID_STR
+from eventsourcing.errors import ProgrammingError
+from eventsourcing.persistence import IntegrityError, InternalError
 from eventsourcing.postgres import (
     NO_TRACEBACK,
     BasePostgresFactory,
@@ -46,7 +47,7 @@ CREATE TYPE {schema}.{event_type} AS (
     type text,
     data bytea,
     tags text[],
-    uuid text,
+    uuid uuid,
     metadata jsonb
 )
 """)
@@ -66,7 +67,7 @@ CREATE TABLE IF NOT EXISTS {schema}.{events_table} (
     type text NOT NULL,
     data bytea,
     tags text[] NOT NULL,
-    uuid text,
+    uuid uuid,
     metadata jsonb
 ) WITH (
   autovacuum_enabled = true,
@@ -477,7 +478,7 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
                     type=row["type"],
                     data=row["data"],
                     tags=row["tags"],
-                    uuid=row["uuid"] or NIL_UUID_STR,
+                    uuid=row["uuid"] or NIL_UUID,
                     metadata=row["metadata"] or {},
                 ),
                 position=row["id"],

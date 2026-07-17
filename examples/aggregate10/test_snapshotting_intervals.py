@@ -7,7 +7,7 @@ from examples.aggregate10.application import DogSchool
 from examples.aggregate10.domainmodel import Dog
 
 if TYPE_CHECKING:
-    from eventsourcing.domain import MutableOrImmutableAggregate
+    from eventsourcing.domain_old import MutableOrImmutableAggregate
 
 
 class SubDogSchool(DogSchool):

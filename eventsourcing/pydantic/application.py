@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from eventsourcing.application import Application
-from eventsourcing.domain import TAggregateID
-from eventsourcing.persistence import Mapper, NullTranscoder
-from eventsourcing.pydantic.mapper import PydanticMapper
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.transcoder import PydanticTranscoder
+
+if TYPE_CHECKING:
+    from eventsourcing.persistence import Transcoder
 
 
-class PydanticApplication(Application[TAggregateID]):
-    def construct_mapper(self) -> Mapper[TAggregateID]:
-        return PydanticMapper(
-            transcoder=NullTranscoder(),
-            cipher=self.factory.cipher(),
-            compressor=self.factory.compressor(),
-        )
+class PydanticApplication(Application[PydanticDecision]):
+    def construct_transcoder(self) -> Transcoder[PydanticDecision]:
+        return PydanticTranscoder()

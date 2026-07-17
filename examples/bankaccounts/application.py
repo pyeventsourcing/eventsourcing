@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from eventsourcing.application import AggregateNotFoundError, Application
+from eventsourcing.pydantic.application import PydanticApplication
 from examples.bankaccounts.domainmodel import BankAccount
 
 if TYPE_CHECKING:
@@ -10,7 +11,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
 
-class BankAccounts(Application):
+class BankAccounts(PydanticApplication):
     def open_account(self, full_name: str, email_address: str) -> UUID:
         account = BankAccount(
             full_name=full_name,

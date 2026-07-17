@@ -2,57 +2,63 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, cast
 
-from eventsourcing.dispatch import singledispatchmethod
+from eventsourcing.domain_new import AggregateEvent, EventEnvelope
+from eventsourcing.persistence import Recorder
+from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.system import ProcessApplication
 from examples.contentmanagement.domainmodel import Page
 from examples.contentmanagement.utils import apply_diff
 from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from eventsourcing.application import ProcessingEvent
-    from eventsourcing.domain import DomainEventProtocol
 
 
-class FtsProcess(ProcessApplication):
+class FtsProcess(PydanticApplication, ProcessApplication[PydanticDecision]):
     env: ClassVar[dict[str, str]] = {
         "COMPRESSOR_TOPIC": "gzip",
     }
 
-    @singledispatchmethod
     def policy(
         self,
-        domain_event: DomainEventProtocol,
-        processing_event: ProcessingEvent,
+        envelope: EventEnvelope[PydanticDecision],
+        processing_event: ProcessingEvent[PydanticDecision],
     ) -> None:
-        if isinstance(domain_event, Page.Created):
-            processing_event.collect_events(
-                insert_pages=[
-                    PageInfo(
-                        id=domain_event.originator_id,
-                        slug=domain_event.slug,
-                        title=domain_event.title,
-                        body=domain_event.body,
-                    )
-                ]
-            )
-        elif isinstance(domain_event, Page.BodyUpdated):
-            recorder = cast("FtsRecorder", self.recorder)
-            page_id = domain_event.originator_id
-            page = recorder.select_page(page_id)
-            page_body = apply_diff(page.body, domain_event.diff)
-            processing_event.collect_events(
-                update_pages=[
-                    PageInfo(
-                        id=page_id,
-                        slug=page.slug,
-                        title=page.title,
-                        body=page_body,
-                    )
-                ]
-            )
+        match envelope:
+            case AggregateEvent(
+                decision=Page.Created(title=title, slug=slug, body=body),
+                originator_id=page_id,
+            ):
+                processing_event.collect_events(
+                    insert_pages=[
+                        PageInfo(
+                            id=page_id,
+                            title=title,
+                            slug=slug,
+                            body=body,
+                        )
+                    ]
+                )
+            case AggregateEvent(
+                decision=Page.BodyUpdated(diff=diff),
+                originator_id=page_id,
+            ):
 
-    def search(self, query: str) -> list[UUID]:
-        recorder = cast("FtsRecorder", self.recorder)
+                recorder = cast(FtsRecorder, cast(Recorder, self.recorder))
+                page = recorder.select_page(page_id)
+                page_body = apply_diff(page.body, diff)
+                processing_event.collect_events(
+                    update_pages=[
+                        PageInfo(
+                            id=page_id,
+                            slug=page.slug,
+                            title=page.title,
+                            body=page_body,
+                        )
+                    ]
+                )
+
+    def search(self, query: str) -> list[str]:
+        recorder = cast(FtsRecorder, cast(Recorder, self.recorder))
         return recorder.search_pages(query)

@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from eventsourcing.msgspec.application import MsgspecApplication
-from eventsourcing.msgspec.immutablemodel import SnapshotUuidID
 from examples.aggregate9.domainmodel import (
     Trick,
     add_trick,
@@ -17,7 +16,6 @@ if TYPE_CHECKING:
 
 class DogSchool(MsgspecApplication):
     is_snapshotting_enabled = True
-    snapshot_class = SnapshotUuidID
 
     def register_dog(self, name: str) -> UUID:
         event = register_dog(name)
@@ -34,6 +32,4 @@ class DogSchool(MsgspecApplication):
             "id": dog.id,
             "name": dog.name,
             "tricks": tuple([t.name for t in dog.tricks]),
-            "created_on": dog.created_on,
-            "modified_on": dog.modified_on,
         }

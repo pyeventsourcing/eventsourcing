@@ -4,9 +4,13 @@ from typing import TYPE_CHECKING, Any
 from unittest.case import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
-from eventsourcing.application import Application, ProcessingEvent, ProgrammingError
+from eventsourcing.application import Application, ProcessingEvent
+from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses.mutable import DataclassAggregate
+from eventsourcing.dataclasses.transcoder import DataclassTranscoder
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import Aggregate, DomainEventProtocol
+from eventsourcing.domain_new import Aggregate, AggregateEvent, triggers
+from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError, Notification, Tracking
 from eventsourcing.system import (
     Follower,
@@ -16,18 +20,19 @@ from eventsourcing.system import (
     RecordingEventReceiver,
     System,
 )
-from eventsourcing.tests.application import BankAccounts
-from eventsourcing.tests.domain import BankAccount
+from eventsourcing.tests.application import BankAccountsWithPydantic
+from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 from eventsourcing.utils import get_topic, resolve_topic
 from tests.application_tests.test_processapplication import EmailProcess
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+
 system_defined_as_global = System(
     pipes=[
         [
-            BankAccounts,
+            BankAccountsWithPydantic,
             EmailProcess,
         ],
         [Application],
@@ -40,25 +45,28 @@ class TestSystem(TestCase):
         system = System(
             pipes=[
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     EmailProcess,
                 ],
                 [Application],
             ]
         )
         self.assertEqual(len(system.nodes), 3)
-        self.assertEqual(system.nodes["BankAccounts"], get_topic(BankAccounts))
+        self.assertEqual(
+            system.nodes["BankAccountsWithPydantic"],
+            get_topic(BankAccountsWithPydantic),
+        )
         self.assertEqual(system.nodes["EmailProcess"], get_topic(EmailProcess))
         self.assertEqual(system.nodes["Application"], get_topic(Application))
 
-        self.assertEqual(system.leaders, ["BankAccounts"])
+        self.assertEqual(system.leaders, ["BankAccountsWithPydantic"])
         self.assertEqual(system.followers, ["EmailProcess"])
         self.assertEqual(system.singles, ["Application"])
 
         self.assertEqual(len(system.edges), 1)
         self.assertIn(
             (
-                "BankAccounts",
+                "BankAccountsWithPydantic",
                 "EmailProcess",
             ),
             system.edges,
@@ -70,29 +78,32 @@ class TestSystem(TestCase):
         system = System(
             pipes=[
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     EmailProcess,
                 ],
                 [
-                    BankAccounts,
+                    BankAccountsWithPydantic,
                     EmailProcess,
                 ],
                 [Application],
             ]
         )
         self.assertEqual(len(system.nodes), 3)
-        self.assertEqual(system.nodes["BankAccounts"], get_topic(BankAccounts))
+        self.assertEqual(
+            system.nodes["BankAccountsWithPydantic"],
+            get_topic(BankAccountsWithPydantic),
+        )
         self.assertEqual(system.nodes["EmailProcess"], get_topic(EmailProcess))
         self.assertEqual(system.nodes["Application"], get_topic(Application))
 
-        self.assertEqual(system.leaders, ["BankAccounts"])
+        self.assertEqual(system.leaders, ["BankAccountsWithPydantic"])
         self.assertEqual(system.followers, ["EmailProcess"])
         self.assertEqual(system.singles, ["Application"])
 
         self.assertEqual(len(system.edges), 1)
         self.assertIn(
             (
-                "BankAccounts",
+                "BankAccountsWithPydantic",
                 "EmailProcess",
             ),
             system.edges,
@@ -105,7 +116,7 @@ class TestSystem(TestCase):
             System(
                 pipes=[
                     [
-                        BankAccounts,
+                        BankAccountsWithPydantic,
                         Leader,
                     ],
                 ]
@@ -121,7 +132,7 @@ class TestSystem(TestCase):
             System(
                 pipes=[
                     [
-                        BankAccounts,
+                        BankAccountsWithPydantic,
                         Follower,
                         EmailProcess,
                     ],
@@ -186,12 +197,25 @@ class TestLeader(TestCase):
         follower.receive_recording_event(RecordingEvent("Leader", [], 1))
         self.assertEqual(follower.num_received, 1)
 
+        class MyAggregate(DataclassAggregate):
+            class Created(DataclassDecision):
+                pass
+
+            @triggers(Created)
+            def __init__(self):
+                pass
+
+        env = {"TRANSCODER_TOPIC": get_topic(DataclassTranscoder)}
+
         # Construct leader.
-        leader = Leader()
+        class DataclassLeader(Leader[DataclassDecision]):
+            pass
+
+        leader = DataclassLeader(env=env)
         leader.lead(follower)
 
         # Check follower receives a prompt when there are new events.
-        leader.save(Aggregate())
+        leader.save(MyAggregate())
         self.assertEqual(follower.num_received, 2)
 
         # Check follower doesn't receive prompt when no new events.
@@ -200,13 +224,19 @@ class TestLeader(TestCase):
 
         # Check follower doesn't receive prompt when recordings are filtered out.
         leader.notify_topics = ["topic1"]
-        leader.save(Aggregate())
+        leader.save(MyAggregate())
         self.assertEqual(follower.num_received, 2)
 
 
 class TestFollower(TestCase):
     def test_process_event(self) -> None:
-        class UUID5EmailNotification(Aggregate):
+        class UUID5EmailNotification(Aggregate[DataclassDecision]):
+            class Created(DataclassDecision):
+                to: str
+                subject: str
+                message: str
+
+            @triggers(Created)
             def __init__(self, to: str, subject: str, message: str) -> None:
                 self.to = to
                 self.subject = subject
@@ -217,24 +247,27 @@ class TestFollower(TestCase):
                 return uuid5(NAMESPACE_URL, f"/emails/{to}")
 
         class UUID5EmailProcess(EmailProcess):
-            @singledispatchmethod
             def policy(
                 self,
-                domain_event: DomainEventProtocol,
+                envelope: AggregateEvent[DataclassDecision],
                 processing_event: ProcessingEvent,
             ) -> None:
-                if isinstance(domain_event, BankAccount.Opened):
-                    notification = UUID5EmailNotification(
-                        to=domain_event.email_address,
-                        subject="Your New Account",
-                        message=f"Dear {domain_event.full_name}, ...",
-                    )
-                    processing_event.collect_events(notification)
+                match envelope.decision:
+                    case BankAccountWithPydantic.Opened(
+                        full_name=full_name, email_address=email_address
+                    ):
+                        processing_event.collect_events(
+                            UUID5EmailNotification(
+                                to=email_address,
+                                subject="Your New Account",
+                                message=f"Dear {full_name}, ...",
+                            )
+                        )
 
-        bank_accounts = BankAccounts()
+        bank_accounts = BankAccountsWithPydantic()
         email_process = UUID5EmailProcess()
 
-        account = BankAccount.open(
+        account = BankAccountWithPydantic.open(
             full_name="Alice",
             email_address="alice@example.com",
         )
@@ -261,7 +294,7 @@ class TestFollower(TestCase):
         )
 
         # Create another event that will cause conflict with email processing.
-        account = BankAccount.open(
+        account = BankAccountWithPydantic.open(
             full_name="Alice",
             email_address="alice@example.com",
         )
@@ -275,14 +308,23 @@ class TestFollower(TestCase):
             email_process.process_event(aggregate_event, tracking)
 
     def test_filter_received_notifications(self) -> None:
-        class MyFollower(Follower):
+        class MyFollower(Follower[DataclassDecision]):
             topics: Sequence[str] = ()
 
             @singledispatchmethod
             def policy(self, *args: Any, **kwargs: Any) -> None:
                 pass
 
-        follower = MyFollower()
+        # class MyAggregate(Aggregate[Decision]):
+        #     class Created(Decision):
+        #         pass
+        #
+        #     @triggers(Created)
+        #     def __init__(self):
+        #         pass
+        env = {"TRANSCODER_TOPIC": get_topic(DataclassTranscoder)}
+
+        follower = MyFollower(env)
         notifications = [
             Notification(
                 id=1,

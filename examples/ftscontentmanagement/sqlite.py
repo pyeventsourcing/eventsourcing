@@ -105,12 +105,12 @@ class SQLiteFtsRecorder(FtsRecorder, SQLiteRecorder):
                 (page.slug, page.title, page.body, str(page.id)),
             )
 
-    def search_pages(self, query: str) -> list[UUID]:
+    def search_pages(self, query: str) -> list[str]:
         with self.datastore.transaction(commit=False) as c:
             c.execute(self.search_pages_statement, [query])
-            return [UUID(row["page_id"]) for row in c.fetchall()]
+            return [row["page_id"] for row in c.fetchall()]
 
-    def select_page(self, page_id: UUID) -> PageInfo:
+    def select_page(self, page_id: str) -> PageInfo:
         with self.datastore.transaction(commit=False) as c:
             c.execute(self.select_page_statement, [str(page_id)])
             for row in c.fetchall():

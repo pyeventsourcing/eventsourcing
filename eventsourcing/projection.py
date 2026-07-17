@@ -13,22 +13,21 @@ from warnings import warn
 from eventsourcing.application import Application, ProcessingEvent
 from eventsourcing.dcb.api import DCBQuery, DCBQueryItem
 from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.dcb.domain import Decision, Event
-from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import (
-    DomainEventProtocol,
-    TAggregateID,
+from eventsourcing.domain_new import (
+    AbstractDecision,
+    EventEnvelope,
+    TaggedEvent,
+    TDecision,
     null_metadata_in_context,
     put_metadata_in_context,
 )
+from eventsourcing.errors import WaitInterruptedError
 from eventsourcing.persistence import (
     InfrastructureFactory,
-    Mapper,
     ProcessRecorder,
     Tracking,
     TrackingRecorder,
     TTrackingRecorder,
-    WaitInterruptedError,
 )
 from eventsourcing.utils import Environment, EnvType
 
@@ -37,9 +36,7 @@ if TYPE_CHECKING:
     from typing import Self
 
 
-class ApplicationSubscription(
-    Iterator[tuple[DomainEventProtocol[TAggregateID], Tracking]]
-):
+class ApplicationSubscription(Iterator[tuple[EventEnvelope[TDecision], Tracking]]):
     """An iterator that yields all domain events recorded in an application
     sequence that have notification IDs greater than a given value. The iterator
     will block when all recorded domain events have been yielded, and then
@@ -49,7 +46,7 @@ class ApplicationSubscription(
 
     def __init__(
         self,
-        app: Application[TAggregateID],
+        app: Application[TDecision],
         gt: int | None = None,
         topics: Sequence[str] = (),
     ):
@@ -58,7 +55,7 @@ class ApplicationSubscription(
         """
         self.name = app.name
         self.recorder = app.recorder
-        self.mapper: Mapper[TAggregateID] = app.mapper
+        self.mapper = app.mapper
         self.subscription = self.recorder.subscribe(gt=gt, topics=topics)
 
     def stop(self) -> None:
@@ -77,7 +74,7 @@ class ApplicationSubscription(
     def __iter__(self) -> Self:
         return self
 
-    def __next__(self) -> tuple[DomainEventProtocol[TAggregateID], Tracking]:
+    def __next__(self) -> tuple[EventEnvelope[TDecision], Tracking]:
         """Returns the next stored event from subscription to the application's
         recorder. Constructs a tracking object that identifies the position of
         the event in the application sequence. Constructs a domain event object
@@ -96,7 +93,9 @@ class ApplicationSubscription(
             self.stop()
 
 
-class DCBApplicationSubscription(Iterator[tuple[Event[Decision], Tracking]]):
+class DCBApplicationSubscription(
+    Iterator[tuple[TaggedEvent[AbstractDecision], Tracking]]
+):
     """An iterator that yields all events recorded in an application
     sequence that have sequence numbers greater than a given value. The iterator
     will block when all events have been yielded, and then
@@ -106,7 +105,7 @@ class DCBApplicationSubscription(Iterator[tuple[Event[Decision], Tracking]]):
 
     def __init__(
         self,
-        app: DCBApplication[Decision],
+        app: DCBApplication[AbstractDecision],
         gt: int | None = None,
         topics: Sequence[str] = (),
     ):
@@ -137,7 +136,7 @@ class DCBApplicationSubscription(Iterator[tuple[Event[Decision], Tracking]]):
     def __iter__(self) -> Self:
         return self
 
-    def __next__(self) -> tuple[Event[Decision], Tracking]:
+    def __next__(self) -> tuple[TaggedEvent[AbstractDecision], Tracking]:
         """Returns the next stored event from subscription to the application's
         recorder. Constructs a tracking object that identifies the position of
         the event in the application sequence. Constructs a domain event object
@@ -184,13 +183,12 @@ class Projection(ABC, Generic[TTrackingRecorder]):
         """Materialised view of an event-sourced application."""
         return self._view
 
-    @singledispatchmethod
     @abstractmethod
-    def process_event(self, domain_event: Any, tracking: Tracking) -> None:
+    def process_event(self, envelope: Any, tracking: Tracking) -> None:
         """Process a domain event and track it."""
 
 
-class EventSourcedProjection(Application[TAggregateID], ABC):
+class EventSourcedProjection(Application[TDecision], ABC):
     """Extends the :py:class:`~eventsourcing.application.Application` class
     by using a process recorder as its application recorder, and by
     processing domain events through its :py:func:`policy` method.
@@ -210,7 +208,7 @@ class EventSourcedProjection(Application[TAggregateID], ABC):
         return self.factory.process_recorder()
 
     def process_event(
-        self, domain_event: DomainEventProtocol[TAggregateID], tracking: Tracking
+        self, envelope: EventEnvelope[TDecision], tracking: Tracking
     ) -> None:
         """Calls :func:`~eventsourcing.system.Follower.policy` method with the given
         domain event and a new :class:`~eventsourcing.application.ProcessingEvent`
@@ -227,23 +225,21 @@ class EventSourcedProjection(Application[TAggregateID], ABC):
         the recordings are passed in a call to
         :py:func:`~eventsourcing.application.Application._notify`.
         """
-        processing_event = ProcessingEvent[TAggregateID](tracking=tracking)
+        processing_event = ProcessingEvent[TDecision](tracking=tracking)
         metadata = {}
         with contextlib.suppress(KeyError):
-            metadata["correlation_id"] = domain_event.metadata["correlation_id"]
-            metadata["causation_id"] = str(domain_event.event_id)
+            metadata["correlation_id"] = envelope.metadata["correlation_id"]
+            metadata["causation_id"] = str(envelope.uuid)
         with put_metadata_in_context(metadata):
-            self.policy(domain_event, processing_event)
+            self.policy(envelope, processing_event)
         recordings = self._record(processing_event)
         self._take_snapshots(processing_event)
-        self.notify(processing_event.events)
         self._notify(recordings)
 
-    @singledispatchmethod
     def policy(
         self,
-        domain_event: DomainEventProtocol[TAggregateID],
-        processing_event: ProcessingEvent[TAggregateID],
+        envelope: EventEnvelope[TDecision],
+        processing_event: ProcessingEvent[TDecision],
     ) -> None:
         """Abstract domain event processing policy method. Must be
         implemented by event processing applications. When
@@ -352,7 +348,7 @@ class BaseProjectionRunner(Generic[TApplication]):
 
     @staticmethod
     def _stop_subscription_when_stopping(
-        subscription: ApplicationSubscription[TAggregateID],
+        subscription: ApplicationSubscription[TDecision],
         is_stopping: threading.Event,
     ) -> None:
         """Stops the application subscription, which
@@ -366,7 +362,7 @@ class BaseProjectionRunner(Generic[TApplication]):
 
     @staticmethod
     def _process_events_loop(
-        subscription: ApplicationSubscription[TAggregateID],
+        subscription: ApplicationSubscription[TDecision],
         projection: EventSourcedProjection[Any] | Projection[Any],
         is_stopping: threading.Event,
         runner: weakref.ReferenceType[
@@ -375,8 +371,8 @@ class BaseProjectionRunner(Generic[TApplication]):
     ) -> None:
         """Iterates over the subscription and calls process_event()."""
         try:
-            for domain_event, tracking in subscription:
-                projection.process_event(domain_event, tracking)
+            for envelope, tracking in subscription:
+                projection.process_event(envelope, tracking)
         except BaseException as e:
             _runner = runner()  # get reference from weakref
             if _runner is not None:

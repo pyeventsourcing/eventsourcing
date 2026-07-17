@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from eventsourcing.application import AggregateNotFoundError
+from eventsourcing.domain_new import AggregateEvent
 from examples.cargoshipping.application import BookingApplication
-from examples.cargoshipping.domainmodel import Cargo
+from examples.cargoshipping.domainmodel import Cargo, CargoEvent
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -22,9 +23,9 @@ class CargoNotFoundError(AggregateNotFoundError):
 class SearchableTimestampsApplication(BookingApplication):
     def _record(self, processing_event: ProcessingEvent) -> list[Recording]:
         event_timestamps_data = [
-            (e.originator_id, e.timestamp, e.originator_version)
+            (e.originator_id, e.decision.timestamp, e.originator_version)
             for e in processing_event.events
-            if isinstance(e, Cargo.Event)
+            if isinstance(e, AggregateEvent) and isinstance(e.decision, CargoEvent)
         ]
         processing_event.saved_kwargs["event_timestamps_data"] = event_timestamps_data
         return super()._record(processing_event)

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import datetime_now_with_tzinfo, get_metadata_from_context
+from eventsourcing.domain_new import datetime_now_with_tzinfo, get_metadata_from_context
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

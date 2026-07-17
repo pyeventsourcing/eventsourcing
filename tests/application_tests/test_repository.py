@@ -12,73 +12,63 @@ from eventsourcing.application import (
     LRUCache,
     Repository,
 )
-from eventsourcing.domain import Aggregate, CanMutateAggregate, Snapshot
+from eventsourcing.domain_new import AggregateEvent
 from eventsourcing.persistence import (
-    DataclassMapper,
-    DatetimeAsISO,
-    DecimalAsStr,
+    AggregateEventMapper,
     EventStore,
-    JSONTranscoder,
-    UUIDAsHex,
 )
 from eventsourcing.popo import POPOAggregateRecorder
+from eventsourcing.pydantic.transcoder import PydanticTranscoder
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
-from eventsourcing.tests.application import EmailAddressAsStr
-from eventsourcing.tests.domain import BankAccount
-from eventsourcing.utils import get_topic
+from eventsourcing.tests.bank_account_with_pydantic import (
+    BankAccountWithPydantic,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from eventsourcing.pydantic.immutable import PydanticDecision
+
 
 class TestRepository(TestCase):
     def test_get(self) -> None:
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DatetimeAsISO())
-
-        recorder = POPOAggregateRecorder()
-
-        event_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
-            recorder=recorder,
+        repository = Repository(
+            EventStore(
+                mapper=AggregateEventMapper(transcoder=PydanticTranscoder()),
+                recorder=POPOAggregateRecorder(),
+            )
         )
 
-        repository = Repository(event_store)
+        aggregate = BankAccountWithPydantic.open(
+            full_name="Phil",
+            email_address="phil@example.com",
+        )
+        repository.event_store.put(aggregate.collect_events())
 
-        aggregate = Aggregate()
-        event_store.put(aggregate.collect_events())
-
-        copy = repository.get(aggregate.id, Aggregate)
+        copy = repository.get(aggregate.id, BankAccountWithPydantic)
         self.assertEqual(copy, aggregate)
 
     def test_with_snapshot_store(self) -> None:
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        transcoder.register(EmailAddressAsStr())
-
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=(PydanticTranscoder())),
             recorder=event_recorder,
         )
         snapshot_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         snapshot_recorder.create_table()
         snapshot_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=(PydanticTranscoder())),
             recorder=snapshot_recorder,
         )
         repository = Repository(event_store, snapshot_store=snapshot_store)
 
         # Check key error.
         with self.assertRaises(AggregateNotFoundError):
-            repository.get(uuid4(), BankAccount)
+            repository.get(str(uuid4()), BankAccountWithPydantic)
 
         # Open an account.
-        account = BankAccount.open(
+        account = BankAccountWithPydantic.open(
             full_name="Alice",
             email_address="alice@example.com",
         )
@@ -94,22 +84,21 @@ class TestRepository(TestCase):
         # Store pending events.
         event_store.put(pending)
 
-        copy = repository.get(account.id, BankAccount)
-        assert isinstance(copy, BankAccount)
+        copy = repository.get(account.id, BankAccountWithPydantic)
+        assert isinstance(copy, BankAccountWithPydantic)
         # Check copy has correct attribute values.
         assert copy.id == account.id
         assert copy.balance == Decimal("65.00")
 
-        snapshot = Snapshot(
+        snapshot = AggregateEvent(
             originator_id=account.id,
             originator_version=account.version,
-            topic=get_topic(type(account)),
-            state=vars(account),
+            decision=BankAccountWithPydantic.Snapshot.take(account),
         )
         snapshot_store.put([snapshot])
 
-        copy2 = repository.get(account.id, BankAccount)
-        assert isinstance(copy2, BankAccount)
+        copy2 = repository.get(account.id, BankAccountWithPydantic)
+        assert isinstance(copy2, BankAccountWithPydantic)
 
         # Check copy has correct attribute values.
         assert copy2.id == account.id
@@ -120,31 +109,33 @@ class TestRepository(TestCase):
         event_store.put(account.collect_events())
 
         # Check copy has correct attribute values.
-        copy3 = repository.get(account.id, BankAccount)
-        assert isinstance(copy3, BankAccount)
+        copy3 = repository.get(account.id, BankAccountWithPydantic)
+        assert isinstance(copy3, BankAccountWithPydantic)
 
         assert copy3.id == account.id
         assert copy3.balance == Decimal("75.00")
 
         # Check can get old version of account.
-        copy4 = repository.get(account.id, BankAccount, version=copy.version)
-        assert isinstance(copy4, BankAccount)
+        copy4 = repository.get(
+            account.id, BankAccountWithPydantic, version=copy.version
+        )
+        assert isinstance(copy4, BankAccountWithPydantic)
         assert copy4.balance == Decimal("65.00")
 
-        copy5 = repository.get(account.id, BankAccount, version=1)
-        assert isinstance(copy5, BankAccount)
+        copy5 = repository.get(account.id, BankAccountWithPydantic, version=1)
+        assert isinstance(copy5, BankAccountWithPydantic)
         assert copy5.balance == Decimal("0.00")
 
-        copy6 = repository.get(account.id, BankAccount, version=2)
-        assert isinstance(copy6, BankAccount)
+        copy6 = repository.get(account.id, BankAccountWithPydantic, version=2)
+        assert isinstance(copy6, BankAccountWithPydantic)
         assert copy6.balance == Decimal("10.00")
 
-        copy7 = repository.get(account.id, BankAccount, version=3)
-        assert isinstance(copy7, BankAccount)
+        copy7 = repository.get(account.id, BankAccountWithPydantic, version=3)
+        assert isinstance(copy7, BankAccountWithPydantic)
         assert copy7.balance == Decimal("35.00"), copy7.balance
 
-        copy8 = repository.get(account.id, BankAccount, version=4)
-        assert isinstance(copy8, BankAccount)
+        copy8 = repository.get(account.id, BankAccountWithPydantic, version=4)
+        assert isinstance(copy8, BankAccountWithPydantic)
         assert copy8.balance == Decimal("65.00"), copy8.balance
 
         # # Check the __getitem__ method is working
@@ -157,26 +148,20 @@ class TestRepository(TestCase):
         # self.assertEqual(copy10.balance, Decimal("35.00"))
 
     def test_without_snapshot_store(self) -> None:
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        transcoder.register(EmailAddressAsStr())
-
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=(PydanticTranscoder())),
             recorder=event_recorder,
         )
         repository = Repository(event_store)
 
         # Check key error.
         with self.assertRaises(AggregateNotFoundError):
-            repository.get(uuid4(), BankAccount)
+            repository.get(str(uuid4()), BankAccountWithPydantic)
 
         # Open an account.
-        account = BankAccount.open(
+        account = BankAccountWithPydantic.open(
             full_name="Alice",
             email_address="alice@example.com",
         )
@@ -192,8 +177,8 @@ class TestRepository(TestCase):
         # Store pending events.
         event_store.put(pending)
 
-        copy = repository.get(account.id, BankAccount)
-        assert isinstance(copy, BankAccount)
+        copy = repository.get(account.id, BankAccountWithPydantic)
+        assert isinstance(copy, BankAccountWithPydantic)
         # Check copy has correct attribute values.
         assert copy.id == account.id
         assert copy.balance == Decimal("65.00")
@@ -203,69 +188,69 @@ class TestRepository(TestCase):
         event_store.put(account.collect_events())
 
         # Check copy has correct attribute values.
-        copy2 = repository.get(account.id, BankAccount)
-        assert isinstance(copy2, BankAccount)
+        copy2 = repository.get(account.id, BankAccountWithPydantic)
+        assert isinstance(copy2, BankAccountWithPydantic)
 
         assert copy2.id == account.id
         assert copy2.balance == Decimal("75.00")
 
         # Check can get old version of account.
-        copy3 = repository.get(account.id, BankAccount, version=copy.version)
-        assert isinstance(copy3, BankAccount)
+        copy3 = repository.get(
+            account.id, BankAccountWithPydantic, version=copy.version
+        )
+        assert isinstance(copy3, BankAccountWithPydantic)
         assert copy3.balance == Decimal("65.00")
 
-        copy4 = repository.get(account.id, BankAccount, version=1)
-        assert isinstance(copy4, BankAccount)
+        copy4 = repository.get(account.id, BankAccountWithPydantic, version=1)
+        assert isinstance(copy4, BankAccountWithPydantic)
         assert copy4.balance == Decimal("0.00")
 
-        copy5 = repository.get(account.id, BankAccount, version=2)
-        assert isinstance(copy5, BankAccount)
+        copy5 = repository.get(account.id, BankAccountWithPydantic, version=2)
+        assert isinstance(copy5, BankAccountWithPydantic)
         assert copy5.balance == Decimal("10.00")
 
-        copy6 = repository.get(account.id, BankAccount, version=3)
-        assert isinstance(copy6, BankAccount)
+        copy6 = repository.get(account.id, BankAccountWithPydantic, version=3)
+        assert isinstance(copy6, BankAccountWithPydantic)
         assert copy6.balance == Decimal("35.00"), copy6.balance
 
-        copy7 = repository.get(account.id, BankAccount, version=4)
-        assert isinstance(copy7, BankAccount)
+        copy7 = repository.get(account.id, BankAccountWithPydantic, version=4)
+        assert isinstance(copy7, BankAccountWithPydantic)
         assert copy7.balance == Decimal("65.00"), copy7.balance
 
     def test_with_alternative_mutator_function(self) -> None:
-        def bank_mutator(
-            initial: Aggregate | None, domain_events: Iterable[CanMutateAggregate]
-        ) -> BankAccount:
+        def bank_account_projector(
+            initial: BankAccountWithPydantic | None,
+            domain_events: Iterable[AggregateEvent[PydanticDecision]],
+        ) -> BankAccountWithPydantic:
             if initial is None:
-                initial = BankAccount.__new__(BankAccount)
+                initial = BankAccountWithPydantic.__new__(BankAccountWithPydantic)
             return cast(
-                "BankAccount", reduce(lambda a, e: e.mutate(a), domain_events, initial)
+                BankAccountWithPydantic,
+                reduce(lambda a, e: e.mutate(a), domain_events, initial),
             )
 
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        transcoder.register(EmailAddressAsStr())
+        transcoder = PydanticTranscoder()
 
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
         snapshot_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         snapshot_recorder.create_table()
         snapshot_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=snapshot_recorder,
         )
         repository = Repository(event_store, snapshot_store=snapshot_store)
 
         # Check key error.
         with self.assertRaises(AggregateNotFoundError):
-            repository.get(uuid4(), Aggregate)
+            repository.get(str(uuid4()), BankAccountWithPydantic)
 
         # Open an account.
-        account = BankAccount.open(
+        account = BankAccountWithPydantic.open(
             full_name="Alice",
             email_address="alice@example.com",
         )
@@ -281,22 +266,24 @@ class TestRepository(TestCase):
         # Store pending events.
         event_store.put(pending)
 
-        copy: BankAccount = repository.get(account.id, projector_func=bank_mutator)
-        assert isinstance(copy, BankAccount)
+        copy: BankAccountWithPydantic = repository.get(
+            account.id, projector_func=bank_account_projector
+        )
+
+        assert isinstance(copy, BankAccountWithPydantic)
         # Check copy has correct attribute values.
         assert copy.id == account.id
         assert copy.balance == Decimal("65.00")
 
-        snapshot = Snapshot(
+        snapshot = AggregateEvent(
             originator_id=account.id,
             originator_version=account.version,
-            topic=get_topic(type(account)),
-            state=vars(account),
+            decision=BankAccountWithPydantic.Snapshot.take(account),
         )
         snapshot_store.put([snapshot])
 
-        copy2 = repository.get(account.id, BankAccount)
-        assert isinstance(copy2, BankAccount)
+        copy2 = repository.get(account.id, projector_func=bank_account_projector)
+        assert isinstance(copy2, BankAccountWithPydantic)
 
         # Check copy has correct attribute values.
         assert copy2.id == account.id
@@ -307,31 +294,42 @@ class TestRepository(TestCase):
         event_store.put(account.collect_events())
 
         # Check copy has correct attribute values.
-        copy3 = repository.get(account.id, BankAccount)
-        assert isinstance(copy3, BankAccount)
+        copy3 = repository.get(account.id, projector_func=bank_account_projector)
+        assert isinstance(copy3, BankAccountWithPydantic)
 
         assert copy3.id == account.id
         assert copy3.balance == Decimal("75.00")
 
         # Check can get old version of account.
-        copy4 = repository.get(account.id, BankAccount, version=copy.version)
-        assert isinstance(copy4, BankAccount)
+        copy4 = repository.get(
+            account.id, projector_func=bank_account_projector, version=copy.version
+        )
+
+        assert isinstance(copy4, BankAccountWithPydantic)
         assert copy4.balance == Decimal("65.00")
 
-        copy5 = repository.get(account.id, BankAccount, version=1)
-        assert isinstance(copy5, BankAccount)
+        copy5 = repository.get(
+            account.id, projector_func=bank_account_projector, version=1
+        )
+        assert isinstance(copy5, BankAccountWithPydantic)
         assert copy5.balance == Decimal("0.00")
 
-        copy6 = repository.get(account.id, BankAccount, version=2)
-        assert isinstance(copy6, BankAccount)
+        copy6 = repository.get(
+            account.id, projector_func=bank_account_projector, version=2
+        )
+        assert isinstance(copy6, BankAccountWithPydantic)
         assert copy6.balance == Decimal("10.00")
 
-        copy7 = repository.get(account.id, BankAccount, version=3)
-        assert isinstance(copy7, BankAccount)
+        copy7 = repository.get(
+            account.id, projector_func=bank_account_projector, version=3
+        )
+        assert isinstance(copy7, BankAccountWithPydantic)
         assert copy7.balance == Decimal("35.00"), copy7.balance
 
-        copy8 = repository.get(account.id, BankAccount, version=4)
-        assert isinstance(copy8, BankAccount)
+        copy8 = repository.get(
+            account.id, projector_func=bank_account_projector, version=4
+        )
+        assert isinstance(copy8, BankAccountWithPydantic)
         assert copy8.balance == Decimal("65.00"), copy8.balance
 
     # TODO: We can't do this unless `item` has either a class or a projector function?
@@ -355,100 +353,99 @@ class TestRepository(TestCase):
     #     self.assertFalse(uuid4() in repository)
 
     def test_cache_maxsize_zero(self) -> None:
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        transcoder.register(EmailAddressAsStr())
+        transcoder = PydanticTranscoder()
 
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
+
         repository = Repository(event_store, cache_maxsize=0)
+
         self.assertEqual(type(repository.cache), Cache)
 
-        aggregate = Aggregate()
+        account = BankAccountWithPydantic.open(
+            full_name="Phil", email_address="phil@example.com"
+        )
 
         with self.assertRaises(AggregateNotFoundError):
-            repository.get(aggregate.id, Aggregate)
-        event_store.put(aggregate.collect_events())
-        copy = repository.get(aggregate.id, Aggregate)
-        self.assertEqual(copy, aggregate)
+            repository.get(account.id, BankAccountWithPydantic)
+        event_store.put(account.collect_events())
+        copy = repository.get(account.id, BankAccountWithPydantic)
+        self.assertEqual(copy, account)
 
-        reconstructed1 = repository.get(aggregate.id, Aggregate)
+        reconstructed1 = repository.get(account.id, BankAccountWithPydantic)
         self.assertEqual(1, reconstructed1.version)
 
-        aggregate.trigger_event(Aggregate.Event)
-        event_store.put(aggregate.collect_events())
-        reconstructed2 = repository.get(aggregate.id, Aggregate)
+        account.append_transaction(Decimal("10.00"))
+        event_store.put(account.collect_events())
+        reconstructed2 = repository.get(account.id, BankAccountWithPydantic)
         self.assertEqual(2, reconstructed2.version)
 
     def test_cache_maxsize_nonzero(self) -> None:
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        transcoder.register(EmailAddressAsStr())
+        transcoder = PydanticTranscoder()
 
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
         repository = Repository(event_store, cache_maxsize=2)
         self.assertEqual(type(repository.cache), LRUCache)
 
-        aggregate1 = Aggregate()
+        aggregate1 = BankAccountWithPydantic.open(
+            full_name="Phil", email_address="phil@example.com"
+        )
+
         with self.assertRaises(AggregateNotFoundError):
-            repository.get(aggregate1.id, Aggregate)
+            repository.get(aggregate1.id, BankAccountWithPydantic)
         event_store.put(aggregate1.collect_events())
-        copy = repository.get(aggregate1.id, Aggregate)
+        copy = repository.get(aggregate1.id, BankAccountWithPydantic)
         self.assertEqual(copy, aggregate1)
 
-        aggregate2 = Aggregate()
+        aggregate2 = BankAccountWithPydantic.open(
+            full_name="Phil", email_address="phil@example.com"
+        )
         with self.assertRaises(AggregateNotFoundError):
-            repository.get(aggregate2.id, Aggregate)
+            repository.get(aggregate2.id, BankAccountWithPydantic)
         event_store.put(aggregate2.collect_events())
-        copy = repository.get(aggregate2.id, Aggregate)
+        copy = repository.get(aggregate2.id, BankAccountWithPydantic)
         self.assertEqual(copy, aggregate2)
 
-        aggregate3 = Aggregate()
+        aggregate3 = BankAccountWithPydantic.open(
+            full_name="Phil", email_address="phil@example.com"
+        )
         with self.assertRaises(AggregateNotFoundError):
-            repository.get(aggregate3.id, Aggregate)
+            repository.get(aggregate3.id, BankAccountWithPydantic)
         event_store.put(aggregate3.collect_events())
-        copy = repository.get(aggregate3.id, Aggregate)
+        copy = repository.get(aggregate3.id, BankAccountWithPydantic)
         self.assertEqual(copy, aggregate3)
 
         assert repository.cache is not None  # for mypy
         self.assertFalse(aggregate1.id in repository.cache.cache)
 
-        reconstructed1 = repository.get(aggregate1.id, Aggregate)
+        reconstructed1 = repository.get(aggregate1.id, BankAccountWithPydantic)
         self.assertEqual(1, reconstructed1.version)
-        reconstructed2 = repository.get(aggregate2.id, Aggregate)
+        reconstructed2 = repository.get(aggregate2.id, BankAccountWithPydantic)
         self.assertEqual(1, reconstructed2.version)
-        reconstructed3 = repository.get(aggregate3.id, Aggregate)
+        reconstructed3 = repository.get(aggregate3.id, BankAccountWithPydantic)
         self.assertEqual(1, reconstructed3.version)
 
-        aggregate1.trigger_event(Aggregate.Event)
+        aggregate1.append_transaction(Decimal("10.00"))
         event_store.put(aggregate1.collect_events())
-        reconstructed4 = repository.get(aggregate1.id, Aggregate)
+        reconstructed4 = repository.get(aggregate1.id, BankAccountWithPydantic)
         self.assertEqual(2, reconstructed4.version)
 
     def test_cache_fastforward_false(self) -> None:
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        transcoder.register(EmailAddressAsStr())
+        transcoder = PydanticTranscoder()
 
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
         repository = Repository(
@@ -457,29 +454,27 @@ class TestRepository(TestCase):
             fastforward=False,
         )
 
-        aggregate = Aggregate()
+        aggregate = BankAccountWithPydantic.open(
+            full_name="Phil", email_address="phil@example.com"
+        )
         event_store.put(aggregate.collect_events())
-        reconstructed1 = repository.get(aggregate.id, Aggregate)
+        reconstructed1 = repository.get(aggregate.id, BankAccountWithPydantic)
         self.assertEqual(1, reconstructed1.version)
 
-        aggregate.trigger_event(Aggregate.Event)
+        aggregate.append_transaction(Decimal("10.00"))
         event_store.put(aggregate.collect_events())
-        reconstructed2 = repository.get(aggregate.id, Aggregate)
+        reconstructed2 = repository.get(aggregate.id, BankAccountWithPydantic)
         self.assertEqual(1, reconstructed2.version)
 
     def test_cache_raises_aggregate_not_found_when_projector_func_returns_none(
         self,
     ) -> None:
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        transcoder.register(EmailAddressAsStr())
+        transcoder = PydanticTranscoder()
 
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
         repository = Repository(
@@ -487,12 +482,14 @@ class TestRepository(TestCase):
             cache_maxsize=2,
         )
 
-        aggregate = Aggregate()
+        aggregate = BankAccountWithPydantic.open(
+            full_name="Phil", email_address="phil@example.com"
+        )
         event_store.put(aggregate.collect_events())
-        reconstructed = repository.get(aggregate.id, Aggregate)
+        reconstructed = repository.get(aggregate.id, BankAccountWithPydantic)
         self.assertEqual(1, reconstructed.version)
 
-        aggregate.trigger_event(Aggregate.Event)
+        aggregate.append_transaction(Decimal("10.00"))
         event_store.put(aggregate.collect_events())
         with self.assertRaises(AggregateNotFoundError):
             repository.get(aggregate.id, projector_func=lambda _, __: None)
@@ -500,7 +497,7 @@ class TestRepository(TestCase):
     def test_fastforward_lock(self) -> None:
         repository = Repository(
             EventStore(
-                mapper=DataclassMapper(transcoder=JSONTranscoder()),
+                mapper=AggregateEventMapper(transcoder=PydanticTranscoder()),
                 recorder=POPOAggregateRecorder(),
             ),
             cache_maxsize=2,

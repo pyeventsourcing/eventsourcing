@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from eventsourcing.application import Application
-from examples.aggregate1.domainmodel import Dog
+from eventsourcing.pydantic.application import PydanticApplication
+from examples.aggregate1.domainmodel import Dog, Trick
 
 if TYPE_CHECKING:
     from uuid import UUID
 
 
-class DogSchool(Application):
+class DogSchool(PydanticApplication):
     is_snapshotting_enabled = True
 
     def register_dog(self, name: str) -> UUID:
@@ -19,9 +19,9 @@ class DogSchool(Application):
 
     def add_trick(self, dog_id: UUID, trick: str) -> None:
         dog = self.repository.get(dog_id, Dog)
-        dog.add_trick(trick)
+        dog.add_trick(Trick(name=trick))
         self.save(dog)
 
     def get_dog(self, dog_id: UUID) -> dict[str, Any]:
         dog = self.repository.get(dog_id, Dog)
-        return {"name": dog.name, "tricks": tuple(dog.tricks)}
+        return {"name": dog.name, "tricks": tuple(t.name for t in dog.tricks)}

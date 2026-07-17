@@ -47,6 +47,9 @@ class TestApplicationWithSQLiteFile(WithSQLiteFile, ApplicationTestCase):
     def test_catchup_subscription(self) -> None:
         self.skipTest("SQLite recorder doesn't support subscriptions")
 
+    def test_application_with_cached_aggregates_and_fastforward(self) -> None:
+        super().test_application_with_cached_aggregates_and_fastforward()
+
 
 class TestApplicationWithSQLiteInMemory(WithSQLiteInMemory, ApplicationTestCase):
     def test_catchup_subscription(self) -> None:

@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import ClassVar
 
 from eventsourcing.application import AggregateNotFoundError, Application
-from eventsourcing.msgspec.mapper import MsgspecMapper
+from eventsourcing.msgspec.application import MsgspecApplication
+from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 from eventsourcing.utils import get_topic
 from examples.dcb_enrolment.domainmodel import Course, Student
 from examples.dcb_enrolment.interface import (
@@ -15,11 +16,7 @@ from examples.dcb_enrolment.interface import (
 )
 
 
-class EnrolmentWithAggregates(Application[str], EnrolmentInterface):
-    env: ClassVar[dict[str, str]] = {
-        "MAPPER_TOPIC": get_topic(MsgspecMapper),
-        "ORIGINATOR_ID_TYPE": "text",
-    }
+class EnrolmentWithAggregates(MsgspecApplication, EnrolmentInterface):
 
     def register_student(self, name: str, max_courses: int) -> StudentID:
         student = Student(name, max_courses=max_courses)

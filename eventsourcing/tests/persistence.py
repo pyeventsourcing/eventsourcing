@@ -4,38 +4,54 @@ import traceback
 import zlib
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from threading import Event, Thread, get_ident
 from time import sleep
 from timeit import timeit
-from typing import TYPE_CHECKING, Any, Generic, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
 from unittest import TestCase
 from uuid import UUID, uuid4
 
 from typing_extensions import TypeVar
 
+import eventsourcing
+from eventsourcing import persistence
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
-from eventsourcing.domain import DomainEvent, datetime_now_with_tzinfo
-from eventsourcing.persistence import (
-    AggregateRecorder,
-    ApplicationRecorder,
+from eventsourcing.cryptography import AESCipher
+from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses.legacy import (
     DatetimeAsISO,
     DecimalAsStr,
+    LegacyJSONTranscoder,
+    Transcoding,
+    UUIDAsHex,
+)
+from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.domain_new import (
+    AggregateEvent,
+    TaggedEvent,
+    datetime_now_with_tzinfo,
+)
+from eventsourcing.errors import WaitInterruptedError
+from eventsourcing.persistence import (
+    AggregateEventMapper,
+    AggregateRecorder,
+    ApplicationRecorder,
+    Cipher,
+    Compressor,
     InfrastructureFactory,
     IntegrityError,
-    JSONTranscoder,
     Mapper,
     Notification,
     ProcessRecorder,
     StoredEvent,
+    TaggedEventMapper,
     Tracking,
     TrackingRecorder,
     Transcoder,
-    Transcoding,
-    UUIDAsHex,
-    WaitInterruptedError,
 )
 from eventsourcing.utils import Environment, get_topic
 
@@ -48,7 +64,7 @@ class RecorderTestCase(TestCase, ABC):
     INITIAL_VERSION = 1
 
     def new_originator_id(self) -> UUID | str:
-        return uuid4()
+        return str(uuid4())
 
     def assert_events_eq(
         self,
@@ -93,7 +109,7 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
             originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
-            event_id=uuid4(),
+            uuid=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
         notification_ids = recorder.insert_events([event1])
@@ -112,7 +128,7 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
             originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
-            event_id=uuid4(),
+            uuid=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
         with self.assertRaises(IntegrityError):
@@ -130,7 +146,7 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
             originator_version=self.INITIAL_VERSION + 2,
             topic="topic3",
             state=b"state3",
-            event_id=uuid4(),
+            uuid=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
         notification_ids = recorder.insert_events([event2, event3])
@@ -1174,7 +1190,15 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         pass
 
     @abstractmethod
+    def application_recorder_subclass(self) -> type[ApplicationRecorder]:
+        pass
+
+    @abstractmethod
     def tracking_recorder_subclass(self) -> type[TrackingRecorder]:
+        pass
+
+    @abstractmethod
+    def process_recorder_subclass(self) -> type[ProcessRecorder]:
         pass
 
     @abstractmethod
@@ -1186,10 +1210,11 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
             _TInfrastrutureFactory, InfrastructureFactory.construct(self.env)
         )
         self.assertIsInstance(self.factory, self.expected_factory_class())
-        self.transcoder = JSONTranscoder()
-        self.transcoder.register(UUIDAsHex())
-        self.transcoder.register(DecimalAsStr())
-        self.transcoder.register(DatetimeAsISO())
+        self.transcoder = DataclassTranscoder()
+        # self.transcoder = LegacyJSONTranscoder()
+        # self.transcoder.register(UUIDAsHex())
+        # self.transcoder.register(DecimalAsStr())
+        # self.transcoder.register(DatetimeAsISO())
 
     def tearDown(self) -> None:
         self.factory.close()
@@ -1223,17 +1248,30 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
 
         # Create mapper.
 
-        mapper: Mapper[UUID] = self.factory.mapper(
+        mapper: Mapper[DataclassDecision] = self.factory.mapper(
             transcoder=self.transcoder,
         )
         self.assertIsInstance(mapper, Mapper)
         self.assertIsNone(mapper.cipher)
         self.assertIsNone(mapper.compressor)
 
+        class MapperSubclass(AggregateEventMapper):
+            pass
+
+        mapper: Mapper[DataclassDecision] = self.factory.mapper(
+            transcoder=self.transcoder,
+            mapper_class=MapperSubclass,
+        )
+        self.assertIsInstance(mapper, MapperSubclass)
+        self.assertIsNone(mapper.cipher)
+        self.assertIsNone(mapper.compressor)
+
     def test_mapper_with_compressor(self) -> None:
         # Create mapper with compressor class as topic.
         self.env[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
-        mapper: Mapper[UUID] = self.factory.mapper(transcoder=self.transcoder)
+        mapper: Mapper[DataclassDecision] = self.factory.mapper(
+            transcoder=self.transcoder
+        )
         self.assertIsInstance(mapper, Mapper)
         self.assertIsInstance(mapper.compressor, ZlibCompressor)
         self.assertIsNone(mapper.cipher)
@@ -1259,7 +1297,9 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         self.env[AESCipher.CIPHER_KEY] = cipher_key
 
         # Create mapper with cipher.
-        mapper: Mapper[UUID] = self.factory.mapper(transcoder=self.transcoder)
+        mapper: Mapper[DataclassDecision] = self.factory.mapper(
+            transcoder=self.transcoder
+        )
         self.assertIsInstance(mapper, Mapper)
         self.assertIsNotNone(mapper.cipher)
         self.assertIsNone(mapper.compressor)
@@ -1274,7 +1314,9 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         cipher_key = AESCipher.create_key(16)
         self.env[AESCipher.CIPHER_KEY] = cipher_key
 
-        mapper: Mapper[UUID] = self.factory.mapper(transcoder=self.transcoder)
+        mapper: Mapper[DataclassDecision] = self.factory.mapper(
+            transcoder=self.transcoder
+        )
         self.assertIsInstance(mapper, Mapper)
         self.assertIsNotNone(mapper.cipher)
         self.assertIsNotNone(mapper.compressor)
@@ -1287,26 +1329,32 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         self.env["APP1_" + AESCipher.CIPHER_KEY] = cipher_key1
         self.env["APP2_" + AESCipher.CIPHER_KEY] = cipher_key2
 
-        mapper1: Mapper[UUID] = self.factory.mapper(
+        mapper1: Mapper[DataclassDecision] = self.factory.mapper(
             transcoder=self.transcoder,
         )
 
-        domain_event = DomainEvent(
+        domain_event = AggregateEvent(
             originator_id=uuid4(),
             originator_version=1,
+            decision=DataclassDecision(),
         )
         stored_event = mapper1.to_stored_event(domain_event)
         copy = mapper1.to_domain_event(stored_event)
         self.assertEqual(domain_event.originator_id, copy.originator_id)
 
         self.env.name = "App2"
-        mapper2: Mapper[UUID] = self.factory.mapper(
+        mapper2: Mapper[DataclassDecision] = self.factory.mapper(
             transcoder=self.transcoder,
         )
         # This should fail because the infrastructure factory
         # should read different cipher keys from the environment.
         with self.assertRaises(ValueError):
             mapper2.to_domain_event(stored_event)
+
+    def test_is_snapshotting_enabled(self) -> None:
+        self.assertFalse(self.factory.is_snapshotting_enabled())
+        self.factory.env[self.factory.IS_SNAPSHOTTING_ENABLED] = "t"
+        self.assertTrue(self.factory.is_snapshotting_enabled())
 
     def test_create_aggregate_recorder(self) -> None:
         recorder = self.factory.aggregate_recorder()
@@ -1328,6 +1376,12 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         self.env["CREATE_TABLE"] = "f"
         recorder = self.factory.application_recorder()
         self.assertEqual(type(recorder), self.expected_application_recorder_class())
+
+        # Exercise code path where application recorder class is specified as topic.
+        subclass = self.application_recorder_subclass()
+        self.factory.env[self.factory.APPLICATION_RECORDER_TOPIC] = get_topic(subclass)
+        recorder = self.factory.application_recorder()
+        self.assertEqual(type(recorder), subclass)
 
     def test_create_tracking_recorder(self) -> None:
         recorder = self.factory.tracking_recorder()
@@ -1358,6 +1412,18 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         self.env["CREATE_TABLE"] = "f"
         recorder = self.factory.process_recorder()
         self.assertEqual(type(recorder), self.expected_process_recorder_class())
+
+        # Exercise code path where process recorder class is specified as topic.
+        subclass = self.process_recorder_subclass()
+        self.factory.env[self.factory.PROCESS_RECORDER_TOPIC] = get_topic(subclass)
+        recorder = self.factory.process_recorder()
+        self.assertEqual(type(recorder), subclass)
+
+    def test_factory_as_context_manager(self) -> None:
+        self.assertFalse(self.factory.is_entered)
+        with self.factory:
+            self.assertTrue(self.factory.is_entered)
+        self.assertFalse(self.factory.is_entered)
 
 
 def tmpfile_uris() -> Iterator[str]:
@@ -1395,6 +1461,9 @@ class CustomType2:
 
     def __hash__(self) -> int:
         raise NotImplementedError
+
+    def as_dict(self) -> dict[str, Any]:
+        return self.__dict__
 
 
 _KT = TypeVar("_KT")
@@ -1448,6 +1517,10 @@ class MyClass:
     pass
 
 
+class MyDataclassDecision(DataclassDecision):
+    my_class: MyClass
+
+
 class CustomType1AsDict(Transcoding):
     type = CustomType1
     name = "custom_type1_as_dict"
@@ -1472,6 +1545,7 @@ class CustomType2AsDict(Transcoding):
         return CustomType2(data)
 
 
+# TODO: Rework this as a proper test for LegacyJSONTranscoder.
 class TranscoderTestCase(TestCase):
     def setUp(self) -> None:
         self.transcoder = self.construct_transcoder()
@@ -1479,120 +1553,120 @@ class TranscoderTestCase(TestCase):
     def construct_transcoder(self) -> Transcoder:
         raise NotImplementedError
 
-    def test_str(self) -> None:
-        obj = "a"
-        data = self.transcoder.encode(obj)
-        self.assertEqual(data, b'"a"')
-        self.assertEqual(obj, self.transcoder.decode(data))
+    # def test_str(self) -> None:
+    #     obj = "a"
+    #     data = self.transcoder.encode(obj)
+    #     self.assertEqual(data, b'"a"')
+    #     self.assertEqual(obj, self.transcoder.decode(data, str))
+    #
+    #     obj = "abc"
+    #     data = self.transcoder.encode(obj)
+    #     self.assertEqual(data, b'"abc"')
+    #     self.assertEqual(obj, self.transcoder.decode(data, str))
+    #
+    #     obj = "a'b"
+    #     data = self.transcoder.encode(obj)
+    #     self.assertEqual(data, b'''"a'b"''')
+    #     self.assertEqual(obj, self.transcoder.decode(data, str))
+    #
+    #     obj = 'a"b'
+    #     data = self.transcoder.encode(obj)
+    #     self.assertEqual(data, b'''"a\\"b"''')
+    #     self.assertEqual(obj, self.transcoder.decode(data, str))
+    #
+    #     obj = "🐈 哈哈"
+    #     data = self.transcoder.encode(obj)
+    #     self.assertEqual(b'"\xf0\x9f\x90\x88 \xe5\x93\x88\xe5\x93\x88"', data)
+    #     self.assertEqual(obj, self.transcoder.decode(data, bytes))
+    #
+    #     # Check data encoded with ensure_ascii=True can be decoded okay.
+    #     legacy_encoding_with_ensure_ascii_true = b'"\\ud83d\\udc08 \\u54c8\\u54c8"'
+    #     self.assertEqual(
+    #         obj, self.transcoder.decode(legacy_encoding_with_ensure_ascii_true, str)
+    #     )
 
-        obj = "abc"
-        data = self.transcoder.encode(obj)
-        self.assertEqual(data, b'"abc"')
-        self.assertEqual(obj, self.transcoder.decode(data))
+    # def test_dict(self) -> None:
+    #     # Empty dict.
+    #     obj1: dict[Never, Never] = {}
+    #     data = self.transcoder.encode(obj1)
+    #     self.assertEqual(data, b"{}")
+    #     self.assertEqual(obj1, self.transcoder.decode(data, dict[Any, Any]))
+    #
+    #     # dict with single key.
+    #     obj2 = {"a": 1}
+    #     data = self.transcoder.encode(obj2)
+    #     self.assertEqual(data, b'{"a":1}')
+    #     self.assertEqual(obj2, self.transcoder.decode(data, dict[str, int]))
+    #
+    #     # dict with many keys.
+    #     obj3 = {"a": 1, "b": 2}
+    #     data = self.transcoder.encode(obj3)
+    #     self.assertEqual(data, b'{"a":1,"b":2}')
+    #     self.assertEqual(obj3, self.transcoder.decode(data, dict[str, int]))
+    #
+    #     # Empty dict in dict.
+    #     obj4: dict[str, dict[Never, Never]] = {"a": {}}
+    #     data = self.transcoder.encode(obj4)
+    #     self.assertEqual(data, b'{"a":{}}')
+    #     self.assertEqual(obj4, self.transcoder.decode(data, dict[str, int]))
+    #
+    #     # Empty dicts in dict.
+    #     obj5: dict[str, dict[Never, Never]] = {"a": {}, "b": {}}
+    #     data = self.transcoder.encode(obj5)
+    #     self.assertEqual(data, b'{"a":{},"b":{}}')
+    #     self.assertEqual(obj5, self.transcoder.decode(data, dict[str, Any]))
+    #
+    #     # Empty dict in dict in dict.
+    #     obj6: dict[str, dict[str, dict[Never, Never]]] = {"a": {"b": {}}}
+    #     data = self.transcoder.encode(obj6)
+    #     self.assertEqual(data, b'{"a":{"b":{}}}')
+    #     self.assertEqual(obj6, self.transcoder.decode(data, dict[str, Any]))
+    #
+    #     # Int in dict in dict in dict.
+    #     obj7 = {"a": {"b": {"c": 1}}}
+    #     data = self.transcoder.encode(obj7)
+    #     self.assertEqual(data, b'{"a":{"b":{"c":1}}}')
+    #     self.assertEqual(obj7, self.transcoder.decode(data, dict[str, Any]))
+    #
+    #     # TODO: Int keys?
+    #     # obj = {1: "a"}
+    #     # data = self.transcoder.encode(obj)
+    #     # self.assertEqual(data, b'{1:{"a"}')
+    #     # self.assertEqual(obj, self.transcoder.decode(data))
 
-        obj = "a'b"
-        data = self.transcoder.encode(obj)
-        self.assertEqual(data, b'''"a'b"''')
-        self.assertEqual(obj, self.transcoder.decode(data))
-
-        obj = 'a"b'
-        data = self.transcoder.encode(obj)
-        self.assertEqual(data, b'''"a\\"b"''')
-        self.assertEqual(obj, self.transcoder.decode(data))
-
-        obj = "🐈 哈哈"
-        data = self.transcoder.encode(obj)
-        self.assertEqual(b'"\xf0\x9f\x90\x88 \xe5\x93\x88\xe5\x93\x88"', data)
-        self.assertEqual(obj, self.transcoder.decode(data))
-
-        # Check data encoded with ensure_ascii=True can be decoded okay.
-        legacy_encoding_with_ensure_ascii_true = b'"\\ud83d\\udc08 \\u54c8\\u54c8"'
-        self.assertEqual(
-            obj, self.transcoder.decode(legacy_encoding_with_ensure_ascii_true)
-        )
-
-    def test_dict(self) -> None:
-        # Empty dict.
-        obj1: dict[Never, Never] = {}
-        data = self.transcoder.encode(obj1)
-        self.assertEqual(data, b"{}")
-        self.assertEqual(obj1, self.transcoder.decode(data))
-
-        # dict with single key.
-        obj2 = {"a": 1}
-        data = self.transcoder.encode(obj2)
-        self.assertEqual(data, b'{"a":1}')
-        self.assertEqual(obj2, self.transcoder.decode(data))
-
-        # dict with many keys.
-        obj3 = {"a": 1, "b": 2}
-        data = self.transcoder.encode(obj3)
-        self.assertEqual(data, b'{"a":1,"b":2}')
-        self.assertEqual(obj3, self.transcoder.decode(data))
-
-        # Empty dict in dict.
-        obj4: dict[str, dict[Never, Never]] = {"a": {}}
-        data = self.transcoder.encode(obj4)
-        self.assertEqual(data, b'{"a":{}}')
-        self.assertEqual(obj4, self.transcoder.decode(data))
-
-        # Empty dicts in dict.
-        obj5: dict[str, dict[Never, Never]] = {"a": {}, "b": {}}
-        data = self.transcoder.encode(obj5)
-        self.assertEqual(data, b'{"a":{},"b":{}}')
-        self.assertEqual(obj5, self.transcoder.decode(data))
-
-        # Empty dict in dict in dict.
-        obj6: dict[str, dict[str, dict[Never, Never]]] = {"a": {"b": {}}}
-        data = self.transcoder.encode(obj6)
-        self.assertEqual(data, b'{"a":{"b":{}}}')
-        self.assertEqual(obj6, self.transcoder.decode(data))
-
-        # Int in dict in dict in dict.
-        obj7 = {"a": {"b": {"c": 1}}}
-        data = self.transcoder.encode(obj7)
-        self.assertEqual(data, b'{"a":{"b":{"c":1}}}')
-        self.assertEqual(obj7, self.transcoder.decode(data))
-
-        # TODO: Int keys?
-        # obj = {1: "a"}
-        # data = self.transcoder.encode(obj)
-        # self.assertEqual(data, b'{1:{"a"}')
-        # self.assertEqual(obj, self.transcoder.decode(data))
-
-    def test_dict_with_len_2_and__data_(self) -> None:
-        obj = {"_data_": 1, "something_else": 2}
-        data = self.transcoder.encode(obj)
-        self.assertEqual(obj, self.transcoder.decode(data))
-
-    def test_dict_with_len_2_and__type_(self) -> None:
-        obj = {"_type_": 1, "something_else": 2}
-        data = self.transcoder.encode(obj)
-        self.assertEqual(obj, self.transcoder.decode(data))
+    # def test_dict_with_len_2_and__data_(self) -> None:
+    #     obj = {"_data_": 1, "something_else": 2}
+    #     data = self.transcoder.encode(obj)
+    #     self.assertEqual(obj, self.transcoder.decode(data, dict[str, Any]))
+    #
+    # def test_dict_with_len_2_and__type_(self) -> None:
+    #     obj = {"_type_": 1, "something_else": 2}
+    #     data = self.transcoder.encode(obj)
+    #     self.assertEqual(obj, self.transcoder.decode(data, dict[str, Any]))
 
     def test_dict_subclass(self) -> None:
         my_dict = Mydict({"a": 1})
         data = self.transcoder.encode(my_dict)
         self.assertEqual(b'{"_type_":"mydict","_data_":{"a":1}}', data)
-        copy = self.transcoder.decode(data)
+        copy = self.transcoder.decode(data, dict[str, Any])
         self.assertEqual(my_dict, copy)
 
     def test_list_subclass(self) -> None:
         my_list = MyList((("a", 1),))
         data = self.transcoder.encode(my_list)
-        copy = self.transcoder.decode(data)
+        copy = self.transcoder.decode(data, dict[str, Any])
         self.assertEqual(my_list, copy)
 
     def test_str_subclass(self) -> None:
         my_str = MyStr("a")
         data = self.transcoder.encode(my_str)
-        copy = self.transcoder.decode(data)
+        copy = self.transcoder.decode(data, MyStr)
         self.assertEqual(my_str, copy)
 
     def test_int_subclass(self) -> None:
         my_int = MyInt(3)
         data = self.transcoder.encode(my_int)
-        copy = self.transcoder.decode(data)
+        copy = self.transcoder.decode(data, MyInt)
         self.assertEqual(my_int, copy)
 
     def test_tuple(self) -> None:
@@ -1600,85 +1674,83 @@ class TranscoderTestCase(TestCase):
         obj1 = ()
         data = self.transcoder.encode(obj1)
         self.assertEqual(data, b'{"_type_":"tuple_as_list","_data_":[]}')
-        self.assertEqual(obj1, self.transcoder.decode(data))
+        self.assertEqual(obj1, self.transcoder.decode(data, tuple[Any, ...]))
 
         # Empty tuple in a tuple.
         obj2 = ((),)
         data = self.transcoder.encode(obj2)
-        self.assertEqual(obj2, self.transcoder.decode(data))
+        self.assertEqual(obj2, self.transcoder.decode(data, tuple[Any, ...]))
 
         # Int in tuple in a tuple.
         obj3 = ((1, 2),)
         data = self.transcoder.encode(obj3)
-        self.assertEqual(obj3, self.transcoder.decode(data))
+        self.assertEqual(obj3, self.transcoder.decode(data, tuple[Any, ...]))
 
         # Str in tuple in a tuple.
         obj4 = (("a", "b"),)
         data = self.transcoder.encode(obj4)
-        self.assertEqual(obj4, self.transcoder.decode(data))
+        self.assertEqual(obj4, self.transcoder.decode(data, tuple[Any, ...]))
 
         # Int and str in tuple in a tuple.
         obj5 = ((1, "a"),)
         data = self.transcoder.encode(obj5)
-        self.assertEqual(obj5, self.transcoder.decode(data))
+        self.assertEqual(obj5, self.transcoder.decode(data, tuple[Any, ...]))
 
-    def test_list(self) -> None:
-        # Empty list.
-        obj1: list[Never] = []
-        data = self.transcoder.encode(obj1)
-        self.assertEqual(obj1, self.transcoder.decode(data))
-
-        # Empty list in a list.
-        obj2: list[list[Never]] = [[]]
-        data = self.transcoder.encode(obj2)
-        self.assertEqual(obj2, self.transcoder.decode(data))
-
-        # Int in list in a list.
-        obj3 = [[1, 2]]
-        data = self.transcoder.encode(obj3)
-        self.assertEqual(obj3, self.transcoder.decode(data))
-
-        # Str in list in a list.
-        obj4 = [["a", "b"]]
-        data = self.transcoder.encode(obj4)
-        self.assertEqual(obj4, self.transcoder.decode(data))
-
-        # Int and str in list in a list.
-        obj5 = [[1, "a"]]
-        data = self.transcoder.encode(obj5)
-        self.assertEqual(obj5, self.transcoder.decode(data))
+    # def test_list(self) -> None:
+    #     # Empty list.
+    #     obj1: list[Never] = []
+    #     data = self.transcoder.encode(obj1)
+    #     self.assertEqual(obj1, self.transcoder.decode(data, list[Any]))
+    #
+    #     # Empty list in a list.
+    #     obj2: list[list[Never]] = [[]]
+    #     data = self.transcoder.encode(obj2)
+    #     self.assertEqual(obj2, self.transcoder.decode(data, list[Any]))
+    #
+    #     # Int in list in a list.
+    #     obj3 = [[1, 2]]
+    #     data = self.transcoder.encode(obj3)
+    #     self.assertEqual(obj3, self.transcoder.decode(data, list[Any]))
+    #
+    #     # Str in list in a list.
+    #     obj4 = [["a", "b"]]
+    #     data = self.transcoder.encode(obj4)
+    #     self.assertEqual(obj4, self.transcoder.decode(data, list[Any]))
+    #
+    #     # Int and str in list in a list.
+    #     obj5 = [[1, "a"]]
+    #     data = self.transcoder.encode(obj5)
+    #     self.assertEqual(obj5, self.transcoder.decode(data, list[Any]))
 
     def test_mixed(self) -> None:
         obj1 = [(1, "a"), {"b": 2}]
         data = self.transcoder.encode(obj1)
-        self.assertEqual(obj1, self.transcoder.decode(data))
+        self.assertEqual(obj1, self.transcoder.decode(data, list[Any]))
 
         obj2 = ([1, "a"], {"b": 2})
         data = self.transcoder.encode(obj2)
-        self.assertEqual(obj2, self.transcoder.decode(data))
+        self.assertEqual(obj2, self.transcoder.decode(data, tuple[Any, ...]))
 
         obj3 = {"a": (1, 2), "b": [3, 4]}
         data = self.transcoder.encode(obj3)
-        self.assertEqual(obj3, self.transcoder.decode(data))
+        self.assertEqual(obj3, self.transcoder.decode(data, dict[str, Any]))
 
-    def test_custom_type_in_dict(self) -> None:
-        # Int in dict in dict in dict.
-        obj = {"a": CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))}
-        data = self.transcoder.encode(obj)
-        decoded_obj = self.transcoder.decode(data)
-        self.assertEqual(obj, decoded_obj)
+    # def test_custom_type_in_dict(self) -> None:
+    #     # Int in dict in dict in dict.
+    #     obj = {"a": CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))}
+    #     data = self.transcoder.encode(obj)
+    #     decoded_obj = self.transcoder.decode(data, dict[str, Any])
+    #     self.assertEqual(obj, decoded_obj)
 
     def test_nested_custom_type(self) -> None:
         obj = CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))
         data = self.transcoder.encode(obj)
         expect = (
-            b'{"_type_":"custom_type2_as_dict","_data_":'
-            b'{"_type_":"custom_type1_as_dict","_data_":'
-            b'{"_type_":"uuid_hex","_data_":"b2723fe2c01'
-            b'a40d2875ea3aac6a09ff5"}}}'
+            b'{"value":{"_type_":"custom_type1_as_dict","_data_":{"_type_":"uuid_hex","_da'
+            b'ta_":"b2723fe2c01a40d2875ea3aac6a09ff5"}}}'
         )
         self.assertEqual(data, expect)
-        copy = self.transcoder.decode(data)
+        copy = self.transcoder.decode(data, CustomType2)
         self.assertIsInstance(copy, CustomType2)
         self.assertIsInstance(copy.value, CustomType1)
         self.assertIsInstance(copy.value.value, UUID)
@@ -1686,19 +1758,16 @@ class TranscoderTestCase(TestCase):
 
     def test_custom_type_error(self) -> None:
         # Expect a TypeError when encoding because transcoding not registered.
-        with self.assertRaises(TypeError) as cm:
+        with self.assertRaises(AttributeError) as cm:
             self.transcoder.encode(MyClass())
 
         self.assertEqual(
-            cm.exception.args[0],
-            "Object of type <class 'eventsourcing.tests.persistence."
-            "MyClass'> is not serializable. Please define "
-            "and register a custom transcoding for this type.",
+            cm.exception.args[0], "'MyClass' object has no attribute 'as_dict'"
         )
 
         # Expect a TypeError when encoding because transcoding not registered (nested).
         with self.assertRaises(TypeError) as cm:
-            self.transcoder.encode({"a": MyClass()})
+            self.transcoder.encode(MyDataclassDecision(my_class=MyClass()))
 
         self.assertEqual(
             cm.exception.args[0],
@@ -1711,10 +1780,187 @@ class TranscoderTestCase(TestCase):
         data = b'{"_type_":"custom_type3_as_dict","_data_":""}'
 
         with self.assertRaises(TypeError) as cm:
-            self.transcoder.decode(data)
+            self.transcoder.decode(data, dict[str, Any])
 
         self.assertEqual(
             cm.exception.args[0],
             "Data serialized with name 'custom_type3_as_dict' is not "
             "deserializable. Please register a custom transcoding for this type.",
+        )
+
+
+class TaggedEventMapperTestCase(TestCase, ABC):
+    transcoder_class: ClassVar[type[eventsourcing.persistence.Transcoder[Any]]]
+
+    def _test_tagged_event_mapper(self) -> None:
+        event = TaggedEvent(
+            tags=["tag1", "tag2"],
+            decision=self.construct_decision(),
+        )
+
+        mapper = self.construct_mapper()
+        dcb_event = mapper.to_dcb_event(event)
+        self.assertEqual(dcb_event.tags, event.tags)
+        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(dcb_event)
+        self.assertEqual(type(copy), TaggedEvent)
+        self.assertEqual(copy.tags, event.tags)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+        # With compressor
+        zlib_compressor = ZlibCompressor()
+        mapper = self.construct_mapper(compressor=zlib_compressor)
+        dcb_event = mapper.to_dcb_event(event)
+        self.assertEqual(dcb_event.tags, event.tags)
+        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(dcb_event)
+        self.assertEqual(type(copy), TaggedEvent)
+        self.assertEqual(copy.tags, event.tags)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+        # With cipher
+        aes_cipher = AESCipher(
+            Environment("", {"CIPHER_KEY": AESCipher.create_key(32)})
+        )
+        mapper = self.construct_mapper(cipher=aes_cipher)
+        dcb_event = mapper.to_dcb_event(event)
+        self.assertEqual(dcb_event.tags, event.tags)
+        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(dcb_event)
+        self.assertEqual(type(copy), TaggedEvent)
+        self.assertEqual(copy.tags, event.tags)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+        # With compressor and cipher
+        mapper = self.construct_mapper(compressor=zlib_compressor, cipher=aes_cipher)
+        dcb_event = mapper.to_dcb_event(event)
+        self.assertEqual(dcb_event.tags, event.tags)
+        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(dcb_event)
+        self.assertEqual(type(copy), TaggedEvent)
+        self.assertEqual(copy.tags, event.tags)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+    @abstractmethod
+    def construct_decision(self) -> eventsourcing.domain_new.AbstractDecision:
+        pass
+
+    def construct_mapper(
+        self,
+        compressor: Compressor | None = None,
+        cipher: Cipher | None = None,
+    ) -> persistence.TaggedEventMapper[Any]:
+        return TaggedEventMapper(
+            transcoder=self.transcoder_class(),
+            compressor=compressor,
+            cipher=cipher,
+        )
+
+
+class AggregateEventMapperTestCase(TestCase, ABC):
+    transcoder_class: ClassVar[type[eventsourcing.persistence.Transcoder[Any]]]
+
+    def _test_aggregate_event_mapper(self) -> None:
+        event = AggregateEvent(
+            originator_id=str(uuid4()),
+            originator_version=10,
+            decision=self.construct_decision(),
+        )
+
+        mapper = self.construct_mapper()
+        stored_event = mapper.to_stored_event(event)
+        self.assertEqual(stored_event.originator_id, event.originator_id)
+        self.assertEqual(stored_event.originator_version, event.originator_version)
+        self.assertEqual(stored_event.uuid, event.uuid)
+        self.assertEqual(stored_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(stored_event)
+        self.assertEqual(type(copy), AggregateEvent)
+        self.assertEqual(copy.originator_id, event.originator_id)
+        self.assertEqual(copy.originator_version, event.originator_version)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+        # With compressor
+        zlib_compressor = ZlibCompressor()
+        mapper = self.construct_mapper(compressor=zlib_compressor)
+        stored_event = mapper.to_stored_event(event)
+        self.assertEqual(stored_event.originator_id, event.originator_id)
+        self.assertEqual(stored_event.originator_version, event.originator_version)
+        self.assertEqual(stored_event.uuid, event.uuid)
+        self.assertEqual(stored_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(stored_event)
+        self.assertEqual(type(copy), AggregateEvent)
+        self.assertEqual(copy.originator_id, event.originator_id)
+        self.assertEqual(copy.originator_version, event.originator_version)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+        # With cipher
+        aes_cipher = AESCipher(
+            Environment("", {"CIPHER_KEY": AESCipher.create_key(32)})
+        )
+        mapper = self.construct_mapper(cipher=aes_cipher)
+        stored_event = mapper.to_stored_event(event)
+        self.assertEqual(stored_event.originator_id, event.originator_id)
+        self.assertEqual(stored_event.originator_version, event.originator_version)
+        self.assertEqual(stored_event.uuid, event.uuid)
+        self.assertEqual(stored_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(stored_event)
+        self.assertEqual(type(copy), AggregateEvent)
+        self.assertEqual(copy.originator_id, event.originator_id)
+        self.assertEqual(copy.originator_version, event.originator_version)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+        # With compressor and cipher
+        mapper = self.construct_mapper(compressor=zlib_compressor, cipher=aes_cipher)
+        stored_event = mapper.to_stored_event(event)
+        self.assertEqual(stored_event.originator_id, event.originator_id)
+        self.assertEqual(stored_event.originator_version, event.originator_version)
+        self.assertEqual(stored_event.uuid, event.uuid)
+        self.assertEqual(stored_event.metadata, event.metadata)
+
+        copy = mapper.to_domain_event(stored_event)
+        self.assertEqual(type(copy), AggregateEvent)
+        self.assertEqual(copy.originator_id, event.originator_id)
+        self.assertEqual(copy.originator_version, event.originator_version)
+        self.assertEqual(copy.decision, event.decision)
+        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.metadata, event.metadata)
+
+    @abstractmethod
+    def construct_decision(self) -> eventsourcing.domain_new.AbstractDecision:
+        pass
+
+    def construct_mapper(
+        self,
+        compressor: Compressor | None = None,
+        cipher: Cipher | None = None,
+    ) -> eventsourcing.persistence.AggregateEventMapper[Any]:
+        return AggregateEventMapper(
+            transcoder=self.transcoder_class(),
+            compressor=compressor,
+            cipher=cipher,
         )

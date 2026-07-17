@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from uuid import UUID  # noqa: TC003
+from typing import TYPE_CHECKING
 
+from eventsourcing.domain_new import AggregateEvent
 from examples.shopvertical.common import Command, get_events, put_events
 from examples.shopvertical.events import (
     AddedItemToCart,
     ClearedCart,
-    DomainEvents,
     RemovedItemFromCart,
     SubmittedCart,
 )
@@ -15,24 +15,28 @@ from examples.shopvertical.exceptions import (
     ProductNotInCartError,
 )
 
+if TYPE_CHECKING:
+    from examples.shopvertical.common import Events
+
 
 class RemoveItemFromCart(Command):
-    cart_id: UUID
-    product_id: UUID
+    cart_id: str
+    product_id: str
 
-    def handle(self, events: DomainEvents) -> DomainEvents:
-        product_ids = []
+    def handle(self, events: Events) -> Events:
+        product_ids: list[str] = []
         is_submitted = False
 
         for event in events:
-            if isinstance(event, AddedItemToCart):
-                product_ids.append(event.product_id)
-            elif isinstance(event, RemovedItemFromCart):
-                product_ids.remove(event.product_id)
-            elif isinstance(event, ClearedCart):
-                product_ids.clear()
-            elif isinstance(event, SubmittedCart):
-                is_submitted = True
+            match event.decision:
+                case AddedItemToCart(product_id=product_id):
+                    product_ids.append(product_id)
+                case RemovedItemFromCart(product_id=product_id):
+                    product_ids.remove(product_id)
+                case ClearedCart():
+                    product_ids.clear()
+                case SubmittedCart():
+                    is_submitted = True
 
         if is_submitted:
             raise CartAlreadySubmittedError
@@ -40,10 +44,12 @@ class RemoveItemFromCart(Command):
         if self.product_id not in product_ids:
             raise ProductNotInCartError
         return (
-            RemovedItemFromCart(
+            AggregateEvent(
+                decision=RemovedItemFromCart(
+                    product_id=self.product_id,
+                ),
                 originator_id=self.cart_id,
                 originator_version=len(events) + 1,
-                product_id=self.product_id,
             ),
         )
 

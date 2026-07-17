@@ -39,7 +39,7 @@ class PostgresFtsRecorder(
             SQL(
                 "CREATE TABLE IF NOT EXISTS "
                 "{0}.{1} ("
-                "page_id uuid, "
+                "page_id text, "
                 "page_slug text, "
                 "page_title text, "
                 "page_body text, "
@@ -114,12 +114,12 @@ class PostgresFtsRecorder(
             params = (page.slug, page.title, page.body, page.id)
             curs.execute(self.update_page_statement, params, prepare=True)
 
-    def search_pages(self, query: str) -> list[UUID]:
+    def search_pages(self, query: str) -> list[str]:
         with self.datastore.transaction(commit=False) as curs:
             curs.execute(self.search_pages_statement, [query], prepare=True)
             return [row["page_id"] for row in curs.fetchall()]
 
-    def select_page(self, page_id: UUID) -> PageInfo:
+    def select_page(self, page_id: str) -> PageInfo:
         with self.datastore.transaction(commit=False) as curs:
             curs.execute(self.select_page_statement, [str(page_id)], prepare=True)
             for row in curs.fetchall():

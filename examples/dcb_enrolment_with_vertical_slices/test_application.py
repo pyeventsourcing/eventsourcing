@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from eventsourcing.domain import ProgrammingError
+from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError
 from eventsourcing.tests.postgres_utils import drop_tables
 from examples.dcb_enrolment.interface import (

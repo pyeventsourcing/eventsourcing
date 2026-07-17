@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from eventsourcing.application import Application
-from examples.aggregate11.domainmodel import Dog, Snapshot
+from eventsourcing.pydantic.application import PydanticApplication
+from examples.aggregate11.domainmodel import Dog
 
 
-class DogSchool(Application[str]):
+class DogSchool(PydanticApplication):
     is_snapshotting_enabled = True
-    snapshot_class = Snapshot
 
     def register_dog(self, name: str) -> str:
         dog = Dog(name)

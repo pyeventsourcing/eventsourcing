@@ -7,11 +7,18 @@ from threading import Thread
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from eventsourcing.application import Application
-from eventsourcing.domain import Aggregate
-from eventsourcing.persistence import OperationalError
+from eventsourcing.errors import OperationalError
+from eventsourcing.msgspec.application import MsgspecApplication
+from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+from eventsourcing.persistence import AggregateEventMapper
 from eventsourcing.projection import EventSourcedProjectionRunner
 from eventsourcing.tests.postgres_utils import drop_tables, pg_close_all_connections
-from eventsourcing.tests.projection import Counters, EventSourcedProjectionTestCase
+from eventsourcing.tests.projection import (
+    Counters,
+    EventSourcedProjectionTestCase,
+    Student,
+)
+from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping
@@ -38,14 +45,14 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
 
     def test_server_closes_connections_before_run_forever(self) -> None:
         with EventSourcedProjectionRunner(
-            application_class=Application,
+            application_class=MsgspecApplication,
             projection_class=Counters,
             env=self.env,
         ) as runner:
-            recordings = runner.app.save(Aggregate())
+            recordings = runner.app.save(Student())
             runner.wait(recordings[-1].notification.id)
-            self.assertEqual(1, runner.projection.get_count(Aggregate.Created))
-            self.assertEqual(0, runner.projection.get_count(Aggregate.Event))
+            self.assertEqual(1, runner.projection.get_count(Student.Registered))
+            self.assertEqual(0, runner.projection.get_count(Student.NameChanged))
 
             pg_close_all_connections()
 
@@ -56,14 +63,14 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
 
     def test_server_closes_connections_with_run_forever_in_thread(self) -> None:
         with EventSourcedProjectionRunner(
-            application_class=Application,
+            application_class=MsgspecApplication,
             projection_class=Counters,
             env=self.env,
         ) as runner:
-            recordings = runner.app.save(Aggregate())
+            recordings = runner.app.save(Student())
             runner.wait(recordings[-1].notification.id)
-            self.assertEqual(1, runner.projection.get_count(Aggregate.Created))
-            self.assertEqual(0, runner.projection.get_count(Aggregate.Event))
+            self.assertEqual(1, runner.projection.get_count(Student.Registered))
+            self.assertEqual(0, runner.projection.get_count(Student.NameChanged))
 
             errors = []
 
@@ -85,14 +92,14 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
             self.assertIn("server closed the connection", str(errors[0]))
 
     def test_server_closes_connections_with_projection_in_thread(self) -> None:
-        app = Application(env=self.env)
+        app = MsgspecApplication(env=self.env)
         projection = Counters(env=self.env)
 
         errors = []
 
         def thread_target() -> None:
             with EventSourcedProjectionRunner(
-                application_class=Application,
+                application_class=MsgspecApplication,
                 projection_class=Counters,
                 env=self.env,
             ) as runner:
@@ -104,10 +111,10 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
         projection_thread = Thread(target=thread_target)
         projection_thread.start()
 
-        recordings = app.save(Aggregate())
+        recordings = app.save(Student())
         projection.recorder.wait(app.name, recordings[-1].notification.id)
-        self.assertEqual(1, projection.get_count(Aggregate.Created))
-        self.assertEqual(0, projection.get_count(Aggregate.Event))
+        self.assertEqual(1, projection.get_count(Student.Registered))
+        self.assertEqual(0, projection.get_count(Student.NameChanged))
 
         pg_close_all_connections()
 
@@ -125,7 +132,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
     ) -> None:
         try:
             with EventSourcedProjectionRunner(
-                application_class=Application,
+                application_class=MsgspecApplication,
                 projection_class=Counters,
                 env=TestEventSourcedProjectionWithPostgres.env,
             ) as runner:
@@ -172,7 +179,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
         projection_stopped = multiprocessing.Event()
 
         with (
-            Application(env=self.env) as app,
+            MsgspecApplication(env=self.env) as app,
             Counters(env=self.env) as projection,
         ):
 
@@ -182,10 +189,10 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
             )
             projection_process.start()
 
-            recordings = app.save(Aggregate())
+            recordings = app.save(Student())
             projection.recorder.wait(app.name, recordings[-1].notification.id)
-            self.assertEqual(1, projection.get_count(Aggregate.Created))
-            self.assertEqual(0, projection.get_count(Aggregate.Event))
+            self.assertEqual(1, projection.get_count(Student.Registered))
+            self.assertEqual(0, projection.get_count(Student.NameChanged))
 
             self.assertTrue(projection_started.wait(timeout=1))
 

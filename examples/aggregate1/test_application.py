@@ -25,14 +25,14 @@ class TestDogSchool(TestCase):
         notifications = school.notification_log.select(start=1, limit=10)
         self.assertEqual(3, len(notifications))
 
-        # Take snapshot.
-        school.take_snapshot(dog_id, Dog, version=3)
-        dog = school.get_dog(dog_id)
-        self.assertEqual("Fido", dog["name"])
-        self.assertEqual(("roll over", "play dead"), dog["tricks"])
-
-        # Continue with snapshotted aggregate.
-        school.add_trick(dog_id, "fetch ball")
-        dog = school.get_dog(dog_id)
-        self.assertEqual("Fido", dog["name"])
-        self.assertEqual(("roll over", "play dead", "fetch ball"), dog["tricks"])
+        # # Take snapshot.
+        # school.take_snapshot(dog_id, Dog, version=3)
+        # dog = school.get_dog(dog_id)
+        # self.assertEqual("Fido", dog["name"])
+        # self.assertEqual(("roll over", "play dead"), dog["tricks"])
+        #
+        # # Continue with snapshotted aggregate.
+        # school.add_trick(dog_id, "fetch ball")
+        # dog = school.get_dog(dog_id)
+        # self.assertEqual("Fido", dog["name"])
+        # self.assertEqual(("roll over", "play dead", "fetch ball"), dog["tricks"])

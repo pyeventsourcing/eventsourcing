@@ -1,20 +1,22 @@
 from __future__ import annotations
 
-from eventsourcing.domain import Aggregate, event
+from eventsourcing.domain_new import triggers
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.mutable import PydanticAggregate
 
 
-class Dog(Aggregate):
-    class Registered(Aggregate.Created):
+class Dog(PydanticAggregate):
+    class Registered(PydanticDecision):
         name: str
 
-    class TrickAdded(Aggregate.Event):
+    class TrickAdded(PydanticDecision):
         trick: str
 
-    @event(Registered)
+    @triggers(Registered)
     def __init__(self, name: str) -> None:
         self.name = name
         self.tricks: list[str] = []
 
-    @event(TrickAdded)
+    @triggers(TrickAdded)
     def add_trick(self, trick: str) -> None:
         self.tricks.append(trick)

@@ -5,12 +5,21 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import cast
 from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.application import AggregateNotFoundError, Application
-from eventsourcing.domain import Aggregate, datetime_now_with_tzinfo, triggers
+from eventsourcing.domain_new import (
+    Aggregate,
+    AggregateEvent,
+    datetime_now_with_tzinfo,
+    triggers,
+)
+from eventsourcing.persistence import Transcoder
+from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic.transcoder import PydanticTranscoder
 from eventsourcing.system import NotificationLogReader
 
 
@@ -46,18 +55,15 @@ class EndOfWeek(Product):
     delta = timedelta(days=7, seconds=-1)
 
 
-class Vehicle(Aggregate):
-    class Event(Aggregate.Event):
-        pass
-
-    class Registered(Event, Aggregate.Created):
+class Vehicle(PydanticAggregate):
+    class Registered(PydanticDecision):
         licence_plate_number: str
 
-    class Booked(Event):
+    class Booked(PydanticDecision):
         start: datetime
         finish: datetime
 
-    class Unbooked(Event):
+    class Unbooked(PydanticDecision):
         when: datetime
 
     @triggers(Registered)
@@ -86,16 +92,21 @@ class Vehicle(Aggregate):
             self.fail_inspection(when)
 
     @staticmethod
-    def create_id(licence_plate_number: str) -> UUID:
-        return uuid5(NAMESPACE_URL, f"/licence_plate_numbers/{licence_plate_number}")
+    def create_id(licence_plate_number: str) -> str:
+        return str(
+            uuid5(NAMESPACE_URL, f"/licence_plate_numbers/{licence_plate_number}")
+        )
 
 
-class ParkingLot(Application):
+class ParkingLot(PydanticApplication):
+    def construct_transcoder(self) -> Transcoder:
+        return PydanticTranscoder()
+
     def book(self, licence_plate: LicencePlate, product: type[Product]) -> None:
         try:
             vehicle = self.get_vehicle(licence_plate)
         except AggregateNotFoundError:
-            vehicle = Vehicle(licence_plate.number)
+            vehicle = Vehicle(licence_plate_number=licence_plate.number)
         start = datetime_now_with_tzinfo()
         finish = product.calc_finish(start)
         vehicle.book(start=start, finish=finish)
@@ -176,27 +187,31 @@ class TestParkingLot(TestCase):
 
         vehicle1_id = Vehicle.create_id("123-123")
         event0 = domain_events[0]
-        assert isinstance(event0, Vehicle.Registered)
+        assert isinstance(event0, AggregateEvent)
+        assert isinstance(event0.decision, Vehicle.Registered)
         self.assertEqual(event0.originator_id, vehicle1_id)
         self.assertEqual(event0.originator_version, 1)
-        self.assertEqual(event0.licence_plate_number, "123-123")
+        self.assertEqual(event0.decision.licence_plate_number, "123-123")
 
         event1 = domain_events[1]
-        assert isinstance(event1, Vehicle.Booked)
+        assert isinstance(event1, AggregateEvent)
+        assert isinstance(event1.decision, Vehicle.Booked)
         self.assertEqual(event1.originator_id, vehicle1_id)
         self.assertEqual(event1.originator_version, 2)
-        self.assertEqual(event1.start, booking1.start)
-        self.assertEqual(event1.finish, booking1.finish)
+        self.assertEqual(event1.decision.start, booking1.start)
+        self.assertEqual(event1.decision.finish, booking1.finish)
 
         event2 = domain_events[2]
-        assert isinstance(event2, Vehicle.Booked)
+        assert isinstance(event2, AggregateEvent)
+        assert isinstance(event2.decision, Vehicle.Booked)
         self.assertEqual(event2.originator_id, vehicle1_id)
         self.assertEqual(event2.originator_version, 3)
-        self.assertEqual(event2.start, booking2.start)
-        self.assertEqual(event2.finish, booking2.finish)
+        self.assertEqual(event2.decision.start, booking2.start)
+        self.assertEqual(event2.decision.finish, booking2.finish)
 
         event3 = domain_events[3]
-        assert isinstance(event3, Vehicle.Unbooked)
+        assert isinstance(event3, AggregateEvent)
+        assert isinstance(event3.decision, Vehicle.Unbooked)
         self.assertEqual(event3.originator_id, vehicle1_id)
         self.assertEqual(event3.originator_version, 4)
-        self.assertEqual(event3.when, inspected_on)
+        self.assertEqual(event3.decision.when, inspected_on)

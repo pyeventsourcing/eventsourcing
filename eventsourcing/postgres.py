@@ -26,24 +26,26 @@ from psycopg_pool.abc import (
 )
 from typing_extensions import TypeVar
 
-from eventsourcing.domain import NIL_UUID
+from eventsourcing.domain_new import NIL_UUID
+from eventsourcing.errors import (
+    DatabaseError,
+    DataError,
+    InterfaceError,
+    NotSupportedError,
+    OperationalError,
+    PersistenceError,
+    ProgrammingError,
+)
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
     BaseInfrastructureFactory,
-    DatabaseError,
-    DataError,
     InfrastructureFactory,
     IntegrityError,
-    InterfaceError,
     InternalError,
     ListenNotifySubscription,
     Notification,
-    NotSupportedError,
-    OperationalError,
-    PersistenceError,
     ProcessRecorder,
-    ProgrammingError,
     StoredEvent,
     Subscription,
     Tracking,
@@ -156,7 +158,7 @@ class PostgresDatastore:
         pool_open_timeout: float | None = None,
         get_password_func: Callable[[], str] | None = None,
         single_row_tracking: bool = True,
-        originator_id_type: Literal["uuid", "text"] = "uuid",
+        originator_id_type: Literal["uuid", "text"] = "text",
         enable_db_functions: bool = False,
     ):
         self.idle_in_transaction_session_timeout = idle_in_transaction_session_timeout
@@ -504,7 +506,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
                 stored_event.originator_version,
                 stored_event.topic,
                 stored_event.state,
-                stored_event.event_id,
+                stored_event.uuid,
                 stored_event.metadata,
             )
             for stored_event in stored_events
@@ -550,7 +552,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=bytes(row["state"]),
-                    event_id=row["event_id"] or NIL_UUID,
+                    uuid=row["event_id"] or NIL_UUID,
                     metadata=row["metadata"] or {},
                 )
                 for row in curs.fetchall()
@@ -680,7 +682,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                     originator_version=e.originator_version,
                     topic=e.topic,
                     state=e.state,
-                    event_id=e.event_id,
+                    event_id=e.uuid,
                     metadata=e.metadata,
                 )
                 for e in stored_events
@@ -801,7 +803,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=bytes(row["state"]),
-                    event_id=row["event_id"] or NIL_UUID,
+                    uuid=row["event_id"] or NIL_UUID,
                     metadata=row["metadata"] or {},
                 )
                 for row in curs.fetchall()
@@ -1349,7 +1351,7 @@ class BasePostgresFactory(BaseInfrastructureFactory[TTrackingRecorder]):
 
         originator_id_type = cast(
             Literal["uuid", "text"],
-            self.env.get(self.ORIGINATOR_ID_TYPE, "uuid"),
+            self.env.get(self.ORIGINATOR_ID_TYPE, "text"),
         )
         if originator_id_type.lower() not in ("uuid", "text"):
             msg = (
@@ -1388,7 +1390,7 @@ class BasePostgresFactory(BaseInfrastructureFactory[TTrackingRecorder]):
 
     def __enter__(self) -> Self:
         self.datastore.__enter__()
-        return self
+        return super().__enter__()
 
     def __exit__(
         self,
@@ -1397,6 +1399,7 @@ class BasePostgresFactory(BaseInfrastructureFactory[TTrackingRecorder]):
         exc_tb: TracebackType | None,
     ) -> None:
         self.datastore.__exit__(exc_type, exc_val, exc_tb)
+        super().__exit__(exc_type, exc_val, exc_tb)
 
     def close(self) -> None:
         with contextlib.suppress(AttributeError):

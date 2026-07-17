@@ -13,16 +13,17 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
 from eventsourcing.application import (
     Application,
     NotificationLog,
-    ProgrammingError,
     Section,
     TApplication,
 )
-from eventsourcing.domain import (
-    DomainEventProtocol,
-    MutableOrImmutableAggregate,
-    TAggregateID,
+from eventsourcing.domain_new import (
+    AggregateEvent,
+    CollectEventsProtocol,
+    EventEnvelope,
+    TDecision,
     null_metadata_in_context,
 )
+from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import (
     Mapper,
     Notification,
@@ -38,25 +39,25 @@ if TYPE_CHECKING:
     from typing import Self
 
 
-ProcessingJob = tuple[DomainEventProtocol[TAggregateID], Tracking]
+ProcessingJob = tuple[AggregateEvent[TDecision], Tracking]
 
 
-class RecordingEvent(Generic[TAggregateID]):
+class RecordingEvent(Generic[TDecision]):
     def __init__(
         self,
         application_name: str,
-        recordings: list[Recording[TAggregateID]],
+        recordings: list[Recording[TDecision]],
         previous_max_notification_id: int | None,
     ):
         self.application_name = application_name
-        self.recordings: list[Recording[TAggregateID]] = recordings
+        self.recordings: list[Recording[TDecision]] = recordings
         self.previous_max_notification_id = previous_max_notification_id
 
 
-ConvertingJob = RecordingEvent[TAggregateID] | Sequence[Notification] | None
+ConvertingJob = RecordingEvent[TDecision] | Sequence[Notification] | None
 
 
-class Follower(EventSourcedProjection[TAggregateID]):
+class Follower(EventSourcedProjection[TDecision]):
     """Extends the :class:`~eventsourcing.projection.EventSourcedProjection` class
     by pulling notification objects from its notification log readers, by converting
     the notification objects to domain events and tracking objects and by processing
@@ -73,7 +74,7 @@ class Follower(EventSourcedProjection[TAggregateID]):
     def __init__(self, env: EnvType | None = None) -> None:
         super().__init__(env)
         self.readers: dict[str, NotificationLogReader] = {}
-        self.mappers: dict[str, Mapper[TAggregateID]] = {}
+        self.mappers: dict[str, Mapper[TDecision]] = {}
         self.is_threading_enabled = False
 
     def follow(self, name: str, log: NotificationLog) -> None:
@@ -85,9 +86,9 @@ class Follower(EventSourcedProjection[TAggregateID]):
         reader = NotificationLogReader(log, section_size=self.pull_section_size)
         env = self.construct_env(name, self.env)
         factory = self.construct_factory(env)
-        mapper = factory.mapper(
-            self.construct_transcoder(), mapper_class=type(self.mapper)
-        )
+        transcoder = self.construct_transcoder()
+        self._check_decision_type(transcoder)
+        mapper = factory.mapper(transcoder, mapper_class=type(self.mapper))
         self.readers[name] = reader
         self.mappers[name] = mapper
 
@@ -108,10 +109,10 @@ class Follower(EventSourcedProjection[TAggregateID]):
                 self.process_event(domain_event, tracking)
 
     def process_event(
-        self, domain_event: DomainEventProtocol[TAggregateID], tracking: Tracking
+        self, envelope: AggregateEvent[TDecision], tracking: Tracking
     ) -> None:
         with self.processing_lock:
-            super().process_event(domain_event, tracking)
+            super().process_event(envelope, tracking)
 
     def pull_notifications(
         self,
@@ -140,7 +141,7 @@ class Follower(EventSourcedProjection[TAggregateID]):
 
     def convert_notifications(
         self, leader_name: str, notifications: Iterable[Notification]
-    ) -> list[ProcessingJob[TAggregateID]]:
+    ) -> list[ProcessingJob[TDecision]]:
         """Uses the given :class:`~eventsourcing.persistence.Mapper` to convert
         each received :class:`~eventsourcing.persistence.Notification`
         object to an :class:`~eventsourcing.domain.AggregateEvent` object
@@ -150,8 +151,8 @@ class Follower(EventSourcedProjection[TAggregateID]):
         processing_jobs = []
         with null_metadata_in_context():
             for notification in notifications:
-                domain_event: DomainEventProtocol[TAggregateID] = (
-                    mapper.to_domain_event(notification)
+                domain_event: AggregateEvent[TDecision] = mapper.to_domain_event(
+                    notification
                 )
                 tracking = Tracking(
                     application_name=leader_name,
@@ -161,17 +162,17 @@ class Follower(EventSourcedProjection[TAggregateID]):
         return processing_jobs
 
 
-class RecordingEventReceiver(ABC, Generic[TAggregateID]):
+class RecordingEventReceiver(ABC, Generic[TDecision]):
     """Abstract base class for objects that may receive recording events."""
 
     @abstractmethod
     def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TAggregateID]
+        self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
         """Receives a recording event."""
 
 
-class Leader(Application[TAggregateID]):
+class Leader(Application[TDecision]):
     """Extends the :class:`~eventsourcing.application.Application`
     class by also being responsible for keeping track of
     followers, and prompting followers when there are new
@@ -181,24 +182,22 @@ class Leader(Application[TAggregateID]):
     def __init__(self, env: EnvType | None = None) -> None:
         super().__init__(env)
         self.previous_max_notification_id: int | None = None
-        self.followers: list[RecordingEventReceiver[TAggregateID]] = []
+        self.followers: list[RecordingEventReceiver[TDecision]] = []
 
-    def lead(self, follower: RecordingEventReceiver[TAggregateID]) -> None:
+    def lead(self, follower: RecordingEventReceiver[TDecision]) -> None:
         """Adds given follower to a list of followers."""
         self.followers.append(follower)
 
     def save(
         self,
-        *objs: MutableOrImmutableAggregate[TAggregateID]
-        | DomainEventProtocol[TAggregateID]
-        | None,
+        *objs: CollectEventsProtocol[TDecision] | EventEnvelope[TDecision] | None,
         **kwargs: Any,
-    ) -> list[Recording[TAggregateID]]:
+    ) -> list[Recording[TDecision]]:
         if self.previous_max_notification_id is None:
             self.previous_max_notification_id = self.recorder.max_notification_id()
         return super().save(*objs, **kwargs)
 
-    def _notify(self, recordings: list[Recording[TAggregateID]]) -> None:
+    def _notify(self, recordings: list[Recording[TDecision]]) -> None:
         """Calls :func:`receive_recording_event` on each follower
         whenever new events have just been saved.
         """
@@ -218,7 +217,7 @@ class Leader(Application[TAggregateID]):
                 follower.receive_recording_event(recording_event)
 
 
-class ProcessApplication(Leader[TAggregateID], Follower[TAggregateID]):
+class ProcessApplication(Leader[TDecision], Follower[TDecision]):
     """Base class for event processing applications
     that are both "leaders" and followers".
     """
@@ -334,7 +333,7 @@ class System:
         return topic
 
 
-class Runner(ABC, Generic[TAggregateID]):
+class Runner(ABC, Generic[TDecision]):
     """Abstract base class for system runners."""
 
     def __init__(self, system: System, env: EnvType | None = None):
@@ -381,14 +380,14 @@ class EventProcessingError(Exception):
     """Raised when event processing fails."""
 
 
-class SingleThreadedRunner(Runner[TAggregateID], RecordingEventReceiver[TAggregateID]):
+class SingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision]):
     """Runs a :class:`System` in a single thread."""
 
     def __init__(self, system: System, env: EnvType | None = None):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, Application[TAggregateID]] = {}
-        self._recording_events_received: list[RecordingEvent[TAggregateID]] = []
+        self.apps: dict[str, Application[TDecision]] = {}
+        self._recording_events_received: list[RecordingEvent[TDecision]] = []
         self._prompted_names_lock = threading.Lock()
         self._prompted_names: set[str] = set()
         self._processing_lock = threading.Lock()
@@ -432,7 +431,7 @@ class SingleThreadedRunner(Runner[TAggregateID], RecordingEventReceiver[TAggrega
             leader.lead(self)
 
     def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TAggregateID]
+        self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
         """Receives recording event by appending the name of the leader
         to a list of prompted names.
@@ -477,16 +476,14 @@ class SingleThreadedRunner(Runner[TAggregateID], RecordingEventReceiver[TAggrega
         return app
 
 
-class NewSingleThreadedRunner(
-    Runner[TAggregateID], RecordingEventReceiver[TAggregateID]
-):
+class NewSingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision]):
     """Runs a :class:`System` in a single thread."""
 
     def __init__(self, system: System, env: EnvType | None = None):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
         self.apps: dict[str, Application[Any]] = {}
-        self._recording_events_received: list[RecordingEvent[TAggregateID]] = []
+        self._recording_events_received: list[RecordingEvent[TDecision]] = []
         self._recording_events_received_lock = threading.Lock()
         self._processing_lock = threading.Lock()
         self._previous_max_notification_ids: dict[str, int] = {}
@@ -533,7 +530,7 @@ class NewSingleThreadedRunner(
             leader.lead(self)
 
     def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TAggregateID]
+        self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
         """Receives recording event by appending it to list of received recording
         events.
@@ -596,7 +593,7 @@ class NewSingleThreadedRunner(
                                 ):
                                     continue
                                 follower.process_event(
-                                    domain_event=recording.domain_event,
+                                    envelope=recording.domain_event,
                                     tracking=Tracking(
                                         application_name=recording_event.application_name,
                                         notification_id=recording.notification.id,
@@ -621,7 +618,7 @@ class NewSingleThreadedRunner(
         return app
 
 
-class MultiThreadedRunner(Runner[TAggregateID]):
+class MultiThreadedRunner(Runner[TDecision]):
     """Runs a :class:`System` with one :class:`MultiThreadedRunnerThread`
     for each :class:`Follower` in the system definition.
     """
@@ -630,7 +627,7 @@ class MultiThreadedRunner(Runner[TAggregateID]):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
         self.apps: dict[str, Application[Any]] = {}
-        self.threads: dict[str, MultiThreadedRunnerThread[TAggregateID]] = {}
+        self.threads: dict[str, MultiThreadedRunnerThread[TDecision]] = {}
         self.has_errored = threading.Event()
 
         # Construct followers.
@@ -665,7 +662,7 @@ class MultiThreadedRunner(Runner[TAggregateID]):
         super().start()
 
         # Construct followers.
-        thread: MultiThreadedRunnerThread[TAggregateID]
+        thread: MultiThreadedRunnerThread[TDecision]
         for follower_name in self.system.followers:
             follower = cast(Follower[Any], self.apps[follower_name])
 
@@ -715,7 +712,7 @@ class MultiThreadedRunner(Runner[TAggregateID]):
         return app
 
 
-class MultiThreadedRunnerThread(RecordingEventReceiver[TAggregateID], threading.Thread):
+class MultiThreadedRunnerThread(RecordingEventReceiver[TDecision], threading.Thread):
     """Runs one :class:`~eventsourcing.system.Follower` application in
     a :class:`~eventsourcing.system.MultiThreadedRunner`.
     """
@@ -760,7 +757,7 @@ class MultiThreadedRunnerThread(RecordingEventReceiver[TAggregateID], threading.
             self.has_errored.set()
 
     def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TAggregateID]
+        self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
         """Receives prompt by appending name of
         leader to list of prompted names.
@@ -776,9 +773,7 @@ class MultiThreadedRunnerThread(RecordingEventReceiver[TAggregateID], threading.
         self.is_prompted.set()
 
 
-class NewMultiThreadedRunner(
-    Runner[TAggregateID], RecordingEventReceiver[TAggregateID]
-):
+class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision]):
     """Runs a :class:`System` with multiple threads in a new way."""
 
     QUEUE_MAX_SIZE: int = 0
@@ -790,15 +785,15 @@ class NewMultiThreadedRunner(
     ):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, Application[TAggregateID]] = {}
-        self.pulling_threads: dict[str, list[PullingThread[TAggregateID]]] = {}
+        self.apps: dict[str, Application[TDecision]] = {}
+        self.pulling_threads: dict[str, list[PullingThread[TDecision]]] = {}
         self.processing_queues: dict[
-            str, Queue[list[ProcessingJob[TAggregateID]] | None]
+            str, Queue[list[ProcessingJob[TDecision]] | None]
         ] = {}
         self.all_threads: list[
-            PullingThread[TAggregateID]
-            | ConvertingThread[TAggregateID]
-            | ProcessingThread[TAggregateID]
+            PullingThread[TDecision]
+            | ConvertingThread[TDecision]
+            | ProcessingThread[TDecision]
         ] = []
         self.has_errored = threading.Event()
 
@@ -837,7 +832,7 @@ class NewMultiThreadedRunner(
         # Start the processing threads.
         for follower_name in self.system.followers:
             follower = cast(Follower[Any], self.apps[follower_name])
-            processing_queue: Queue[list[ProcessingJob[TAggregateID]] | None] = Queue(
+            processing_queue: Queue[list[ProcessingJob[TDecision]] | None] = Queue(
                 maxsize=self.QUEUE_MAX_SIZE
             )
             self.processing_queues[follower_name] = processing_queue
@@ -858,7 +853,7 @@ class NewMultiThreadedRunner(
             follower.follow(leader.name, leader.notification_log)
 
             # Create converting queue.
-            converting_queue: Queue[ConvertingJob[TAggregateID]] = Queue(
+            converting_queue: Queue[ConvertingJob[TDecision]] = Queue(
                 maxsize=self.QUEUE_MAX_SIZE
             )
 
@@ -922,7 +917,7 @@ class NewMultiThreadedRunner(
         return app
 
     def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TAggregateID]
+        self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
         for pulling_thread in self.pulling_threads[
             new_recording_event.application_name
@@ -930,24 +925,24 @@ class NewMultiThreadedRunner(
             pulling_thread.receive_recording_event(new_recording_event)
 
 
-class PullingThread(threading.Thread, Generic[TAggregateID]):
+class PullingThread(threading.Thread, Generic[TDecision]):
     """Receives or pulls notifications from the given leader, and
     puts them on a queue for conversion into processing jobs.
     """
 
     def __init__(
         self,
-        converting_queue: Queue[ConvertingJob[TAggregateID]],
+        converting_queue: Queue[ConvertingJob[TDecision]],
         follower: Follower[Any],
         leader_name: str,
         has_errored: threading.Event,
     ):
         super().__init__(daemon=True)
         self.overflow_event = threading.Event()
-        self.recording_event_queue: Queue[RecordingEvent[TAggregateID] | None] = Queue(
+        self.recording_event_queue: Queue[RecordingEvent[TDecision] | None] = Queue(
             maxsize=100
         )
-        self.converting_queue: Queue[ConvertingJob[TAggregateID]] = converting_queue
+        self.converting_queue: Queue[ConvertingJob[TDecision]] = converting_queue
         self.receive_lock = threading.Lock()
         self.follower = follower
         self.leader_name = leader_name
@@ -1004,7 +999,7 @@ class PullingThread(threading.Thread, Generic[TAggregateID]):
             self.has_errored.set()
 
     def receive_recording_event(
-        self, recording_event: RecordingEvent[TAggregateID]
+        self, recording_event: RecordingEvent[TDecision]
     ) -> None:
         try:
             self.recording_event_queue.put(recording_event, timeout=0)
@@ -1016,20 +1011,20 @@ class PullingThread(threading.Thread, Generic[TAggregateID]):
         self.recording_event_queue.put(None)
 
 
-class ConvertingThread(threading.Thread, Generic[TAggregateID]):
+class ConvertingThread(threading.Thread, Generic[TDecision]):
     """Converts notifications into processing jobs."""
 
     def __init__(
         self,
-        converting_queue: Queue[ConvertingJob[TAggregateID]],
-        processing_queue: Queue[list[ProcessingJob[TAggregateID]] | None],
+        converting_queue: Queue[ConvertingJob[TDecision]],
+        processing_queue: Queue[list[ProcessingJob[TDecision]] | None],
         follower: Follower[Any],
         leader_name: str,
         has_errored: threading.Event,
     ):
         super().__init__(daemon=True)
-        self.converting_queue: Queue[ConvertingJob[TAggregateID]] = converting_queue
-        self.processing_queue: Queue[list[ProcessingJob[TAggregateID]] | None] = (
+        self.converting_queue: Queue[ConvertingJob[TDecision]] = converting_queue
+        self.processing_queue: Queue[list[ProcessingJob[TDecision]] | None] = (
             processing_queue
         )
         self.follower = follower
@@ -1085,19 +1080,19 @@ class ConvertingThread(threading.Thread, Generic[TAggregateID]):
         self.converting_queue.put(None)
 
 
-class ProcessingThread(threading.Thread, Generic[TAggregateID]):
+class ProcessingThread(threading.Thread, Generic[TDecision]):
     """A processing thread gets events from a processing queue, and
     calls the application's process_event() method.
     """
 
     def __init__(
         self,
-        processing_queue: Queue[list[ProcessingJob[TAggregateID]] | None],
+        processing_queue: Queue[list[ProcessingJob[TDecision]] | None],
         follower: Follower[Any],
         has_errored: threading.Event,
     ):
         super().__init__(daemon=True)
-        self.processing_queue: Queue[list[ProcessingJob[TAggregateID]] | None] = (
+        self.processing_queue: Queue[list[ProcessingJob[TDecision]] | None] = (
             processing_queue
         )
         self.follower = follower

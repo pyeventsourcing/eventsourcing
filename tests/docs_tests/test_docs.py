@@ -9,7 +9,7 @@ from types import ModuleType
 from unittest.case import TestCase
 
 import eventsourcing
-from eventsourcing.domain import datetime_now_with_tzinfo
+from eventsourcing.domain_new import datetime_now_with_tzinfo
 from eventsourcing.tests.persistence import tmpfile_uris
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import clear_topic_cache

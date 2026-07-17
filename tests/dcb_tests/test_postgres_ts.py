@@ -6,7 +6,7 @@ from uuid import uuid4
 from psycopg.types.json import Jsonb
 
 from eventsourcing.dcb.tests import DCBRecorderTestCase
-from eventsourcing.persistence import ProgrammingError
+from eventsourcing.errors import ProgrammingError
 from examples.dcb_enrolment_with_basic_objects.postgres_ts import PostgresDCBRecorderTS
 from tests.dcb_tests.test_dcb import ConcurrentAppendTestCase, WithPostgres
 
@@ -19,7 +19,7 @@ class TestPostgresDCBRecorderTS(DCBRecorderTestCase, WithPostgres):
 
     def test_pg_type_dcb_event(self) -> None:
         # Check "dcb_event" type.
-        uuid = str(uuid4())
+        uuid = uuid4()
         metadata = {"correlation_id": str(uuid4())}
         event = cast(PostgresDCBRecorderTS, self.recorder).construct_pg_dcb_event(
             type="EventType1",

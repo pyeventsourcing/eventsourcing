@@ -1,34 +1,20 @@
 from decimal import Decimal
-from typing import cast
 from unittest import TestCase
 
-from eventsourcing.application import Application, ProgrammingError
-from eventsourcing.domain import Snapshot
+from eventsourcing.domain_new import AggregateEvent
 from eventsourcing.persistence import (
-    DataclassMapper,
-    DatetimeAsISO,
-    DecimalAsStr,
+    AggregateEventMapper,
     EventStore,
-    JSONTranscoder,
-    UUIDAsHex,
 )
+from eventsourcing.pydantic.transcoder import PydanticTranscoder
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
-from eventsourcing.tests.application import EmailAddressAsStr
-from eventsourcing.tests.domain import BankAccount
+from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 
 
 class TestSnapshotting(TestCase):
-    def test_snapshot_class_is_a_class(self) -> None:
-        with self.assertRaises(ProgrammingError) as cm:
-
-            class MyApp(Application):
-                snapshot_class = dict[str, str]  # pyright: ignore[reportAssignmentType]
-
-        self.assertIn("is not a class: dict[str, str]", str(cm.exception))
-
     def test_snapshotting(self) -> None:
         # Open an account.
-        account = BankAccount.open(
+        account = BankAccountWithPydantic.open(
             full_name="Alice",
             email_address="alice@example.com",
         )
@@ -38,18 +24,14 @@ class TestSnapshotting(TestCase):
         account.append_transaction(Decimal("25.00"))
         account.append_transaction(Decimal("30.00"))
 
-        transcoder = JSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        transcoder.register(EmailAddressAsStr())
+        transcoder = PydanticTranscoder()
 
         recorder = SQLiteAggregateRecorder(
             SQLiteDatastore(":memory:"),
             events_table_name="snapshots",
         )
         snapshot_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=recorder,
         )
         recorder.create_table()
@@ -58,21 +40,26 @@ class TestSnapshotting(TestCase):
         account.collect_events()
 
         # Take a snapshot.
-        snapshot = Snapshot.take(account)
-
-        self.assertNotIn("pending_events", snapshot.state)
-
         # Store snapshot.
-        snapshot_store.put([snapshot])
+        snapshot_store.put(
+            [
+                AggregateEvent(
+                    decision=BankAccountWithPydantic.Snapshot.take(account),
+                    originator_id=account.id,
+                    originator_version=account.version,
+                )
+            ]
+        )
 
         # Get snapshot.
         snapshots = snapshot_store.get(account.id, desc=True, limit=1)
-        snapshot = cast("Snapshot", next(snapshots))
-        assert isinstance(snapshot, Snapshot)
+        snapshot = next(snapshots)
+        assert isinstance(snapshot, AggregateEvent)
+        assert isinstance(snapshot.decision, BankAccountWithPydantic.Snapshot)
 
         # Reconstruct the bank account.
-        copy = snapshot.mutate(object.__new__(BankAccount))
-        assert isinstance(copy, BankAccount)
+        copy = snapshot.mutate(BankAccountWithPydantic.__new__(BankAccountWithPydantic))
+        assert isinstance(copy, BankAccountWithPydantic)
 
         # Check copy has correct attribute values.
         assert copy.id == account.id

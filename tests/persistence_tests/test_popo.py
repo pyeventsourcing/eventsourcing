@@ -3,8 +3,10 @@ from __future__ import annotations
 from concurrent.futures.thread import ThreadPoolExecutor
 from uuid import uuid4
 
-from eventsourcing.domain import datetime_now_with_tzinfo
+from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.domain_new import datetime_now_with_tzinfo
 from eventsourcing.persistence import (
+    AggregateEventMapper,
     AggregateRecorder,
     ApplicationRecorder,
     ProcessRecorder,
@@ -25,7 +27,7 @@ from eventsourcing.tests.persistence import (
     ProcessRecorderTestCase,
     TrackingRecorderTestCase,
 )
-from eventsourcing.utils import Environment
+from eventsourcing.utils import Environment, get_topic
 
 
 class TestPOPOAggregateRecorder(AggregateRecorderTestCase):
@@ -162,6 +164,9 @@ class TestPOPOProcessRecorder(ProcessRecorderTestCase):
 class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase[POPOFactory]):
     def setUp(self) -> None:
         self.env = Environment("TestCase")
+        self.env[POPOFactory.MAPPER_TOPIC] = get_topic(AggregateEventMapper)
+        self.env[POPOFactory.TRANSCODER_TOPIC] = get_topic(DataclassTranscoder)
+
         super().setUp()
 
     def expected_factory_class(self) -> type[POPOFactory]:
@@ -176,11 +181,23 @@ class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase[POPOFactory]):
     def expected_tracking_recorder_class(self) -> type[TrackingRecorder]:
         return POPOTrackingRecorder
 
+    class POPOApplicationRecorderSubclass(POPOApplicationRecorder):
+        pass
+
     class POPOTrackingRecorderSubclass(POPOTrackingRecorder):
         pass
 
+    class POPOProcessRecorderSubclass(POPOProcessRecorder):
+        pass
+
+    def application_recorder_subclass(self) -> type[ApplicationRecorder]:
+        return self.POPOApplicationRecorderSubclass
+
     def tracking_recorder_subclass(self) -> type[TrackingRecorder]:
         return self.POPOTrackingRecorderSubclass
+
+    def process_recorder_subclass(self) -> type[ProcessRecorder]:
+        return self.POPOProcessRecorderSubclass
 
     def expected_process_recorder_class(self) -> type[ProcessRecorder]:
         return POPOProcessRecorder

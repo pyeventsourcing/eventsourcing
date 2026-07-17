@@ -29,8 +29,8 @@ class FtsRecorderTestCase(TestCase, ABC):
         self.assertEqual(len(pages), 0)
 
         # Insert a page.
-        page_id1 = uuid4()
-        recorder.insert_pages([PageInfo(page_id1, "slug", "title", "body1")])
+        page_id1 = str(uuid4())
+        recorder.insert_pages([PageInfo(page_id1, "title", "slug", "body1")])
 
         # Select page.
         page = recorder.select_page(page_id1)
@@ -45,7 +45,7 @@ class FtsRecorderTestCase(TestCase, ABC):
         self.assertEqual(page_ids[0], page_id1)
 
         # Update page.
-        recorder.update_pages([PageInfo(page_id1, "slug", "title", "body2")])
+        recorder.update_pages([PageInfo(page_id1, "title", "slug", "body2")])
 
         # Select page - should get updated body.
         page = recorder.select_page(page_id1)

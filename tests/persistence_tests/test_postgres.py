@@ -14,20 +14,24 @@ from psycopg.sql import SQL, Identifier
 from psycopg_pool import ConnectionPool
 from psycopg_pool.base import AttemptWithBackoff
 
-from eventsourcing.domain import datetime_now_with_tzinfo
-from eventsourcing.persistence import (
-    AggregateRecorder,
-    ApplicationRecorder,
+from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.domain_new import datetime_now_with_tzinfo
+from eventsourcing.errors import (
     DatabaseError,
     DataError,
-    IntegrityError,
     InterfaceError,
-    InternalError,
     NotSupportedError,
     OperationalError,
     PersistenceError,
-    ProcessRecorder,
     ProgrammingError,
+)
+from eventsourcing.persistence import (
+    AggregateEventMapper,
+    AggregateRecorder,
+    ApplicationRecorder,
+    IntegrityError,
+    InternalError,
+    ProcessRecorder,
     StoredEvent,
     Tracking,
     TrackingRecorder,
@@ -126,6 +130,21 @@ class TestPostgresDatastore(TestCase):
                 password="eventsourcing",  # noqa: S106
             ) as datastore,
             datastore.transaction(commit=False) as curs,
+        ):
+            # As a convenience, we can use the transaction() method.
+            curs.execute("SELECT 1")
+            self.assertEqual(curs.fetchall(), [{"?column?": 1}])
+
+    def test_cursor_from_datastore(self) -> None:
+        with (
+            PostgresDatastore(
+                dbname="eventsourcing",
+                host="127.0.0.1",
+                port="5432",
+                user="eventsourcing",
+                password="eventsourcing",  # noqa: S106
+            ) as datastore,
+            datastore.cursor() as curs,
         ):
             # As a convenience, we can use the transaction() method.
             curs.execute("SELECT 1")
@@ -349,7 +368,7 @@ class TestPostgresDatastore(TestCase):
             user="eventsourcing",
             password="password",  # noqa: S106
         ) as datastore:
-            self.assertEqual(datastore.originator_id_type, "uuid")
+            self.assertEqual(datastore.originator_id_type, "text")
 
         with PostgresDatastore(
             dbname="eventsourcing",
@@ -404,7 +423,7 @@ class SetupPostgresDatastore(TestCase):
     pool_size = 1
     max_overflow = 0
     max_waiting = 0
-    originator_id_type: Literal["uuid", "text"] = "uuid"
+    originator_id_type: Literal["uuid", "text"] = "text"
     enable_db_functions = False
 
     def setUp(self) -> None:
@@ -437,11 +456,11 @@ class WithSchema(SetupPostgresDatastore):
         self.assertEqual(self.datastore.schema, self.schema)
 
 
-class WithTextOriginatorID(SetupPostgresDatastore):
-    originator_id_type = "text"
+class WithUuidOriginatorID(SetupPostgresDatastore):
+    originator_id_type = "uuid"
 
     def new_originator_id(self) -> UUID | str:
-        return "test-" + str(uuid4())
+        return uuid4()
 
     def test_datastore_has_originator_id_type(self) -> None:
         self.assertEqual(self.datastore.originator_id_type, self.originator_id_type)
@@ -545,8 +564,8 @@ class TestPostgresAggregateRecorderWithSchema(
     pass
 
 
-class TestPostgresAggregateRecorderWithTextOriginatorID(
-    WithTextOriginatorID, TestPostgresAggregateRecorder
+class TestPostgresAggregateRecorderWithUuidOriginatorID(
+    WithUuidOriginatorID, TestPostgresAggregateRecorder
 ):
     pass
 
@@ -557,8 +576,8 @@ class TestPostgresAggregateRecorderWithDbFunctions(
     pass
 
 
-class TestPostgresAggregateRecorderWithDbFunctionsAndTextOriginatorID(
-    WithTextOriginatorID, TestPostgresAggregateRecorderWithDbFunctions
+class TestPostgresAggregateRecorderWithDbFunctionsAndUuidOriginatorID(
+    WithUuidOriginatorID, TestPostgresAggregateRecorderWithDbFunctions
 ):
     pass
 
@@ -1038,8 +1057,8 @@ class TestPostgresApplicationRecorderWithSchema(
     pass
 
 
-class TestPostgresApplicationRecorderWithTextOriginatorID(
-    WithTextOriginatorID, TestPostgresApplicationRecorder
+class TestPostgresApplicationRecorderWithUuidOriginatorID(
+    WithUuidOriginatorID, TestPostgresApplicationRecorder
 ):
     pass
 
@@ -1050,8 +1069,8 @@ class TestPostgresApplicationRecorderWithDbFunctions(
     pass
 
 
-class TestPostgresApplicationRecorderWithDbFunctionsAndTextOriginatorID(
-    WithTextOriginatorID, TestPostgresApplicationRecorderWithDbFunctions
+class TestPostgresApplicationRecorderWithDbFunctionsAndUuidOriginatorID(
+    WithUuidOriginatorID, TestPostgresApplicationRecorderWithDbFunctions
 ):
     def test_performance(self) -> None:
         super().test_performance()
@@ -1105,7 +1124,7 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
                     originator_version=1,
                     state=b"",
                     topic="",
-                    event_id=uuid4(),
+                    uuid=uuid4(),
                     metadata={},
                 )
             ]
@@ -1363,11 +1382,23 @@ class TestPostgresFactory(InfrastructureFactoryTestCase[PostgresFactory]):
     def expected_tracking_recorder_class(self) -> type[TrackingRecorder]:
         return PostgresTrackingRecorder
 
+    class PostgresApplicationRecorderSubclass(PostgresApplicationRecorder):
+        pass
+
     class PostgresTrackingRecorderSubclass(PostgresTrackingRecorder):
         pass
 
+    class PostgresProcessRecorderSubclass(PostgresProcessRecorder):
+        pass
+
+    def application_recorder_subclass(self) -> type[TrackingRecorder]:
+        return self.PostgresApplicationRecorderSubclass
+
     def tracking_recorder_subclass(self) -> type[TrackingRecorder]:
         return self.PostgresTrackingRecorderSubclass
+
+    def process_recorder_subclass(self) -> type[TrackingRecorder]:
+        return self.PostgresProcessRecorderSubclass
 
     def test_create_tracking_recorder(self) -> None:
         super().test_create_tracking_recorder()
@@ -1387,6 +1418,8 @@ class TestPostgresFactory(InfrastructureFactoryTestCase[PostgresFactory]):
         self.env[PostgresFactory.POSTGRES_PORT] = "5432"
         self.env[PostgresFactory.POSTGRES_USER] = "eventsourcing"
         self.env[PostgresFactory.POSTGRES_PASSWORD] = "eventsourcing"
+        self.env[PostgresFactory.MAPPER_TOPIC] = get_topic(AggregateEventMapper)
+        self.env[PostgresFactory.TRANSCODER_TOPIC] = get_topic(DataclassTranscoder)
         super().setUp()
 
     def tearDown(self) -> None:
@@ -1754,7 +1787,7 @@ class TestPostgresFactory(InfrastructureFactoryTestCase[PostgresFactory]):
 
     def test_originator_id_type(self) -> None:
         factory = PostgresFactory(self.env)
-        self.assertEqual(factory.datastore.originator_id_type, "uuid")
+        self.assertEqual(factory.datastore.originator_id_type, "text")
 
         self.env[PostgresFactory.ORIGINATOR_ID_TYPE] = "uuid"
         factory = PostgresFactory(self.env)

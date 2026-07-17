@@ -38,7 +38,9 @@ packages into a Python virtual environment.
 Define aggregates with the `Aggregate` class and the `@event` decorator.
 
 ```python
-from eventsourcing.domain import Aggregate, event
+from eventsourcing.domain_old import Aggregate
+from eventsourcing.domain_new import event
+
 
 class Dog(Aggregate):
     @event('Registered')

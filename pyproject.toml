@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "eventsourcing"
-version = "9.6.0b1"
+version = "9.10.0a1"
 description = "Event sourcing in Python"
 license = "BSD-3-Clause"
 readme = "README.md"
@@ -47,6 +47,7 @@ crypto = ["pycryptodome>=3.22"]
 cryptography = ["cryptography>=46.0.5"]
 postgres = ["psycopg[pool]>=3.2"]
 pydantic = ["pydantic>=2.13.4"]
+msgspec = ["msgspec>=0.21.1"]
 
 [project.urls]
 homepage = "https://github.com/pyeventsourcing/eventsourcing"
@@ -100,9 +101,10 @@ exclude = '''
 [tool.coverage.run]
 branch = true
 source = [
+#    ".",  # for PyCharm
     "eventsourcing"
 ]
-relative_files = true
+#relative_files = true
 omit = [
     "eventsourcing/tests/*",
     "eventsourcing/examples/bankaccounts/test_bankaccounts.py",

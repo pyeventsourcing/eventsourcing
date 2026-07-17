@@ -17,8 +17,8 @@ from eventsourcing.dcb.postgres_tt import (
     DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT,
     PostgresDCBRecorderTT,
 )
-from eventsourcing.domain import datetime_now_with_tzinfo
-from eventsourcing.persistence import ProgrammingError
+from eventsourcing.domain_new import datetime_now_with_tzinfo
+from eventsourcing.errors import ProgrammingError
 from eventsourcing.popo import POPOApplicationRecorder
 from eventsourcing.postgres import PostgresApplicationRecorder, PostgresDatastore
 from examples.dcb_enrolment.application import EnrolmentWithAggregates

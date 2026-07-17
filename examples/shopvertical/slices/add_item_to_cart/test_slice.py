@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
+from eventsourcing.domain_new import AggregateEvent
 from examples.shopvertical.events import (
     AddedItemToCart,
     ClearedCart,
@@ -15,13 +16,14 @@ from examples.shopvertical.slices.add_item_to_cart.cmd import (
 )
 
 if TYPE_CHECKING:
-    from eventsourcing.pydantic.immutablemodel import DomainEvent
+    from eventsourcing.pydantic.immutable import DomainEvent, PydanticDecision
+    from examples.shopvertical.common import Events
 
 
 class TestAddItemToCart(unittest.TestCase):
     def test_add_item_to_empty_cart(self) -> None:
-        cart_id = uuid4()
-        product_id = uuid4()
+        cart_id = str(uuid4())
+        product_id = str(uuid4())
         cmd = AddItemToCart(
             cart_id=cart_id,
             product_id=product_id,
@@ -29,46 +31,52 @@ class TestAddItemToCart(unittest.TestCase):
             description="A very special coffee",
             price=Decimal("5.99"),
         )
-        cart_events: tuple[DomainEvent, ...] = ()
+        cart_events: Events = ()
         new_events = cmd.handle(cart_events)
         self.assertEqual(1, len(new_events))
-        self.assertIsInstance(new_events[0], AddedItemToCart)
-        new_event = cast(AddedItemToCart, new_events[0])
+        self.assertIsInstance(new_events[0].decision, AddedItemToCart)
+        new_event = cast(AddedItemToCart, new_events[0].decision)
         self.assertEqual(cmd.product_id, new_event.product_id)
 
     def test_add_item_to_full_cart(self) -> None:
-        cart_id = uuid4()
-        product_id = uuid4()
-        cart_events: tuple[DomainEvent, ...] = (
-            AddedItemToCart(
+        cart_id = str(uuid4())
+        product_id = str(uuid4())
+        cart_events: Events = (
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=cart_id,
                 originator_version=1,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal("5.99"),
             ),
-            AddedItemToCart(
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=cart_id,
                 originator_version=2,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal("5.99"),
             ),
-            AddedItemToCart(
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=cart_id,
                 originator_version=3,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal("5.99"),
             ),
         )
 
         cmd = AddItemToCart(
             cart_id=cart_id,
-            product_id=uuid4(),
+            product_id=str(uuid4()),
             name="Coffee",
             description="A very special coffee",
             price=Decimal("5.99"),
@@ -78,43 +86,51 @@ class TestAddItemToCart(unittest.TestCase):
             cmd.handle(cart_events)
 
     def test_add_item_to_cart_after_adding_three_and_removing_one(self) -> None:
-        cart_id = uuid4()
-        product_id = uuid4()
-        cart_events: tuple[DomainEvent, ...] = (
-            AddedItemToCart(
+        cart_id = str(uuid4())
+        product_id = str(uuid4())
+        cart_events: Events = (
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=cart_id,
                 originator_version=1,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal("5.99"),
             ),
-            AddedItemToCart(
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=cart_id,
                 originator_version=2,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal("5.99"),
             ),
-            AddedItemToCart(
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=cart_id,
                 originator_version=3,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal("5.99"),
             ),
-            RemovedItemFromCart(
+            AggregateEvent(
+                decision=RemovedItemFromCart(
+                    product_id=product_id,
+                ),
                 originator_id=cart_id,
                 originator_version=4,
-                product_id=product_id,
             ),
         )
 
         cmd = AddItemToCart(
             cart_id=cart_id,
-            product_id=uuid4(),
+            product_id=str(uuid4()),
             name="Coffee",
             description="A very special coffee",
             price=Decimal("5.99"),
@@ -123,34 +139,41 @@ class TestAddItemToCart(unittest.TestCase):
         cmd.handle(cart_events)
 
     def test_add_item_to_cart_after_adding_three_and_clearing_cart(self) -> None:
-        cart_id = uuid4()
-        product_id = uuid4()
-        cart_events: tuple[DomainEvent, ...] = (
-            AddedItemToCart(
+        cart_id = str(uuid4())
+        product_id = str(uuid4())
+        cart_events: Events = (
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=cart_id,
                 originator_version=1,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal("5.99"),
             ),
-            AddedItemToCart(
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=cart_id,
                 originator_version=2,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal("5.99"),
             ),
-            AddedItemToCart(
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=cart_id,
                 originator_version=3,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal("5.99"),
             ),
-            ClearedCart(
+            AggregateEvent(
+                decision=ClearedCart(),
                 originator_id=cart_id,
                 originator_version=4,
             ),
@@ -158,7 +181,7 @@ class TestAddItemToCart(unittest.TestCase):
 
         cmd = AddItemToCart(
             cart_id=cart_id,
-            product_id=uuid4(),
+            product_id=str(uuid4()),
             name="Coffee",
             description="A very special coffee",
             price=Decimal("5.99"),
@@ -167,9 +190,10 @@ class TestAddItemToCart(unittest.TestCase):
         cmd.handle(cart_events)
 
     def test_add_item_after_submitted_cart(self) -> None:
-        cart_id = uuid4()
-        cart_events: tuple[DomainEvent, ...] = (
-            SubmittedCart(
+        cart_id = str(uuid4())
+        cart_events: Events = (
+            AggregateEvent(
+                decision=SubmittedCart(),
                 originator_id=cart_id,
                 originator_version=1,
             ),
@@ -177,7 +201,7 @@ class TestAddItemToCart(unittest.TestCase):
 
         cmd = AddItemToCart(
             cart_id=cart_id,
-            product_id=uuid4(),
+            product_id=str(uuid4()),
             name="Coffee",
             description="A very special coffee",
             price=Decimal("5.99"),

@@ -4,7 +4,7 @@ from typing import cast
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.dcb.domain import Event, Selector
+from eventsourcing.domain_new import Selector, TaggedEvent
 from examples.dcb_enrolment.interface import CourseID, StudentID
 from examples.dcb_enrolment_with_enduring_objects.application import Course, Student
 
@@ -29,7 +29,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
-        new_event1 = cast(Event[Student.Registered], new_events[0])
+        new_event1 = cast(TaggedEvent[Student.Registered], new_events[0])
         self.assertIsInstance(new_event1.decision, Student.Registered)
         self.assertEqual(new_event1.decision.student_id, student.id)
 
@@ -38,7 +38,7 @@ class TestEnduringObjects(TestCase):
 
         # Reconstruct enduring object.
         copy1 = Student.__new__(Student)
-        copy1 = cast(Student, new_event1.decision.mutate(copy1))
+        copy1 = cast(Student, new_event1.mutate(copy1))
         self.assertEqual(copy1.id, student.id)
         self.assertEqual(copy1.name, student.name)
         self.assertEqual(copy1.max_courses, student.max_courses)
@@ -55,7 +55,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
-        new_event2 = cast(Event[Student.NameUpdated], new_events[0])
+        new_event2 = cast(TaggedEvent[Student.NameUpdated], new_events[0])
         self.assertIsInstance(new_event2.decision, Student.NameUpdated)
         self.assertEqual(new_event2.decision.name, "Maxine")
 
@@ -63,7 +63,7 @@ class TestEnduringObjects(TestCase):
         self.assertTrue(student.id in new_event2.tags)
 
         # Check event can evolve enduring object.
-        copy2 = cast(Student, new_event2.decision.mutate(copy1))
+        copy2 = cast(Student, new_event2.mutate(copy1))
         self.assertEqual(copy2.id, student.id)
         self.assertEqual(copy2.name, student.name)
         self.assertEqual(copy2.max_courses, student.max_courses)
@@ -87,7 +87,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
-        new_event = cast(Event[Course.Registered], new_events[0])
+        new_event = cast(TaggedEvent[Course.Registered], new_events[0])
         self.assertIsInstance(new_event.decision, Course.Registered)
         self.assertEqual(new_event.decision.course_id, course.id)
 
@@ -97,7 +97,7 @@ class TestEnduringObjects(TestCase):
 
         # Reconstruct enduring object.
         copy = Course.__new__(Course)
-        copy = cast(Course, new_event.decision.mutate(copy))
+        copy = cast(Course, new_event.mutate(copy))
         self.assertEqual(copy.id, course.id)
         self.assertEqual(copy.name, course.name)
         self.assertEqual(copy.places, course.places)

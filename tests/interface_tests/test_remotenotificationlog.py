@@ -15,7 +15,7 @@ from eventsourcing.interface import (
     NotificationLogJSONClient,
     NotificationLogJSONService,
 )
-from eventsourcing.tests.application import BankAccounts
+from eventsourcing.tests.application import BankAccountsWithPydantic
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -23,7 +23,9 @@ if TYPE_CHECKING:
 
 class TestRemoteNotificationLog(TestCase):
     def test_directly(self) -> None:
-        client = BankAccountsJSONClient(BankAccountsJSONService(BankAccounts()))
+        client = BankAccountsJSONClient(
+            BankAccountsJSONService(BankAccountsWithPydantic())
+        )
         account_id1 = client.open_account("Alice", "alice@example.com")
         account_id2 = client.open_account("Bob", "bob@example.com")
 
@@ -143,12 +145,12 @@ class BankAccountsInterface(NotificationLogInterface):
 
 class BankAccountsJSONService(
     BankAccountsInterface,
-    NotificationLogJSONService[BankAccounts],
+    NotificationLogJSONService[BankAccountsWithPydantic],
 ):
     def open_account(self, body: str) -> str:
         kwargs = json.loads(body)
         account_id = self.app.open_account(**kwargs)
-        return json.dumps({"account_id": account_id.hex})
+        return json.dumps({"account_id": account_id})
 
 
 class BankAccountsJSONClient:
@@ -271,4 +273,4 @@ bank_accounts_service: BankAccountsInterface
 @HTTPApplicationServer.before_first_request
 def init_bank_accounts() -> None:
     global bank_accounts_service  # noqa: PLW0603
-    bank_accounts_service = BankAccountsJSONService(BankAccounts())
+    bank_accounts_service = BankAccountsJSONService(BankAccountsWithPydantic())

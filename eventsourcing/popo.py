@@ -149,6 +149,8 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
                     originator_version=s.originator_version,
                     topic=s.topic,
                     state=s.state,
+                    uuid=s.uuid,
+                    metadata=s.metadata,
                 )
                 results.append(n)
                 if len(results) == limit:
@@ -245,7 +247,12 @@ class POPOFactory(InfrastructureFactory[POPOTrackingRecorder]):
         return POPOAggregateRecorder()
 
     def application_recorder(self) -> ApplicationRecorder:
-        return POPOApplicationRecorder()
+        application_recorder_topic = self.env.get(self.APPLICATION_RECORDER_TOPIC)
+        if application_recorder_topic:
+            application_recorder_class = resolve_topic(application_recorder_topic)
+        else:
+            application_recorder_class = POPOApplicationRecorder
+        return application_recorder_class()
 
     def tracking_recorder(
         self, tracking_recorder_class: type[POPOTrackingRecorder] | None = None
@@ -261,7 +268,12 @@ class POPOFactory(InfrastructureFactory[POPOTrackingRecorder]):
         return tracking_recorder_class()
 
     def process_recorder(self) -> ProcessRecorder:
-        return POPOProcessRecorder()
+        process_recorder_topic = self.env.get(self.PROCESS_RECORDER_TOPIC)
+        if process_recorder_topic:
+            process_recorder_class = resolve_topic(process_recorder_topic)
+        else:
+            process_recorder_class = POPOProcessRecorder
+        return process_recorder_class()
 
 
 Factory = POPOFactory

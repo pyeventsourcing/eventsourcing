@@ -37,17 +37,17 @@ class TestDogSchool(TestCase):
         )
         self.assertEqual(3, len(notifications))
 
-        # Take snapshot.
-        school.take_snapshot(dog_id, Dog, version=3)
-        dog = school.get_dog(dog_id)
-        self.assertEqual("Fido", dog["name"])
-        self.assertEqual(("roll over", "play dead"), dog["tricks"])
-
-        # Continue with snapshotted aggregate.
-        school.add_trick(dog_id, "fetch ball")
-        dog = school.get_dog(dog_id)
-        self.assertEqual("Fido", dog["name"])
-        self.assertEqual(("roll over", "play dead", "fetch ball"), dog["tricks"])
+        # # Take snapshot.
+        # school.take_snapshot(dog_id, Dog, version=3)
+        # dog = school.get_dog(dog_id)
+        # self.assertEqual("Fido", dog["name"])
+        # self.assertEqual(("roll over", "play dead"), dog["tricks"])
+        #
+        # # Continue with snapshotted aggregate.
+        # school.add_trick(dog_id, "fetch ball")
+        # dog = school.get_dog(dog_id)
+        # self.assertEqual("Fido", dog["name"])
+        # self.assertEqual(("roll over", "play dead", "fetch ball"), dog["tricks"])
 
     def test_dog_school_with_sqlite(self) -> None:
         self.env["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"

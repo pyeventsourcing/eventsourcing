@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
-from eventsourcing.application import Application
-from eventsourcing.persistence import JSONTranscoder, Transcoding
+from eventsourcing.pydantic.application import PydanticApplication
 from examples.cargoshipping.domainmodel import (
     REGISTERED_ROUTES,
     Cargo,
     HandlingActivity,
     Itinerary,
-    Leg,
     Location,
 )
 
@@ -18,62 +16,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
 
-class LocationAsName(Transcoding):
-    type = Location
-    name = "location"
-
-    def encode(self, obj: Location) -> str:
-        return obj.name
-
-    def decode(self, data: str) -> Location:
-        assert isinstance(data, str)
-        return Location[data]
-
-
-class HandlingActivityAsName(Transcoding):
-    type = HandlingActivity
-    name = "handling_activity"
-
-    def encode(self, obj: HandlingActivity) -> str:
-        return obj.name
-
-    def decode(self, data: str) -> HandlingActivity:
-        assert isinstance(data, str)
-        return HandlingActivity[data]
-
-
-class ItineraryAsDict(Transcoding):
-    type = Itinerary
-    name = "itinerary"
-
-    def encode(self, obj: Itinerary) -> dict[str, Any]:
-        return obj.__dict__
-
-    def decode(self, data: dict[str, Any]) -> Itinerary:
-        assert isinstance(data, dict)
-        return Itinerary(**data)
-
-
-class LegAsDict(Transcoding):
-    type = Leg
-    name = "leg"
-
-    def encode(self, obj: Leg) -> dict[str, Any]:
-        return obj.__dict__
-
-    def decode(self, data: dict[str, Any]) -> Leg:
-        assert isinstance(data, dict)
-        return Leg(**data)
-
-
-class BookingApplication(Application):
-    def register_transcodings(self, transcoder: JSONTranscoder) -> None:
-        super().register_transcodings(transcoder)
-        transcoder.register(LocationAsName())
-        transcoder.register(HandlingActivityAsName())
-        transcoder.register(ItineraryAsDict())
-        transcoder.register(LegAsDict())
-
+class BookingApplication(PydanticApplication):
     def book_new_cargo(
         self,
         origin: Location,

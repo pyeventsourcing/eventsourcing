@@ -1,32 +1,39 @@
 from __future__ import annotations
 
-import json
 import queue
 import sys
 import typing
 from abc import ABC, abstractmethod
 from collections import deque
-from collections.abc import Callable, Hashable, Iterator, Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
-from decimal import Decimal
-from functools import lru_cache
-from json import JSONDecodeError
 from threading import Condition, Event, Lock, Semaphore, Thread, Timer
 from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
-from typing import Any, Generic, Self, cast
+from typing import Any, Generic, Self
 from uuid import UUID
 
 from typing_extensions import TypeVar
 
-from eventsourcing.domain import (
+from eventsourcing.dcb.api import DCBEvent
+from eventsourcing.domain_new import (
     NIL_UUID,
-    DomainEventProtocol,
-    EventSourcingError,
-    HasOriginatorIDVersion,
-    TAggregateID,
+    AggregateEvent,
+    TaggedEvent,
+    TDecision,
+    WorksWithDecisions,
     null_metadata_in_context,
+)
+from eventsourcing.errors import (
+    ConnectionNotFromPoolError,
+    ConnectionPoolClosedError,
+    ConnectionUnavailableError,
+    DatabaseError,
+    InfrastructureFactoryError,
+    MapperDeserialisationError,
+    ProgrammingError,
+    RecordConflictError,
+    WaitInterruptedError,
 )
 from eventsourcing.utils import (
     Environment,
@@ -172,155 +179,16 @@ else:  # pragma: no cover
     ShutDown = queue.ShutDown  # pyright: ignore[reportAttributeAccessIssue]
 
 
-class Transcoding(ABC):
-    """Abstract base class for custom transcodings."""
-
-    type: type
-    name: str
-
-    @abstractmethod
-    def encode(self, obj: Any) -> Any:
-        """Encodes given object."""
-
-    @abstractmethod
-    def decode(self, data: Any) -> Any:
-        """Decodes encoded object."""
-
-
-class Transcoder(ABC):
+class Transcoder(ABC, WorksWithDecisions[TDecision]):
     """Abstract base class for transcoders."""
 
     @abstractmethod
-    def encode(self, obj: Any) -> bytes:
-        """Encodes obj as bytes."""
+    def encode(self, decision: TDecision) -> bytes:
+        raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
-    def decode(self, data: bytes) -> Any:
-        """Decodes obj from bytes."""
-
-
-class NullTranscoder(Transcoder):
-    """Null transcoder."""
-
-    def encode(self, obj: Any) -> bytes:
-        raise ProgrammingError
-
-    def decode(self, data: bytes) -> Any:
-        raise ProgrammingError
-
-
-class TranscodingNotRegisteredError(EventSourcingError, TypeError):
-    """Raised when a transcoding isn't registered with JSONTranscoder."""
-
-
-class JSONTranscoder(Transcoder):
-    """Extensible transcoder that uses the Python :mod:`json` module."""
-
-    def __init__(self) -> None:
-        self.types: dict[type, Transcoding] = {}
-        self.names: dict[str, Transcoding] = {}
-        self.encoder = json.JSONEncoder(
-            default=self._encode_obj,
-            separators=(",", ":"),
-            ensure_ascii=False,
-        )
-        self.decoder = json.JSONDecoder(object_hook=self._decode_obj)
-
-    def register(self, transcoding: Transcoding) -> None:
-        """Registers given transcoding with the transcoder."""
-        self.types[transcoding.type] = transcoding
-        self.names[transcoding.name] = transcoding
-
-    def encode(self, obj: Any) -> bytes:
-        """Encodes given object as a bytes array."""
-        return self.encoder.encode(obj).encode("utf8")
-
-    def decode(self, data: bytes) -> Any:
-        """Decodes bytes array as previously encoded object."""
-        return self.decoder.decode(data.decode("utf8"))
-
-    def _encode_obj(self, o: Any) -> dict[str, Any]:
-        try:
-            transcoding = self.types[type(o)]
-        except KeyError:
-            msg = (
-                f"Object of type {type(o)} is not "
-                "serializable. Please define and register "
-                "a custom transcoding for this type."
-            )
-            raise TranscodingNotRegisteredError(msg) from None
-        else:
-            return {
-                "_type_": transcoding.name,
-                "_data_": transcoding.encode(o),
-            }
-
-    def _decode_obj(self, d: dict[str, Any]) -> Any:
-        if len(d) == 2:
-            try:
-                _type_ = d["_type_"]
-            except KeyError:
-                return d
-            else:
-                try:
-                    _data_ = d["_data_"]
-                except KeyError:
-                    return d
-                else:
-                    try:
-                        transcoding = self.names[cast("str", _type_)]
-                    except KeyError as e:
-                        msg = (
-                            f"Data serialized with name '{cast('str', _type_)}' is not "
-                            "deserializable. Please register a "
-                            "custom transcoding for this type."
-                        )
-                        raise TranscodingNotRegisteredError(msg) from e
-                    else:
-                        return transcoding.decode(_data_)
-        else:
-            return d
-
-
-class UUIDAsHex(Transcoding):
-    """Transcoding that represents :class:`UUID` objects as hex values."""
-
-    type = UUID
-    name = "uuid_hex"
-
-    def encode(self, obj: UUID) -> str:
-        return obj.hex
-
-    def decode(self, data: str) -> UUID:
-        assert isinstance(data, str)
-        return UUID(data)
-
-
-class DecimalAsStr(Transcoding):
-    """Transcoding that represents :class:`Decimal` objects as strings."""
-
-    type = Decimal
-    name = "decimal_str"
-
-    def encode(self, obj: Decimal) -> str:
-        return str(obj)
-
-    def decode(self, data: str) -> Decimal:
-        return Decimal(data)
-
-
-class DatetimeAsISO(Transcoding):
-    """Transcoding that represents :class:`datetime` objects as ISO strings."""
-
-    type = datetime
-    name = "datetime_iso"
-
-    def encode(self, obj: datetime) -> str:
-        return obj.isoformat()
-
-    def decode(self, data: str) -> datetime:
-        assert isinstance(data, str)
-        return datetime.fromisoformat(data)
+    def decode(self, data: bytes, decision_class: type[TDecision]) -> TDecision:
+        raise NotImplementedError  # pragma: no cover
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -330,7 +198,7 @@ class StoredEvent:
     objects and :class:`~eventsourcing.domain.Snapshot` objects.
     """
 
-    originator_id: UUID | str
+    originator_id: str
     """ID of the originating aggregate."""
     originator_version: int
     """Position in an aggregate sequence."""
@@ -338,7 +206,7 @@ class StoredEvent:
     """Topic of a domain event object class."""
     state: bytes
     """Serialised state of a domain event object."""
-    event_id: UUID = NIL_UUID
+    uuid: UUID = NIL_UUID
     """Optional event ID."""
     metadata: dict[str, str] = field(default_factory=dict)
     """Serialised metadata."""
@@ -372,11 +240,7 @@ class Cipher(ABC):
         """Return plaintext for given ciphertext."""
 
 
-class MapperDeserialisationError(EventSourcingError, ValueError):
-    """Raised when deserialization fails in a Mapper."""
-
-
-class Mapper(ABC, Generic[TAggregateID]):
+class Mapper(ABC, Generic[TDecision]):
     """
     Abstract base class for converting between domain event
     objects and :class:`StoredEvent` objects.
@@ -393,192 +257,90 @@ class Mapper(ABC, Generic[TAggregateID]):
         self.cipher = cipher
 
     @abstractmethod
-    def to_stored_event(
-        self, domain_event: DomainEventProtocol[TAggregateID]
-    ) -> StoredEvent:
+    def to_stored_event(self, domain_event: AggregateEvent[TDecision]) -> StoredEvent:
         """Converts the given domain event to a :class:`StoredEvent` object."""
 
     @abstractmethod
-    def to_domain_event(
-        self, stored_event: StoredEvent
-    ) -> DomainEventProtocol[TAggregateID]:
+    def to_domain_event(self, stored_event: StoredEvent) -> AggregateEvent[TDecision]:
         """Converts the given :class:`StoredEvent` to a domain event object."""
 
 
-class DataclassMapper(Mapper[TAggregateID]):
-    """Converts between dataclass domain event objects and :class:`StoredEvent` objects.
-
-    Uses a :class:`Transcoder`, and optionally a cryptographic cipher and compressor.
-    """
-
-    def to_stored_event(
-        self, domain_event: DomainEventProtocol[TAggregateID]
-    ) -> StoredEvent:
-        topic = get_topic(domain_event.__class__)
-        event_state = dict(vars(domain_event))
-        originator_id = event_state.pop("originator_id")
-        originator_version = event_state.pop("originator_version")
-        class_version = getattr(type(domain_event), "class_version", 1)
-        if class_version > 1:
-            event_state["class_version"] = class_version
-        stored_state = self.transcoder.encode(event_state)
-        if self.compressor:
-            stored_state = self.compressor.compress(stored_state)
-        if self.cipher:
-            stored_state = self.cipher.encrypt(stored_state)
-        return StoredEvent(
-            originator_id=originator_id,
-            originator_version=originator_version,
-            topic=topic,
-            state=stored_state,
-            metadata=domain_event.metadata,
-            event_id=domain_event.event_id,
-        )
-
-    def to_domain_event(
-        self, stored_event: StoredEvent
-    ) -> DomainEventProtocol[TAggregateID]:
-        """Converts the given :class:`StoredEvent` to a domain event object."""
-        cls = resolve_topic(stored_event.topic)
-
-        stored_state = stored_event.state
-        try:
-            if self.cipher:
-                stored_state = self.cipher.decrypt(stored_state)
-            if self.compressor:
-                stored_state = self.compressor.decompress(stored_state)
-            event_state: dict[str, Any] = self.transcoder.decode(stored_state)
-        except Exception as e:
-            msg = (
-                f"Failed to deserialise state of stored event with "
-                f"topic '{stored_event.topic}', "
-                f"originator_id '{stored_event.originator_id}' and "
-                f"originator_version {stored_event.originator_version}: {e}"
-            )
-            raise MapperDeserialisationError(msg) from e
-
-        id_convertor = find_id_convertor(
-            cls, cast(Hashable, type(stored_event.originator_id))
-        )
-        # print("ID of convertor:", id(convertor))
-        event_state["originator_id"] = id_convertor(stored_event.originator_id)
-        event_state["originator_version"] = stored_event.originator_version
-
-        # Support legacy data by supplementing domain event metadata
-        # from separately stored event metadata.
-        # TODO: Also maybe store metadata separately from domain event as config option?
-        stored_metadata = stored_event.metadata
-        event_metadata = event_state.get("metadata")
-        if isinstance(stored_metadata, dict) and isinstance(event_metadata, dict):
-            for key, value in stored_metadata.items():
-                if key not in event_metadata:
-                    event_metadata[key] = value
-
-        if "event_id" not in event_state and stored_event.event_id:
-            event_state["event_id"] = stored_event.event_id
-        class_version = getattr(cls, "class_version", 1)
-        from_version = event_state.pop("class_version", 1)
-        while from_version < class_version:
-            getattr(cls, f"upcast_v{from_version}_v{from_version + 1}")(event_state)
-            from_version += 1
-
-        return cls(**event_state)
-
-
-@lru_cache
-def find_id_convertor(
-    domain_event_cls: type[object], originator_id_cls: type[UUID | str]
-) -> Callable[[UUID | str], UUID | str]:
-    # Try to find the originator_id type.
-    if issubclass(domain_event_cls, HasOriginatorIDVersion):
-        # For classes that inherit CanMutateAggregate, and don't use a different
-        # mapper, then assume they aren't overriding __init_subclass__ is a way
-        # that prevents 'originator_id_type' being found from type arguments and
-        # set on the class.
-        # TODO: Write a test where a custom class does override __init_subclass__
-        #  so that the next line will cause an AssertionError. Then fix this code.
-        if domain_event_cls.originator_id_type is None:
-            msg = "originator_id_type cannot be None"
-            raise TypeError(msg)
-        originator_id_type = domain_event_cls.originator_id_type
-    else:
-        # Otherwise look for annotations.
-        for cls in domain_event_cls.__mro__:
-            try:
-                annotation = cls.__annotations__["originator_id"]
-            except (KeyError, AttributeError):
-                continue
-            else:
-                valid_annotations = {
-                    str: str,
-                    UUID: UUID,
-                    "str": str,
-                    "UUID": UUID,
-                    "uuid.UUID": UUID,
-                }
-                if annotation not in valid_annotations:
-                    msg = f"originator_id annotation on {cls} is not either UUID or str"
-                    raise TypeError(msg)
-                assert annotation in valid_annotations, annotation
-                originator_id_type = valid_annotations[annotation]
-                break
-        else:
-            msg = (
-                f"Neither event class {domain_event_cls}"
-                f"nor its bases have an originator_id annotation"
-            )
-            raise TypeError(msg)
-
-    if originator_id_cls is str and originator_id_type is UUID:
-        convertor = str_to_uuid_convertor
-    else:
-        convertor = pass_through_convertor
-    return convertor
-
-
-def str_to_uuid_convertor(originator_id: UUID | str) -> UUID | str:
-    assert isinstance(originator_id, str)
-    return UUID(originator_id)
-
-
-def pass_through_convertor(originator_id: UUID | str) -> UUID | str:
-    return originator_id
-
-
-class RecordConflictError(EventSourcingError):
-    """Legacy exception, replaced with IntegrityError."""
-
-
-class PersistenceError(EventSourcingError):
-    """The base class of the other exceptions in this module.
-
-    Exception class names follow https://www.python.org/dev/peps/pep-0249/#exceptions
-    """
-
-
-class InterfaceError(PersistenceError):
-    """Exception raised for errors that are related to the database
-    interface rather than the database itself.
-    """
-
-
-class DatabaseError(PersistenceError):
-    """Exception raised for errors that are related to the database."""
-
-
-class DataError(DatabaseError):
-    """Exception raised for errors that are due to problems with the
-    processed data like division by zero, numeric value out of range, etc.
-    """
-
-
-class OperationalError(DatabaseError):
-    """Exception raised for errors that are related to the database's
-    operation and not necessarily under the control of the programmer,
-    e.g. an unexpected disconnect occurs, the data source name is not
-    found, a transaction could not be processed, a memory allocation
-    error occurred during processing, etc.
-    """
+# # TODO: Eliminate this by adjusting JSONTranscoder to extract 'event_state' dict
+# #  (`event_state = dict(vars(domain_event.decision))`) and reconstructing Decision
+# #  class.
+# class DataclassMapper(Mapper):
+#     """Converts between dataclass domain event objects and :class:`StoredEvent` objects.
+#
+#     Uses a :class:`Transcoder`, and optionally a cryptographic cipher and compressor.
+#     """
+#
+#     def to_stored_event(self, domain_event: AggregateEvent[TDecision]) -> StoredEvent:
+#         topic = get_topic(domain_event.decision.__class__)
+#         event_state = dict(vars(domain_event.decision))
+#         # originator_id = event_state.pop("originator_id")
+#         # originator_version = event_state.pop("originator_version")
+#         class_version = getattr(type(domain_event.decision), "class_version", 1)
+#         if class_version > 1:
+#             event_state["class_version"] = class_version
+#         stored_state = self.transcoder.encode(event_state)
+#         if self.compressor:
+#             stored_state = self.compressor.compress(stored_state)
+#         if self.cipher:
+#             stored_state = self.cipher.encrypt(stored_state)
+#         return StoredEvent(
+#             originator_id=domain_event.originator_id,
+#             originator_version=domain_event.originator_version,
+#             topic=topic,
+#             state=stored_state,
+#             metadata=domain_event.metadata,
+#             uuid=domain_event.uuid,
+#         )
+#
+#     def to_domain_event(self, stored_event: StoredEvent) -> AggregateEvent[TDecision]:
+#         """Converts the given :class:`StoredEvent` to a domain event object."""
+#         cls = resolve_topic(stored_event.topic)
+#
+#         stored_state = stored_event.state
+#         try:
+#             if self.cipher:
+#                 stored_state = self.cipher.decrypt(stored_state)
+#             if self.compressor:
+#                 stored_state = self.compressor.decompress(stored_state)
+#             event_state: dict[str, Any] = self.transcoder.decode(stored_state, cls)
+#         except Exception as e:
+#             msg = (
+#                 f"Failed to deserialise state of stored event with "
+#                 f"topic '{stored_event.topic}', "
+#                 f"originator_id '{stored_event.originator_id}' and "
+#                 f"originator_version {stored_event.originator_version}: {e}"
+#             )
+#             raise MapperDeserialisationError(msg) from e
+#
+#         # Support legacy data by supplementing domain event metadata
+#         # from separately stored event metadata.
+#         # # TODO: Also maybe store metadata separately from domain event as config option?
+#         # stored_metadata = stored_event.metadata
+#         # event_metadata = event_state.get("metadata")
+#         # if isinstance(stored_metadata, dict) and isinstance(event_metadata, dict):
+#         #     for key, value in stored_metadata.items():
+#         #         if key not in event_metadata:
+#         #             event_metadata[key] = value
+#
+#         # if "event_id" not in event_state and stored_event.event_id:
+#         #     event_state["event_id"] = stored_event.event_id
+#         class_version = getattr(cls, "class_version", 1)
+#         from_version = event_state.pop("class_version", 1)
+#         while from_version < class_version:
+#             getattr(cls, f"upcast_v{from_version}_v{from_version + 1}")(event_state)
+#             from_version += 1
+#         decision = cls(**event_state)
+#         return AggregateEvent(
+#             decision=decision,
+#             uuid=stored_event.uuid,
+#             metadata=stored_event.metadata,
+#             originator_id=stored_event.originator_id,
+#             originator_version=stored_event.originator_version,
+#         )
 
 
 class IntegrityError(DatabaseError, RecordConflictError):
@@ -592,25 +354,6 @@ class InternalError(DatabaseError):
     error, e.g. the cursor is not valid anymore, the transaction
     is out of sync, etc.
     """
-
-
-class ProgrammingError(DatabaseError):
-    """Exception raised for database programming errors, e.g. table
-    not found or already exists, syntax error in the SQL statement,
-    wrong number of parameters specified, etc.
-    """
-
-
-class NotSupportedError(DatabaseError):
-    """Exception raised in case a method or database API was used
-    which is not supported by the database, e.g. calling the
-    rollback() method on a connection that does not support
-    transaction or has transactions turned off.
-    """
-
-
-class WaitInterruptedError(PersistenceError):
-    """Raised when waiting for a tracking record is interrupted."""
 
 
 class Recorder:
@@ -766,29 +509,29 @@ class ProcessRecorder(TrackingRecorder, ApplicationRecorder, ABC):
 
 
 @dataclass(frozen=True)
-class Recording(Generic[TAggregateID]):
+class Recording(Generic[TDecision]):
     """Represents the recording of a domain event."""
 
-    domain_event: DomainEventProtocol[TAggregateID]
+    domain_event: AggregateEvent[TDecision]
     """The domain event that has been recorded."""
     notification: Notification
     """A Notification that represents the domain event in the application sequence."""
 
 
-class EventStore(Generic[TAggregateID]):
+class EventStore(Generic[TDecision]):
     """Stores and retrieves domain events."""
 
     def __init__(
         self,
-        mapper: Mapper[TAggregateID],
+        mapper: Mapper,
         recorder: AggregateRecorder,
     ):
-        self.mapper: Mapper[TAggregateID] = mapper
+        self.mapper: Mapper = mapper
         self.recorder = recorder
 
     def put(
-        self, domain_events: Sequence[DomainEventProtocol[TAggregateID]], **kwargs: Any
-    ) -> list[Recording[TAggregateID]]:
+        self, domain_events: Sequence[AggregateEvent[TDecision]], **kwargs: Any
+    ) -> list[Recording]:
         """Stores domain events in aggregate sequence."""
         stored_events = list(map(self.mapper.to_stored_event, domain_events))
         recordings = []
@@ -814,13 +557,13 @@ class EventStore(Generic[TAggregateID]):
 
     def get(
         self,
-        originator_id: TAggregateID,
+        originator_id: str,
         *,
         gt: int | None = None,
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> Iterator[DomainEventProtocol[TAggregateID]]:
+    ) -> Iterator[AggregateEvent[TDecision]]:
         """Retrieves domain events from aggregate sequence."""
         with null_metadata_in_context():
             return map(
@@ -835,13 +578,7 @@ class EventStore(Generic[TAggregateID]):
             )
 
 
-TTrackingRecorder = TypeVar(
-    "TTrackingRecorder", bound=TrackingRecorder, default=TrackingRecorder
-)
-
-
-class InfrastructureFactoryError(EventSourcingError):
-    """Raised when an infrastructure factory cannot be created."""
+TTrackingRecorder = TypeVar("TTrackingRecorder", bound=TrackingRecorder)
 
 
 class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
@@ -856,6 +593,10 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         """Initialises infrastructure factory object with given application name."""
         self.env = env if isinstance(env, Environment) else Environment(env=env)
         self._is_entered = False
+
+    @property
+    def is_entered(self) -> bool:
+        return self._is_entered
 
     def __enter__(self) -> Self:
         self._is_entered = True
@@ -881,7 +622,7 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         named application. Reads and resolves persistence
         topic from environment variable 'PERSISTENCE_MODULE'.
         """
-        factory_cls: type[Self]
+        factory_cls: type
         if env is None:
             env = Environment()
         elif not isinstance(env, Environment):
@@ -891,18 +632,10 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
                 cls.PERSISTENCE_MODULE,
                 "",
             )
-            or env.get(
-                "INFRASTRUCTURE_FACTORY",  # Legacy.
-                "",
-            )
-            or env.get(
-                "FACTORY_TOPIC",  # Legacy.
-                "",
-            )
             or "eventsourcing.popo"
         )
         try:
-            obj: type[Self] | ModuleType = resolve_topic(topic)
+            obj: Any = resolve_topic(topic)
         except TopicError as e:
             msg = (
                 "Failed to resolve persistence module topic: "
@@ -913,7 +646,7 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
 
         if isinstance(obj, ModuleType):
             # Find the factory in the module.
-            factory_classes = set[type[Self]]()
+            factory_classes = set[type[Any]]()
             for member in obj.__dict__.values():
                 # Look for classes...
                 if not isinstance(member, type):
@@ -953,7 +686,8 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         if transcoder_topic:
             transcoder_class: type[Transcoder] = resolve_topic(transcoder_topic)
         else:
-            transcoder_class = JSONTranscoder
+            msg = f"Please set {self.TRANSCODER_TOPIC} in application environment"
+            raise ProgrammingError(msg)
         return transcoder_class()
 
     def cipher(self) -> Cipher | None:
@@ -1001,9 +735,9 @@ class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
 
     def mapper(
         self,
-        transcoder: Transcoder | None = None,
-        mapper_class: type[Mapper[TAggregateID]] | None = None,
-    ) -> Mapper[TAggregateID]:
+        transcoder: Transcoder[TDecision] | None = None,
+        mapper_class: type[Mapper[TDecision]] | None = None,
+    ) -> Mapper:
         """Constructs a mapper."""
         # Resolve MAPPER_TOPIC if no given class.
         if mapper_class is None:
@@ -1011,7 +745,7 @@ class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
             mapper_class = (
                 resolve_topic(mapper_topic)
                 if mapper_topic
-                else DataclassMapper[TAggregateID]
+                else AggregateEventMapper[TDecision]
             )
 
         # Check we have a mapper class.
@@ -1029,9 +763,9 @@ class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
 
     def event_store(
         self,
-        mapper: Mapper[TAggregateID] | None = None,
+        mapper: Mapper | None = None,
         recorder: AggregateRecorder | None = None,
-    ) -> EventStore[TAggregateID]:
+    ) -> EventStore:
         """Constructs an event store."""
         return EventStore(
             mapper=mapper or self.mapper(),
@@ -1150,20 +884,6 @@ class Connection(ABC, Generic[TCursor]):
 
 
 TConnection = TypeVar("TConnection", bound=Connection[Any])
-
-
-class ConnectionPoolClosedError(EventSourcingError):
-    """Raised when using a connection pool that is already closed."""
-
-
-class ConnectionNotFromPoolError(EventSourcingError):
-    """Raised when putting a connection in the wrong pool."""
-
-
-class ConnectionUnavailableError(OperationalError, TimeoutError):
-    """Raised when a request to get a connection from a
-    connection pool times out.
-    """
 
 
 class ConnectionPool(ABC, Generic[TConnection]):
@@ -1622,3 +1342,86 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
                 self._last_notification_id = notifications[-1].id
             if len(notifications) < self._select_limit:
                 break
+
+
+class AggregateEventMapper(Mapper[TDecision]):
+    def to_stored_event(self, domain_event: AggregateEvent[TDecision]) -> StoredEvent:
+        topic = get_topic(type(domain_event.decision))
+        stored_state = self.transcoder.encode(domain_event.decision)
+        if self.compressor:
+            stored_state = self.compressor.compress(stored_state)
+        if self.cipher:
+            stored_state = self.cipher.encrypt(stored_state)
+        return StoredEvent(
+            originator_id=domain_event.originator_id,
+            originator_version=domain_event.originator_version,
+            topic=topic,
+            state=stored_state,
+            uuid=domain_event.uuid,
+            metadata=domain_event.metadata,
+        )
+
+    def to_domain_event(self, stored_event: StoredEvent) -> AggregateEvent[TDecision]:
+        stored_state = stored_event.state
+        try:
+            if self.cipher:
+                stored_state = self.cipher.decrypt(stored_state)
+            if self.compressor:
+                stored_state = self.compressor.decompress(stored_state)
+            cls = resolve_topic(stored_event.topic)
+            decision = self.transcoder.decode(stored_state, cls)
+        except Exception as e:
+            msg = (
+                f"Failed to deserialise state of stored event with "
+                f"topic '{stored_event.topic}', "
+                f"originator_id '{stored_event.originator_id}' and "
+                f"originator_version {stored_event.originator_version}: {e}"
+            )
+            raise MapperDeserialisationError(msg) from e
+        else:
+            return AggregateEvent[TDecision](
+                decision=decision,
+                uuid=stored_event.uuid,
+                metadata=stored_event.metadata,
+                originator_id=stored_event.originator_id,
+                originator_version=stored_event.originator_version,
+            )
+
+
+class TaggedEventMapper(Generic[TDecision]):
+    def __init__(
+        self,
+        transcoder: Transcoder,
+        compressor: Compressor | None = None,
+        cipher: Cipher | None = None,
+    ):
+        self.transcoder = transcoder
+        self.compressor = compressor
+        self.cipher = cipher
+
+    def to_dcb_event(self, event: TaggedEvent[TDecision]) -> DCBEvent:
+        data = self.transcoder.encode(event.decision)
+        if self.compressor:
+            data = self.compressor.compress(data)
+        if self.cipher:
+            data = self.cipher.encrypt(data)
+        return DCBEvent(
+            type=get_topic(type(event.decision)),
+            data=data,
+            tags=event.tags,
+            uuid=event.uuid,
+            metadata=event.metadata,
+        )
+
+    def to_domain_event(self, event: DCBEvent) -> TaggedEvent[TDecision]:
+        data = event.data
+        if self.cipher:
+            data = self.cipher.decrypt(data)
+        if self.compressor:
+            data = self.compressor.decompress(data)
+        return TaggedEvent(
+            tags=event.tags,
+            decision=self.transcoder.decode(data, resolve_topic(event.type)),
+            uuid=event.uuid,
+            metadata=event.metadata,
+        )

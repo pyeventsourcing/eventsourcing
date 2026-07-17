@@ -7,21 +7,25 @@ from unittest import TestCase
 from unittest.mock import Mock
 from uuid import UUID, uuid4
 
-from eventsourcing.persistence import (
-    AggregateRecorder,
-    ApplicationRecorder,
-    ConnectionPool,
+from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.errors import (
     DatabaseError,
     DataError,
-    InfrastructureFactory,
-    IntegrityError,
     InterfaceError,
-    InternalError,
     NotSupportedError,
     OperationalError,
     PersistenceError,
-    ProcessRecorder,
     ProgrammingError,
+)
+from eventsourcing.persistence import (
+    AggregateEventMapper,
+    AggregateRecorder,
+    ApplicationRecorder,
+    ConnectionPool,
+    InfrastructureFactory,
+    IntegrityError,
+    InternalError,
+    ProcessRecorder,
     StoredEvent,
     Tracking,
     TrackingRecorder,
@@ -44,7 +48,7 @@ from eventsourcing.tests.persistence import (
     TrackingRecorderTestCase,
     tmpfile_uris,
 )
-from eventsourcing.utils import Environment
+from eventsourcing.utils import Environment, get_topic
 from tests.persistence_tests.test_connection_pool import TestConnectionPool
 
 
@@ -182,7 +186,7 @@ class TestSqliteDatastore(TestCase):
 
 class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
     db_name = ":memory:"
-    originator_id_type: Literal["uuid", "text"] = "uuid"
+    originator_id_type: Literal["uuid", "text"] = "text"
 
     def create_recorder(self) -> AggregateRecorder:
         recorder = SQLiteAggregateRecorder(
@@ -195,15 +199,15 @@ class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
         return recorder
 
 
-class WithTextOriginatorID:
-    originator_id_type: Literal["uuid", "text"] = "text"
+class WithUuidOriginatorID:
+    originator_id_type: Literal["uuid", "text"] = "uuid"
 
     def new_originator_id(self) -> UUID | str:
-        return "test-" + str(uuid4())
+        return uuid4()
 
 
-class TestSQLiteAggregateRecorderWithTextOriginatorID(
-    WithTextOriginatorID, TestSQLiteAggregateRecorder
+class TestSQLiteAggregateRecorderWithUuidOriginatorID(
+    WithUuidOriginatorID, TestSQLiteAggregateRecorder
 ):
     pass
 
@@ -233,7 +237,7 @@ class TestSQLiteApplicationRecorder(
     ApplicationRecorderTestCase[SQLiteApplicationRecorder]
 ):
     db_uri = ":memory:"
-    originator_id_type: Literal["uuid", "text"] = "uuid"
+    originator_id_type: Literal["uuid", "text"] = "text"
 
     def create_recorder(self) -> SQLiteApplicationRecorder:
         recorder = SQLiteApplicationRecorder(
@@ -268,8 +272,8 @@ class TestSQLiteApplicationRecorder(
         super().test_concurrent_throughput()
 
 
-class TestSQLiteApplicationRecorderWithTextOriginatorID(
-    WithTextOriginatorID, TestSQLiteApplicationRecorder
+class TestSQLiteApplicationRecorderWithUuidOriginatorID(
+    WithUuidOriginatorID, TestSQLiteApplicationRecorder
 ):
     pass
 
@@ -406,7 +410,7 @@ class TestSQLiteTrackingRecorder(TrackingRecorderTestCase):
 
 
 class TestSQLiteProcessRecorder(ProcessRecorderTestCase):
-    originator_id_type: Literal["uuid", "text"] = "uuid"
+    originator_id_type: Literal["uuid", "text"] = "text"
 
     def create_recorder(self) -> ProcessRecorder:
         recorder = SQLiteProcessRecorder(
@@ -420,7 +424,7 @@ class TestSQLiteProcessRecorder(ProcessRecorderTestCase):
 
 
 class TestSQLiteProcessRecorderWithTextOriginatorID(
-    WithTextOriginatorID, TestSQLiteProcessRecorder
+    WithUuidOriginatorID, TestSQLiteProcessRecorder
 ):
     pass
 
@@ -459,11 +463,23 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase[SQLiteFactor
     def expected_tracking_recorder_class(self) -> type[TrackingRecorder]:
         return SQLiteTrackingRecorder
 
+    class SQLiteApplicationRecorderSubclass(SQLiteApplicationRecorder):
+        pass
+
     class SQLiteTrackingRecorderSubclass(SQLiteTrackingRecorder):
         pass
 
+    class SQLiteProcessRecorderSubclass(SQLiteProcessRecorder):
+        pass
+
+    def application_recorder_subclass(self) -> type[ApplicationRecorder]:
+        return self.SQLiteApplicationRecorderSubclass
+
     def tracking_recorder_subclass(self) -> type[TrackingRecorder]:
         return self.SQLiteTrackingRecorderSubclass
+
+    def process_recorder_subclass(self) -> type[ProcessRecorder]:
+        return self.SQLiteProcessRecorderSubclass
 
     def expected_process_recorder_class(self) -> type[ProcessRecorder]:
         return SQLiteProcessRecorder
@@ -472,6 +488,8 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase[SQLiteFactor
         self.env = Environment("TestCase")
         self.env[InfrastructureFactory.PERSISTENCE_MODULE] = SQLiteFactory.__module__
         self.env[SQLiteFactory.SQLITE_DBNAME] = ":memory:"
+        self.env[SQLiteFactory.MAPPER_TOPIC] = get_topic(AggregateEventMapper)
+        self.env[SQLiteFactory.TRANSCODER_TOPIC] = get_topic(DataclassTranscoder)
         super().setUp()
 
     def tearDown(self) -> None:
@@ -523,7 +541,7 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase[SQLiteFactor
 
     def test_originator_id_type(self) -> None:
         factory = SQLiteFactory(self.env)
-        self.assertEqual(factory.datastore.originator_id_type, "uuid")
+        self.assertEqual(factory.datastore.originator_id_type, "text")
 
         self.env[SQLiteFactory.ORIGINATOR_ID_TYPE] = "text"
         factory = SQLiteFactory(self.env)

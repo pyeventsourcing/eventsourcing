@@ -1,29 +1,56 @@
 from unittest import TestCase
 
 from eventsourcing.application import Application
-from eventsourcing.domain import Aggregate
-from eventsourcing.persistence import Tracking
+from eventsourcing.dataclasses.application import DataclassApplication
+from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses.mutable import DataclassAggregate
+from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.domain_new import Aggregate, triggers
+from eventsourcing.persistence import AggregateEventMapper, Tracking
 from eventsourcing.projection import ApplicationSubscription
 from eventsourcing.utils import get_topic
 
 
+class SubscriptionFixture(DataclassAggregate):
+    class Created(DataclassDecision):
+        pass
+
+    class Next(DataclassDecision):
+        pass
+
+    @triggers(Created)
+    def __init__(self) -> None:
+        pass
+
+    @triggers(Next)
+    def do(self) -> None:
+        pass
+
+
 class TestApplicationSubscription(TestCase):
     def test(self) -> None:
-        app = Application()
+        app = DataclassApplication()
 
         max_notification_id = app.recorder.max_notification_id()
 
-        aggregate = Aggregate()
-        aggregate.trigger_event(Aggregate.Event)
-        aggregate.trigger_event(Aggregate.Event)
-        aggregate.trigger_event(Aggregate.Event)
+        aggregate = SubscriptionFixture()
+        aggregate.do()
+        aggregate.do()
+        aggregate.do()
         app.save(aggregate)
 
         subscription = ApplicationSubscription(app=app, gt=max_notification_id)
 
         # Catch up.
-        for domain_event, tracking in subscription:
-            self.assertIsInstance(domain_event, Aggregate.Event)
+        event, tracking = next(subscription)
+        self.assertIsInstance(event.decision, SubscriptionFixture.Created)
+        self.assertIsInstance(tracking, Tracking)
+        self.assertEqual(tracking.application_name, app.name)
+        if max_notification_id is not None:
+            self.assertGreater(tracking.notification_id, max_notification_id)
+
+        for event, tracking in subscription:
+            self.assertIsInstance(event.decision, SubscriptionFixture.Next)
             self.assertIsInstance(tracking, Tracking)
             self.assertEqual(tracking.application_name, app.name)
             if max_notification_id is not None:
@@ -33,14 +60,14 @@ class TestApplicationSubscription(TestCase):
 
         max_notification_id = app.recorder.max_notification_id()
 
-        aggregate.trigger_event(Aggregate.Event)
-        aggregate.trigger_event(Aggregate.Event)
-        aggregate.trigger_event(Aggregate.Event)
+        aggregate.do()
+        aggregate.do()
+        aggregate.do()
         app.save(aggregate)
 
         # Continue.
-        for domain_event, tracking in subscription:
-            self.assertIsInstance(domain_event, Aggregate.Event)
+        for event, tracking in subscription:
+            self.assertIsInstance(event.decision, SubscriptionFixture.Next)
             self.assertIsInstance(tracking, Tracking)
             self.assertEqual(tracking.application_name, app.name)
             if max_notification_id is not None:
@@ -49,7 +76,7 @@ class TestApplicationSubscription(TestCase):
                 break
 
         # Check 'topics' are effective.
-        class FilteredEvent(Aggregate.Event):
+        class FilteredEvent(DataclassDecision):
             pass
 
         aggregate.trigger_event(FilteredEvent)
@@ -61,7 +88,7 @@ class TestApplicationSubscription(TestCase):
             topics=[get_topic(FilteredEvent)],
         )
 
-        for domain_event, _ in subscription:
-            if not isinstance(domain_event, FilteredEvent):
-                self.fail(f"Got an unexpected domain event: {domain_event}")
+        for event, _ in subscription:
+            if not isinstance(event.decision, FilteredEvent):
+                self.fail(f"Got an unexpected domain event: {event.decision}")
             break

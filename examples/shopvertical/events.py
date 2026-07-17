@@ -1,43 +1,34 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from decimal import Decimal  # noqa: TC003
-from typing import TYPE_CHECKING
-from uuid import UUID  # noqa: TC003
 
-from eventsourcing.pydantic.immutablemodel import DomainEvent
-
-if TYPE_CHECKING:
-    from typing import TypeAlias
+from eventsourcing.pydantic.immutable import PydanticDecision
 
 
-DomainEvents: TypeAlias = Sequence[DomainEvent]
-
-
-class AddedProductToShop(DomainEvent):
+class AddedProductToShop(PydanticDecision):
     name: str
     description: str
     price: Decimal
 
 
-class AdjustedProductInventory(DomainEvent):
+class AdjustedProductInventory(PydanticDecision):
     adjustment: int
 
 
-class AddedItemToCart(DomainEvent):
-    product_id: UUID
+class AddedItemToCart(PydanticDecision):
+    product_id: str
     name: str
     description: str
     price: Decimal
 
 
-class RemovedItemFromCart(DomainEvent):
-    product_id: UUID
+class RemovedItemFromCart(PydanticDecision):
+    product_id: str
 
 
-class ClearedCart(DomainEvent):
+class ClearedCart(PydanticDecision):
     pass
 
 
-class SubmittedCart(DomainEvent):
+class SubmittedCart(PydanticDecision):
     pass

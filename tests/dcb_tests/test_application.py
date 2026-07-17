@@ -6,13 +6,15 @@ from uuid import uuid4
 from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.cryptography import AESCipher
 from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.dcb.domain import EnduringObject
-from eventsourcing.dcb.msgspec import Decision, MsgspecMapper
-from eventsourcing.domain import (
+from eventsourcing.domain_new import (
+    EnduringObject,
     event,
     get_metadata_from_context,
     put_metadata_in_context,
 )
+from eventsourcing.msgspec.immutable import MsgspecDecision
+from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+from eventsourcing.persistence import TaggedEventMapper
 from eventsourcing.utils import get_topic
 
 
@@ -22,26 +24,26 @@ class TestDCBApplication(TestCase):
             pass
 
     def test_construct_with_env(self) -> None:
-        with DCBApplication[Decision]({"NAME": "value"}) as app:
+        with DCBApplication[MsgspecDecision]({"NAME": "value"}) as app:
             self.assertIn("NAME", app.env)
 
     def test_can_subclass(self) -> None:
 
-        class MyApp1(DCBApplication[Decision]):
+        class MyApp1(DCBApplication[MsgspecDecision]):
             pass
 
         app1 = MyApp1()
         self.assertEqual("MyApp1", app1.name)
 
-        class MyApp2(DCBApplication[Decision]):
+        class MyApp2(DCBApplication[MsgspecDecision]):
             name = "name1"
 
         app2 = MyApp2()
         self.assertEqual("name1", app2.name)
 
     def test_respects_metadata(self) -> None:
-        class MyEnduringObject(EnduringObject[Decision]):
-            class Created(Decision):
+        class MyEnduringObject(EnduringObject[MsgspecDecision]):
+            class Created(MsgspecDecision):
                 myenduringobject_id: str
 
                 def apply(self, obj: MyEnduringObject) -> None:
@@ -52,9 +54,12 @@ class TestDCBApplication(TestCase):
                 self.id = myenduringobject_id
                 self.created_by = ""
 
-        env = {"MAPPER_TOPIC": get_topic(MsgspecMapper)}
+        env = {
+            "MAPPER_TOPIC": get_topic(TaggedEventMapper),
+            "TRANSCODER_TOPIC": get_topic(MsgspecTranscoder),
+        }
         metadata = {"user_id": "user-1"}
-        with DCBApplication[Decision](env) as app:
+        with DCBApplication[MsgspecDecision](env) as app:
             with put_metadata_in_context(metadata):
                 obj = MyEnduringObject(myenduringobject_id=str(uuid4()))
 
@@ -76,19 +81,21 @@ class TestDCBApplication(TestCase):
 
     def test_supports_compression(self) -> None:
         env = {
-            "MAPPER_TOPIC": get_topic(MsgspecMapper),
+            "MAPPER_TOPIC": get_topic(TaggedEventMapper),
+            "TRANSCODER_TOPIC": get_topic(MsgspecTranscoder),
             "COMPRESSOR_TOPIC": get_topic(ZlibCompressor),
         }
 
-        with DCBApplication[Decision](env) as app:
+        with DCBApplication[MsgspecDecision](env) as app:
             self.assertTrue(app.mapper.compressor)
 
     def test_supports_encryption(self) -> None:
         env = {
-            "MAPPER_TOPIC": get_topic(MsgspecMapper),
+            "MAPPER_TOPIC": get_topic(TaggedEventMapper),
+            "TRANSCODER_TOPIC": get_topic(MsgspecTranscoder),
             "CIPHER_TOPIC": get_topic(AESCipher),
             "CIPHER_KEY": AESCipher.create_key(16),
         }
 
-        with DCBApplication[Decision](env) as app:
+        with DCBApplication[MsgspecDecision](env) as app:
             self.assertTrue(app.mapper.cipher)

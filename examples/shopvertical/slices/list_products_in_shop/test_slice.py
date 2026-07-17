@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from eventsourcing.domain_new import AggregateEvent
 from examples.shopvertical.events import (
     AddedItemToCart,
     AddedProductToShop,
@@ -11,7 +12,7 @@ from examples.shopvertical.events import (
 from examples.shopvertical.slices.list_products_in_shop.query import ListProductsInShop
 
 if TYPE_CHECKING:
-    from eventsourcing.pydantic.immutablemodel import DomainEvent
+    from eventsourcing.pydantic.immutable import DomainEvent
 
 
 class TestListProductsInShop(unittest.TestCase):
@@ -19,14 +20,16 @@ class TestListProductsInShop(unittest.TestCase):
         products = ListProductsInShop.projection(())
         self.assertEqual(len(products), 0)
 
-        product_id1 = uuid4()
-        events: tuple[DomainEvent, ...] = (
-            AddedProductToShop(
+        product_id1 = str(uuid4())
+        events: Events = (
+            AggregateEvent(
+                decision=AddedProductToShop(
+                    name="Coffee",
+                    description="A very nice coffee",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=product_id1,
                 originator_version=1,
-                name="Coffee",
-                description="A very nice coffee",
-                price=Decimal("5.99"),
             ),
         )
         products = ListProductsInShop.projection(events)
@@ -39,30 +42,36 @@ class TestListProductsInShop(unittest.TestCase):
 
     def test_list_products_two_products_also_item_added_to_cart(self) -> None:
 
-        product_id1 = uuid4()
-        product_id2 = uuid4()
+        product_id1 = str(uuid4())
+        product_id2 = str(uuid4())
         events = (
-            AddedProductToShop(
+            AggregateEvent(
+                decision=AddedProductToShop(
+                    name="Coffee",
+                    description="A very nice coffee",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=product_id1,
                 originator_version=1,
-                name="Coffee",
-                description="A very nice coffee",
-                price=Decimal("5.99"),
             ),
-            AddedItemToCart(
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=str(uuid4()),
+                    name="",
+                    description="",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=uuid4(),
                 originator_version=1,
-                product_id=uuid4(),
-                name="",
-                description="",
-                price=Decimal("5.99"),
             ),
-            AddedProductToShop(
+            AggregateEvent(
+                decision=AddedProductToShop(
+                    name="Tea",
+                    description="A very nice tea",
+                    price=Decimal("3.99"),
+                ),
                 originator_id=product_id2,
                 originator_version=1,
-                name="Tea",
-                description="A very nice tea",
-                price=Decimal("3.99"),
             ),
         )
         products = ListProductsInShop.projection(events)
@@ -80,27 +89,33 @@ class TestListProductsInShop(unittest.TestCase):
 
     def test_list_products_two_products_also_adjusted_inventory(self) -> None:
 
-        product_id1 = uuid4()
-        product_id2 = uuid4()
+        product_id1 = str(uuid4())
+        product_id2 = str(uuid4())
         events = (
-            AddedProductToShop(
+            AggregateEvent(
+                decision=AddedProductToShop(
+                    name="Coffee",
+                    description="A very nice coffee",
+                    price=Decimal("5.99"),
+                ),
                 originator_id=product_id1,
                 originator_version=1,
-                name="Coffee",
-                description="A very nice coffee",
-                price=Decimal("5.99"),
             ),
-            AdjustedProductInventory(
+            AggregateEvent(
+                decision=AdjustedProductInventory(
+                    adjustment=2,
+                ),
                 originator_id=product_id1,
                 originator_version=2,
-                adjustment=2,
             ),
-            AddedProductToShop(
+            AggregateEvent(
+                decision=AddedProductToShop(
+                    name="Tea",
+                    description="A very nice tea",
+                    price=Decimal("3.99"),
+                ),
                 originator_id=product_id2,
                 originator_version=1,
-                name="Tea",
-                description="A very nice tea",
-                price=Decimal("3.99"),
             ),
         )
         products = ListProductsInShop.projection(events)

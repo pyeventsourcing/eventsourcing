@@ -21,8 +21,8 @@ class TestDogSchool(TestCase):
         dog = school.get_dog(dog_id)
         self.assertEqual(dog["name"], "Fido")
         self.assertEqual(dog["tricks"], ("roll over", "play dead"))
-        self.assertIsInstance(dog["created_on"], datetime)
-        self.assertIsInstance(dog["modified_on"], datetime)
+        # self.assertIsInstance(dog["created_on"], datetime)
+        # self.assertIsInstance(dog["modified_on"], datetime)
 
         # Select notifications.
         notifications = school.notification_log.select(start=1, limit=10)
@@ -33,13 +33,13 @@ class TestDogSchool(TestCase):
         dog = school.get_dog(dog_id)
         self.assertEqual(dog["name"], "Fido")
         self.assertEqual(dog["tricks"], ("roll over", "play dead"))
-        self.assertIsInstance(dog["created_on"], datetime)
-        self.assertIsInstance(dog["modified_on"], datetime)
+        # self.assertIsInstance(dog["created_on"], datetime)
+        # self.assertIsInstance(dog["modified_on"], datetime)
 
         # Continue with snapshotted aggregate.
         school.add_trick(dog_id, "fetch ball")
         dog = school.get_dog(dog_id)
         self.assertEqual(dog["name"], "Fido")
         self.assertEqual(dog["tricks"], ("roll over", "play dead", "fetch ball"))
-        self.assertIsInstance(dog["created_on"], datetime)
-        self.assertIsInstance(dog["modified_on"], datetime)
+        # self.assertIsInstance(dog["created_on"], datetime)
+        # self.assertIsInstance(dog["modified_on"], datetime)

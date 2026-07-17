@@ -5,14 +5,19 @@ from unittest import TestCase
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from eventsourcing.application import Application, EventSourcedLog
-from eventsourcing.domain import Aggregate, DomainEvent
-from eventsourcing.persistence import (
-    DataclassMapper,
+from eventsourcing.dataclasses.application import DataclassApplication
+from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses.legacy import (
     DatetimeAsISO,
     DecimalAsStr,
-    EventStore,
-    JSONTranscoder,
+    LegacyJSONTranscoder,
     UUIDAsHex,
+)
+from eventsourcing.domain_new import Aggregate, AggregateEvent, triggers
+from eventsourcing.persistence import (
+    AggregateEventMapper,
+    EventStore,
+    Transcoder,
 )
 from eventsourcing.popo import POPOAggregateRecorder
 
@@ -22,28 +27,28 @@ if TYPE_CHECKING:
 
 class TestEventSourcedLog(TestCase):
     def test_logging_aggregate_ids(self) -> None:
-        class LoggedID(DomainEvent):
-            aggregate_id: UUID
+        class LoggedID(DataclassDecision):
+            aggregate_id: str
 
-        transcoder = JSONTranscoder()
+        transcoder = LegacyJSONTranscoder()
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
 
         event_recorder = POPOAggregateRecorder()
         event_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
 
         log: EventSourcedLog[LoggedID] = EventSourcedLog(
             events=event_store,
             originator_id=uuid5(NAMESPACE_URL, "/aggregates"),
-            logged_cls=LoggedID,
+            event_cls=LoggedID,
         )
-        id1 = uuid4()
-        id2 = uuid4()
-        id3 = uuid4()
+        id1 = str(uuid4())
+        id2 = str(uuid4())
+        id3 = str(uuid4())
 
         self.assertEqual(log.get_first(), None)
         self.assertEqual(log.get_last(), None)
@@ -51,57 +56,72 @@ class TestEventSourcedLog(TestCase):
         event_store.put([logged])
         first = log.get_first()
         assert first
-        self.assertEqual(first.aggregate_id, id1)
+        self.assertEqual(first.decision.aggregate_id, id1)
         last = log.get_last()
         assert last
-        self.assertEqual(last.aggregate_id, id1)
+        self.assertEqual(last.decision.aggregate_id, id1)
         logged = log.trigger_event(aggregate_id=id2)
         event_store.put([logged])
         last = log.get_last()
         assert last
-        self.assertEqual(last.aggregate_id, id2)
+        self.assertEqual(last.decision.aggregate_id, id2)
         logged = log.trigger_event(aggregate_id=id3, next_originator_version=3)
         event_store.put([logged])
         last = log.get_last()
         assert last
-        self.assertEqual(last.aggregate_id, id3)
+        self.assertEqual(last.decision.aggregate_id, id3)
         first = log.get_first()
         assert first
-        self.assertEqual(first.aggregate_id, id1)
+        self.assertEqual(first.decision.aggregate_id, id1)
 
-        ids = [e.aggregate_id for e in log.get()]
+        ids = [e.decision.aggregate_id for e in log.get()]
         self.assertEqual(ids, [id1, id2, id3])
 
-        ids = [e.aggregate_id for e in log.get(gt=1)]
+        ids = [e.decision.aggregate_id for e in log.get(gt=1)]
         self.assertEqual(ids, [id2, id3])
 
-        ids = [e.aggregate_id for e in log.get(lte=2)]
+        ids = [e.decision.aggregate_id for e in log.get(lte=2)]
         self.assertEqual(ids, [id1, id2])
 
-        ids = [e.aggregate_id for e in log.get(limit=1)]
+        ids = [e.decision.aggregate_id for e in log.get(limit=1)]
         self.assertEqual(ids, [id1])
 
-        ids = [e.aggregate_id for e in log.get(desc=True)]
+        ids = [e.decision.aggregate_id for e in log.get(desc=True)]
         self.assertEqual(ids, [id3, id2, id1])
 
     def test_with_application(self) -> None:
-        class LoggedID(DomainEvent):
-            aggregate_id: UUID
+        class LoggedID(DataclassDecision):
+            aggregate_id: str
 
-        class MyApplication(Application):
+        class MyAggregate(Aggregate[DataclassDecision]):
+            class Created(DataclassDecision):
+                pass
+
+            @triggers(Created)
+            def __init__(self):
+                pass
+
+        class MyApplication(DataclassApplication):
             def __init__(self, env: EnvType | None = None) -> None:
                 super().__init__(env=env)
                 self.aggregate_log = EventSourcedLog(
                     events=self.events,
-                    originator_id=uuid5(NAMESPACE_URL, "/aggregates"),
-                    logged_cls=LoggedID,
+                    originator_id=str(uuid5(NAMESPACE_URL, "/aggregates")),
+                    event_cls=LoggedID,
                 )
 
             def create_aggregate(self) -> UUID:
-                aggregate = Aggregate()
+                aggregate = MyAggregate()
                 logged_id = self.aggregate_log.trigger_event(aggregate_id=aggregate.id)
                 self.save(aggregate, logged_id)
                 return aggregate.id
+
+            def construct_transcoder(self) -> Transcoder:
+                transcoder = LegacyJSONTranscoder()
+                transcoder.register(UUIDAsHex())
+                transcoder.register(DecimalAsStr())
+                transcoder.register(DatetimeAsISO())
+                return transcoder
 
         app = MyApplication()
 
@@ -110,29 +130,29 @@ class TestEventSourcedLog(TestCase):
         aggregate1_id = app.create_aggregate()
         last = app.aggregate_log.get_last()
         assert last
-        self.assertEqual(last.aggregate_id, aggregate1_id)
+        self.assertEqual(last.decision.aggregate_id, aggregate1_id)
 
         aggregate2_id = app.create_aggregate()
         last = app.aggregate_log.get_last()
         assert last
-        self.assertEqual(last.aggregate_id, aggregate2_id)
+        self.assertEqual(last.decision.aggregate_id, aggregate2_id)
 
-        aggregate_ids = [i.aggregate_id for i in app.aggregate_log.get()]
+        aggregate_ids = [i.decision.aggregate_id for i in app.aggregate_log.get()]
         self.assertEqual(aggregate_ids, [aggregate1_id, aggregate2_id])
 
     def test_subclasses(self) -> None:
-        transcoder = JSONTranscoder()
+        transcoder = LegacyJSONTranscoder()
         transcoder.register(UUIDAsHex())
         transcoder.register(DecimalAsStr())
         transcoder.register(DatetimeAsISO())
 
         event_recorder = POPOAggregateRecorder()
         event_store = EventStore(
-            mapper=DataclassMapper(transcoder=transcoder),
+            mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
 
-        class TransactionLogEvent(DomainEvent):
+        class TransactionLogEvent(DataclassDecision):
             pass
 
         class AccountCredited(TransactionLogEvent):
@@ -143,20 +163,20 @@ class TestEventSourcedLog(TestCase):
 
         # Subclass EventSourcedLog.
         class TransactionLog(EventSourcedLog[TransactionLogEvent]):
-            def account_credited(self) -> AccountCredited:
+            def account_credited(self) -> AggregateEvent[AccountCredited]:
                 return self._trigger_event(logged_cls=AccountCredited)
 
-            def account_debited(self) -> AccountDebited:
+            def account_debited(self) -> AggregateEvent[AccountDebited]:
                 return self._trigger_event(logged_cls=AccountDebited)
 
         transaction_log = TransactionLog(
             events=event_store,
             originator_id=uuid5(NAMESPACE_URL, "/aggregates"),
-            logged_cls=TransactionLogEvent,
+            event_cls=TransactionLogEvent,
         )
 
         account_credited = transaction_log.account_credited()
-        self.assertIsInstance(account_credited, AccountCredited)
+        self.assertIsInstance(account_credited.decision, AccountCredited)
 
         account_debited = transaction_log.account_debited()
-        self.assertIsInstance(account_debited, AccountDebited)
+        self.assertIsInstance(account_debited.decision, AccountDebited)

@@ -7,16 +7,18 @@ from time import sleep, time
 from typing import Any, ClassVar
 from unittest import TestCase
 
-from eventsourcing.persistence import (
-    Connection,
+from eventsourcing.errors import (
     ConnectionNotFromPoolError,
-    ConnectionPool,
     ConnectionPoolClosedError,
     ConnectionUnavailableError,
-    Cursor,
-    Params,
     PersistenceError,
     ProgrammingError,
+)
+from eventsourcing.persistence import (
+    Connection,
+    ConnectionPool,
+    Cursor,
+    Params,
 )
 
 

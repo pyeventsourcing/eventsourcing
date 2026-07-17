@@ -13,7 +13,7 @@ class DogSchool(MsgspecApplication):
     is_snapshotting_enabled = True
 
     def register_dog(self, name: str) -> UUID:
-        dog = Dog(name)
+        dog = Dog(name=name)
         self.save(dog)
         return dog.id
 
@@ -27,6 +27,6 @@ class DogSchool(MsgspecApplication):
         return {
             "name": dog.name,
             "tricks": tuple([t.name for t in dog.tricks]),
-            "created_on": dog.created_on,
-            "modified_on": dog.modified_on,
+            # "created_on": dog.created_on,
+            # "modified_on": dog.modified_on,
         }

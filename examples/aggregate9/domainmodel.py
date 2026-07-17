@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from functools import singledispatch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import msgspec.json
 
-from eventsourcing.msgspec.immutablemodel import (
-    Aggregate,
-    DomainEvent,
+from eventsourcing.domain_new import AggregateEvent, projector
+from eventsourcing.errors import ProgrammingError
+from eventsourcing.msgspec.immutable import (
     Immutable,
-    SnapshotUuidID,
-    aggregate_projector,
+    ImmutableMsgspecAggregate,
+    MsgspecDecision,
 )
 
 
@@ -18,67 +18,58 @@ class Trick(Immutable):
     name: str
 
 
-class Dog(Aggregate[UUID]):
+class Dog(ImmutableMsgspecAggregate):
     name: str
     tricks: tuple[Trick, ...]
 
 
-class DogRegistered(DomainEvent[UUID]):
+class DogRegistered(MsgspecDecision):
     name: str
 
 
-class TrickAdded(DomainEvent[UUID]):
+class TrickAdded(MsgspecDecision):
     trick: Trick
 
 
-def register_dog(name: str) -> DomainEvent[UUID]:
-    return DogRegistered(
+def register_dog(name: str) -> AggregateEvent[MsgspecDecision]:
+    return AggregateEvent(
+        decision=DogRegistered(name=name),
         originator_id=uuid4(),
         originator_version=1,
-        name=name,
     )
 
 
-def add_trick(dog: Dog, trick: Trick) -> DomainEvent[UUID]:
-    return TrickAdded(
+def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[MsgspecDecision]:
+    return AggregateEvent(
+        decision=TrickAdded(trick=trick),
         originator_id=dog.id,
         originator_version=dog.version + 1,
-        trick=trick,
     )
 
 
-@singledispatch
-def mutate_dog(_: DomainEvent, __: Dog | None) -> Dog | None:
+def mutate_dog(
+    envelope: AggregateEvent[MsgspecDecision], dog: Dog | None
+) -> Dog | None:
     """Mutates aggregate with event."""
+    match envelope.decision:
+        case DogRegistered(name=name):
+            return Dog(
+                id=envelope.originator_id,
+                version=envelope.originator_version,
+                name=name,
+                tricks=(),
+            )
+        case TrickAdded(trick=trick):
+            assert dog is not None
+            return Dog(
+                id=dog.id,
+                version=envelope.originator_version,
+                name=dog.name,
+                tricks=(*dog.tricks, trick),
+            )
+        case _:
+            msg = f"Decision type not supported: {envelope.decision}"
+            raise ProgrammingError(msg)
 
 
-@mutate_dog.register
-def _(event: DogRegistered, _: None) -> Dog:
-    return Dog(
-        id=event.originator_id,
-        version=event.originator_version,
-        created_on=event.timestamp,
-        modified_on=event.timestamp,
-        name=event.name,
-        tricks=(),
-    )
-
-
-@mutate_dog.register
-def _(event: TrickAdded, dog: Dog) -> Dog:
-    return Dog(
-        id=dog.id,
-        version=event.originator_version,
-        created_on=dog.created_on,
-        modified_on=event.timestamp,
-        name=dog.name,
-        tricks=(*dog.tricks, event.trick),
-    )
-
-
-@mutate_dog.register
-def _(event: SnapshotUuidID, _: None) -> Dog:
-    return msgspec.json.decode(event.state, type=Dog)
-
-
-project_dog = aggregate_projector(mutate_dog)
+project_dog = projector(mutate_dog)

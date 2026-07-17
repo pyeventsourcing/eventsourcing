@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
+from eventsourcing.domain_new import AggregateEvent
 from examples.shopvertical.common import reset_application
 from examples.shopvertical.events import (
     AddedItemToCart,
@@ -23,7 +24,7 @@ from examples.shopvertical.slices.submit_cart.cmd import (
 )
 
 if TYPE_CHECKING:
-    from eventsourcing.pydantic.immutablemodel import DomainEvent
+    from examples.shopvertical.common import Events
 
 
 class TestSubmitCart(unittest.TestCase):
@@ -31,94 +32,103 @@ class TestSubmitCart(unittest.TestCase):
         reset_application()
 
     def test_submit_cart_sufficient_inventory_empty_cart(self) -> None:
-        cart_id = uuid4()
+        cart_id = str(uuid4())
         cmd = SubmitCart(
             cart_id=cart_id,
         )
-        cart_events: tuple[DomainEvent, ...] = ()
+        cart_events: Events = ()
         new_events = cmd.handle(cart_events)
         self.assertEqual(len(new_events), 1)
-        self.assertIsInstance(new_events[0], SubmittedCart)
-        new_event = cast(SubmittedCart, new_events[0])
+        self.assertIsInstance(new_events[0].decision, SubmittedCart)
+        new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.originator_id, cart_id)
         self.assertEqual(new_event.originator_version, 1)
 
     def test_submit_cart_sufficient_inventory_after_item_removed(self) -> None:
-        cart_id = uuid4()
-        product_id = uuid4()
+        cart_id = str(uuid4())
+        product_id = str(uuid4())
         cmd = SubmitCart(
             cart_id=cart_id,
         )
-        cart_events: tuple[DomainEvent, ...] = (
-            AddedItemToCart(
+        cart_events: Events = (
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal(1),
+                ),
                 originator_id=cart_id,
                 originator_version=1,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal(1),
             ),
-            RemovedItemFromCart(
+            AggregateEvent(
+                decision=RemovedItemFromCart(
+                    product_id=product_id,
+                ),
                 originator_id=cart_id,
                 originator_version=2,
-                product_id=product_id,
             ),
         )
         new_events = cmd.handle(cart_events)
         self.assertEqual(len(new_events), 1)
-        self.assertIsInstance(new_events[0], SubmittedCart)
-        new_event = cast(SubmittedCart, new_events[0])
+        self.assertIsInstance(new_events[0].decision, SubmittedCart)
+        new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.originator_id, cart_id)
         self.assertEqual(new_event.originator_version, 3)
 
     def test_submit_cart_sufficient_inventory_after_cart_cleared(self) -> None:
-        cart_id = uuid4()
+        cart_id = str(uuid4())
         cmd = SubmitCart(
             cart_id=cart_id,
         )
-        cart_events: tuple[DomainEvent, ...] = (
-            AddedItemToCart(
+        cart_events: Events = (
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=str(uuid4()),
+                    name="",
+                    description="",
+                    price=Decimal(1),
+                ),
                 originator_id=cart_id,
                 originator_version=1,
-                product_id=uuid4(),
-                name="",
-                description="",
-                price=Decimal(1),
             ),
-            ClearedCart(
+            AggregateEvent(
+                decision=ClearedCart(),
                 originator_id=cart_id,
                 originator_version=2,
             ),
         )
         new_events = cmd.handle(cart_events)
         self.assertEqual(len(new_events), 1)
-        self.assertIsInstance(new_events[0], SubmittedCart)
-        new_event = cast(SubmittedCart, new_events[0])
+        self.assertIsInstance(new_events[0].decision, SubmittedCart)
+        new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.originator_id, cart_id)
         self.assertEqual(new_event.originator_version, 3)
 
     def test_submit_cart_insufficient_inventory_after_item_added(self) -> None:
-        cart_id = uuid4()
+        cart_id = str(uuid4())
         cmd = SubmitCart(
             cart_id=cart_id,
         )
-        product_id = uuid4()
-        cart_events: tuple[DomainEvent, ...] = (
-            AddedItemToCart(
+        product_id = str(uuid4())
+        cart_events: Events = (
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal(100),
+                ),
                 originator_id=cart_id,
                 originator_version=1,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal(100),
             ),
         )
         with self.assertRaises(InsufficientInventoryError):
             cmd.handle(cart_events)
 
     def test_submit_cart_sufficient_inventory_after_item_added(self) -> None:
-        cart_id = uuid4()
-        product_id = uuid4()
+        cart_id = str(uuid4())
+        product_id = str(uuid4())
 
         AddProductToShop(
             product_id=product_id,
@@ -134,26 +144,28 @@ class TestSubmitCart(unittest.TestCase):
         cmd = SubmitCart(
             cart_id=cart_id,
         )
-        cart_events: tuple[DomainEvent, ...] = (
-            AddedItemToCart(
+        cart_events: Events = (
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal(100),
+                ),
                 originator_id=cart_id,
                 originator_version=1,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal(100),
             ),
         )
         new_events = cmd.handle(cart_events)
         self.assertEqual(len(new_events), 1)
-        self.assertIsInstance(new_events[0], SubmittedCart)
-        new_event = cast(SubmittedCart, new_events[0])
+        self.assertIsInstance(new_events[0].decision, SubmittedCart)
+        new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.originator_id, cart_id)
         self.assertEqual(new_event.originator_version, 2)
 
     def test_submit_cart_insufficient_inventory_after_item_added_twice(self) -> None:
-        cart_id = uuid4()
-        product_id = uuid4()
+        cart_id = str(uuid4())
+        product_id = str(uuid4())
 
         AddProductToShop(
             product_id=product_id,
@@ -168,30 +180,34 @@ class TestSubmitCart(unittest.TestCase):
 
         cmd = SubmitCart(cart_id=cart_id)
 
-        cart_events: tuple[DomainEvent, ...] = (
-            AddedItemToCart(
+        cart_events: Events = (
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal(100),
+                ),
                 originator_id=cart_id,
                 originator_version=1,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal(100),
             ),
-            AddedItemToCart(
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal(100),
+                ),
                 originator_id=cart_id,
                 originator_version=2,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal(100),
             ),
         )
         with self.assertRaises(InsufficientInventoryError):
             cmd.handle(cart_events)
 
     def test_submit_cart_sufficient_inventory_after_item_added_twice(self) -> None:
-        cart_id = uuid4()
-        product_id = uuid4()
+        cart_id = str(uuid4())
+        product_id = str(uuid4())
 
         AddProductToShop(
             product_id=product_id,
@@ -207,35 +223,40 @@ class TestSubmitCart(unittest.TestCase):
         cmd = SubmitCart(
             cart_id=cart_id,
         )
-        cart_events: tuple[DomainEvent, ...] = (
-            AddedItemToCart(
+        cart_events: Events = (
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal(100),
+                ),
                 originator_id=cart_id,
                 originator_version=1,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal(100),
             ),
-            AddedItemToCart(
+            AggregateEvent(
+                decision=AddedItemToCart(
+                    product_id=product_id,
+                    name="",
+                    description="",
+                    price=Decimal(100),
+                ),
                 originator_id=cart_id,
                 originator_version=2,
-                product_id=product_id,
-                name="",
-                description="",
-                price=Decimal(100),
             ),
         )
         new_events = cmd.handle(cart_events)
         self.assertEqual(len(new_events), 1)
-        self.assertIsInstance(new_events[0], SubmittedCart)
-        new_event = cast(SubmittedCart, new_events[0])
+        self.assertIsInstance(new_events[0].decision, SubmittedCart)
+        new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.originator_id, cart_id)
         self.assertEqual(new_event.originator_version, 3)
 
     def test_submit_cart_after_submitted_cart(self) -> None:
-        cart_id = uuid4()
-        cart_events: tuple[DomainEvent, ...] = (
-            SubmittedCart(
+        cart_id = str(uuid4())
+        cart_events: Events = (
+            AggregateEvent(
+                decision=SubmittedCart(),
                 originator_id=cart_id,
                 originator_version=1,
             ),

@@ -4,8 +4,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from uuid import UUID
 
-from eventsourcing.persistence import ProgrammingError
+from eventsourcing.errors import ProgrammingError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -34,7 +35,7 @@ class DCBEvent:
     type: str
     data: bytes
     tags: list[str] = field(default_factory=list)
-    uuid: str
+    uuid: UUID
     metadata: dict[str, str]
 
 

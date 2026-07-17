@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from uuid import uuid4
 
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain import ProgrammingError
+from eventsourcing.errors import ProgrammingError
 from examples.aggregate5.baseclasses import Aggregate, DomainEvent
 
 

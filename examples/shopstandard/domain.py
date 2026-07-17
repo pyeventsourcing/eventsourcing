@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from decimal import Decimal  # noqa: TC003
+from typing import Any
 from uuid import UUID  # noqa: TC003
 
-from eventsourcing.domain import event
-from eventsourcing.pydantic.immutablemodel import Immutable
-from eventsourcing.pydantic.mutablemodel import Aggregate
+from eventsourcing.domain_new import event
+from eventsourcing.pydantic.immutable import Immutable, PydanticDecision
+from eventsourcing.pydantic.mutable import PydanticAggregate
 from examples.shopstandard.exceptions import (
     CartAlreadySubmittedError,
     CartFullError,
@@ -14,23 +15,36 @@ from examples.shopstandard.exceptions import (
 
 
 class ProductDetails(Immutable):
-    id: UUID
+    id: str
     name: str
     description: str
     price: Decimal
     inventory: int
 
 
-class Product(Aggregate):
-    def __init__(self, id: UUID, name: str, description: str, price: Decimal):
-        self._id = id
+class ProductAdded(PydanticDecision):
+    product_id: str
+    name: str
+    description: str
+    price: Decimal
+
+
+class InventoryAdjusted(PydanticDecision):
+    adjustment: int
+
+
+class Product(PydanticAggregate):
+    @event(ProductAdded)
+    def __init__(self, product_id: str, name: str, description: str, price: Decimal):
+        self.product_id = product_id
         self.name = name
         self.description = description
         self.price = price
         self.inventory = 0
 
-    class InventoryAdjusted(Aggregate.Event):
-        adjustment: int
+    @staticmethod
+    def create_id(product_id: str) -> str:
+        return product_id
 
     @event(InventoryAdjusted)
     def adjust_inventory(self, adjustment: int) -> None:
@@ -38,36 +52,49 @@ class Product(Aggregate):
 
 
 class CartItem(Immutable):
-    product_id: UUID
+    product_id: str
     name: str
     description: str
     price: Decimal
 
 
-class Cart(Aggregate):
-    def __init__(self, id: UUID):
-        self._id = id
+class CartCreated(PydanticDecision):
+    cart_id: str
+
+
+class CartItemAdded(PydanticDecision):
+    product_id: str
+    name: str
+    description: str
+    price: Decimal
+
+
+class CartItemRemoved(PydanticDecision):
+    product_id: str
+
+
+class CartCleared(PydanticDecision):
+    pass
+
+
+class CartSubmitted(PydanticDecision):
+    pass
+
+
+class Cart(PydanticAggregate):
+    @event(CartCreated)
+    def __init__(self, cart_id: str):
+        self.cart_id = cart_id
         self.items: list[CartItem] = []
         self.is_submitted = False
 
-    class ItemAdded(Aggregate.Event):
-        product_id: UUID
-        name: str
-        description: str
-        price: Decimal
+    @staticmethod
+    def create_id(cart_id: str) -> str:
+        return cart_id
 
-    class ItemRemoved(Aggregate.Event):
-        product_id: UUID
-
-    class Cleared(Aggregate.Event):
-        pass
-
-    class Submitted(Aggregate.Event):
-        pass
-
-    @event(ItemAdded)
+    @event(CartItemAdded)
     def add_item(
-        self, product_id: UUID, name: str, description: str, price: Decimal
+        self, product_id: str, name: str, description: str, price: Decimal
     ) -> None:
         if self.is_submitted:
             raise CartAlreadySubmittedError
@@ -84,8 +111,8 @@ class Cart(Aggregate):
             )
         )
 
-    @event(ItemRemoved)
-    def remove_item(self, product_id: UUID) -> None:
+    @event(CartItemRemoved)
+    def remove_item(self, product_id: str) -> None:
         if self.is_submitted:
             raise CartAlreadySubmittedError
 
@@ -96,13 +123,13 @@ class Cart(Aggregate):
         else:
             raise ProductNotInCartError
 
-    @event(Cleared)
+    @event(CartCleared)
     def clear(self) -> None:
         if self.is_submitted:
             raise CartAlreadySubmittedError
         self.items = []
 
-    @event(Submitted)
+    @event(CartSubmitted)
     def submit(self) -> None:
         if self.is_submitted:
             raise CartAlreadySubmittedError

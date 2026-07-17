@@ -8,7 +8,13 @@ from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.persistence import IntegrityError
 from eventsourcing.pydantic.application import PydanticApplication
 from eventsourcing.utils import get_topic
-from examples.shopstandard.domain import Cart, CartItem, Product, ProductDetails
+from examples.shopstandard.domain import (
+    Cart,
+    CartItem,
+    Product,
+    ProductAdded,
+    ProductDetails,
+)
 from examples.shopstandard.exceptions import (
     InsufficientInventoryError,
     ProductAlreadyInShopError,
@@ -22,14 +28,20 @@ if TYPE_CHECKING:
 
 class Shop(PydanticApplication):
     def add_product_to_shop(
-        self, product_id: UUID, name: str, description: str, price: Decimal
+        self, product_id: str, name: str, description: str, price: Decimal
     ) -> None:
         try:
-            self.save(Product(product_id, name, description, price))
+            product = Product(
+                product_id=product_id,
+                name=name,
+                description=description,
+                price=price,
+            )
+            self.save(product)
         except IntegrityError:
             raise ProductAlreadyInShopError from None
 
-    def adjust_product_inventory(self, product_id: UUID, adjustment: int) -> None:
+    def adjust_product_inventory(self, product_id: str, adjustment: int) -> None:
         try:
             product = self.repository.get(product_id, Product)
         except AggregateNotFoundError:
@@ -51,18 +63,18 @@ class Shop(PydanticApplication):
             for n in self.recorder.select_notifications(
                 start=None,
                 limit=1000000,
-                topics=[get_topic(Product.Created)],
+                topics=[get_topic(ProductAdded)],
             )
             if (product := self.repository.get(cast(UUID, n.originator_id), Product))
         )
 
-    def get_cart_items(self, cart_id: UUID) -> Sequence[CartItem]:
+    def get_cart_items(self, cart_id: str) -> Sequence[CartItem]:
         return tuple(self._get_cart(cart_id).items)
 
     def add_item_to_cart(
         self,
-        cart_id: UUID,
-        product_id: UUID,
+        cart_id: str,
+        product_id: str,
         name: str,
         description: str,
         price: Decimal,
@@ -71,17 +83,17 @@ class Shop(PydanticApplication):
         cart.add_item(product_id, name, description, price)
         self.save(cart)
 
-    def remove_item_from_cart(self, cart_id: UUID, product_id: UUID) -> None:
+    def remove_item_from_cart(self, cart_id: str, product_id: str) -> None:
         cart = self._get_cart(cart_id)
         cart.remove_item(product_id)
         self.save(cart)
 
-    def clear_cart(self, cart_id: UUID) -> None:
+    def clear_cart(self, cart_id: str) -> None:
         cart = self._get_cart(cart_id)
         cart.clear()
         self.save(cart)
 
-    def submit_cart(self, cart_id: UUID) -> None:
+    def submit_cart(self, cart_id: str) -> None:
         cart = self._get_cart(cart_id)
 
         # Check inventory.
@@ -101,8 +113,8 @@ class Shop(PydanticApplication):
         cart.submit()
         self.save(cart)
 
-    def _get_cart(self, cart_id: UUID) -> Cart:
+    def _get_cart(self, cart_id: str) -> Cart:
         try:
             return self.repository.get(cart_id, Cart)
         except AggregateNotFoundError:
-            return Cart(id=cart_id)
+            return Cart(cart_id=cart_id)

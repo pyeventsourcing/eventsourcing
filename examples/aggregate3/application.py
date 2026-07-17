@@ -3,13 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from eventsourcing.application import Application
+from eventsourcing.pydantic.application import PydanticApplication
 from examples.aggregate3.domainmodel import Dog
 
 if TYPE_CHECKING:
     from uuid import UUID
 
 
-class DogSchool(Application):
+class DogSchool(PydanticApplication):
     is_snapshotting_enabled = True
 
     def register_dog(self, name: str) -> UUID:

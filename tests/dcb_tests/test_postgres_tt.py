@@ -11,7 +11,7 @@ from eventsourcing.dcb.postgres_tt import (
     PostgresTTDCBFactory,
 )
 from eventsourcing.dcb.tests import DCBRecorderTestCase
-from eventsourcing.persistence import ProgrammingError
+from eventsourcing.errors import ProgrammingError
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.tests.postgres_utils import drop_tables
 from tests.dcb_tests.test_dcb import ConcurrentAppendTestCase, WithPostgres
@@ -35,7 +35,7 @@ class TestPostgresDCBRecorderTT(DCBRecorderTestCase, WithPostgres):
 
         # Also check subscription loop when select_limit is reached in pull loop.
         event = DCBEvent(
-            type="type1", data=b"data1", tags=["tagX"], uuid=str(uuid4()), metadata={}
+            type="type1", data=b"data1", tags=["tagX"], uuid=uuid4(), metadata={}
         )
         initial_position = self.recorder.append([event])
         with self.recorder.subscribe(after=initial_position) as subscription:
@@ -81,7 +81,7 @@ class TestPostgresDCBRecorderTT(DCBRecorderTestCase, WithPostgres):
                         type="t1",
                         data=b"",
                         tags=["t2", "t3"],
-                        uuid=str(uuid4()),
+                        uuid=uuid4(),
                         metadata={},
                     )
                 ],

@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from eventsourcing.domain import Aggregate, event
+from eventsourcing.domain_new import event
+from eventsourcing.domain_old import Aggregate
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture

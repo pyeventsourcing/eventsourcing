@@ -4,7 +4,7 @@ import unittest
 from typing import ClassVar
 from uuid import uuid4
 
-from eventsourcing.domain import put_metadata_in_context
+from eventsourcing.domain_new import put_metadata_in_context
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.projection import ProjectionRunner
 from eventsourcing.tests.postgres_utils import drop_tables
