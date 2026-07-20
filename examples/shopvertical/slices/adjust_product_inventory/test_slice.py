@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import cast
 from uuid import uuid4
 
-from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.domain import AggregateEvent
 from examples.shopvertical.events import AddedProductToShop, AdjustedProductInventory
 from examples.shopvertical.exceptions import ProductNotFoundInShopError
 from examples.shopvertical.slices.adjust_product_inventory.cmd import (

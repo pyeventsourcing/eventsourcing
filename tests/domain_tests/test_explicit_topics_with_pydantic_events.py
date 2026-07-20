@@ -13,7 +13,7 @@
 #     CanMutateAggregate,
 #     MetaAggregate,
 # )
-# from eventsourcing.domain_new import datetime_now_with_tzinfo, \
+# from eventsourcing.domain import datetime_now_with_tzinfo, \
 #     get_metadata_from_context, ProgrammingError
 # from eventsourcing.utils import (
 #     clear_topic_cache,

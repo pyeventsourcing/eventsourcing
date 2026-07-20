@@ -7,7 +7,7 @@ from eventsourcing.dataclasses.immutable import (
     DataclassDecision,
     Immutable,
 )
-from eventsourcing.domain_new import Aggregate
+from eventsourcing.domain import Aggregate
 
 
 class DataclassAggregate(Aggregate[DataclassDecision]):

@@ -26,7 +26,7 @@ from psycopg_pool.abc import (
 )
 from typing_extensions import TypeVar
 
-from eventsourcing.domain_new import NIL_UUID
+from eventsourcing.domain import NIL_UUID
 from eventsourcing.errors import (
     DatabaseError,
     DataError,

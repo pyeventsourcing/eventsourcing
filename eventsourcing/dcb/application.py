@@ -11,7 +11,7 @@ from eventsourcing.dcb.persistence import (
     DCBInfrastructureFactory,
     NotFoundError,
 )
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     EnduringObject,
     Perspective,
     Selector,

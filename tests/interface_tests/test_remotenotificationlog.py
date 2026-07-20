@@ -8,7 +8,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Event, Thread
 from typing import TYPE_CHECKING, Any, ClassVar
 from unittest.case import TestCase
-from uuid import UUID
 
 from eventsourcing.interface import (
     NotificationLogInterface,
@@ -19,6 +18,7 @@ from eventsourcing.tests.application import BankAccountsWithPydantic
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from uuid import UUID
 
 
 class TestRemoteNotificationLog(TestCase):

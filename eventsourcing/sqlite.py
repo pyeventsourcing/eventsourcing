@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Literal, cast
 from uuid import UUID
 
-from eventsourcing.domain_new import NIL_UUID
+from eventsourcing.domain import NIL_UUID
 from eventsourcing.errors import (
     DatabaseError,
     DataError,

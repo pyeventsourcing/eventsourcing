@@ -4,7 +4,7 @@ from typing import ClassVar
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain_new import put_metadata_in_context
+from eventsourcing.domain import put_metadata_in_context
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.system import SingleThreadedRunner
 from eventsourcing.tests.postgres_utils import drop_tables

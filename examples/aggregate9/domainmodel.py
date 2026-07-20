@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from eventsourcing.domain_new import AggregateEvent, EventEnvelope, projector
+from eventsourcing.domain import AggregateEvent, EventEnvelope, projector
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.msgspec.immutable import (
     Immutable,

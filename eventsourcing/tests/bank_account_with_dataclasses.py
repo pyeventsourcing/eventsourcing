@@ -6,7 +6,7 @@ from typing import Self
 
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.mutable import DataclassAggregate
-from eventsourcing.domain_new import triggers
+from eventsourcing.domain import triggers
 
 
 @dataclass

@@ -1,7 +1,7 @@
 from decimal import Decimal
 from unittest.case import TestCase
 
-from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,

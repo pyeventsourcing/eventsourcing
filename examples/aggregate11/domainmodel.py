@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from eventsourcing.domain_new import triggers
+from eventsourcing.domain import triggers
 from eventsourcing.pydantic.mutable import PydanticAggregate
 
 

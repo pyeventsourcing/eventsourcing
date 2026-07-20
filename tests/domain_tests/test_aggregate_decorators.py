@@ -14,7 +14,7 @@
 #     AggregateEvent,
 #     aggregate,
 # )
-# from eventsourcing.domain_new import datetime_now_with_tzinfo, event, triggers
+# from eventsourcing.domain import datetime_now_with_tzinfo, event, triggers
 # from eventsourcing.utils import get_method_name
 #
 #

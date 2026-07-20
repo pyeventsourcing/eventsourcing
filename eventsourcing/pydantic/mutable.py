@@ -5,7 +5,7 @@ from typing import Any, Self, TypeVar
 
 from pydantic import ConfigDict
 
-from eventsourcing.domain_new import Aggregate
+from eventsourcing.domain import Aggregate
 from eventsourcing.pydantic.immutable import Immutable, PydanticDecision
 
 

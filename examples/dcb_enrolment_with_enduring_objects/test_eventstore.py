@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from eventsourcing.domain_new import TaggedEvent
+from eventsourcing.domain import TaggedEvent
 from eventsourcing.msgspec.immutable import MsgspecDecision
 from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 from eventsourcing.persistence import TaggedEventMapper

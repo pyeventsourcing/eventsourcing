@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import field
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.domain_new import event, get_metadata_from_context
+from eventsourcing.domain import event, get_metadata_from_context
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import PydanticAggregate
 from examples.contentmanagement.utils import apply_diff, create_diff

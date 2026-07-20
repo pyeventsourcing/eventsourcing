@@ -14,7 +14,7 @@ from examples.ftscontentmanagement.postgres import PostgresFtsRecorder
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from eventsourcing.domain_new import AggregateEvent
+    from eventsourcing.domain import AggregateEvent
     from eventsourcing.pydantic.immutable import PydanticDecision
 
 

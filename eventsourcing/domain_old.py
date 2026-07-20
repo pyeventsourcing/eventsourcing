@@ -28,7 +28,7 @@
 #
 # from typing_extensions import TypeVar
 #
-# # from eventsourcing.domain_new import NIL_UUID, datetime_now_with_tzinfo, \
+# # from eventsourcing.domain import NIL_UUID, datetime_now_with_tzinfo, \
 # #     AbstractDecision, get_metadata_from_context, EventSourcingError, ProgrammingErro
 # r, \
 # #     filter_kwargs_for_method_params, CallableType, TDecoratableType, \

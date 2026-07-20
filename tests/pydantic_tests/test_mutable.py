@@ -6,7 +6,7 @@
 #
 # from typing_extensions import TypeVar, get_original_bases
 #
-# from eventsourcing.domain_new import datetime_now_with_tzinfo, event
+# from eventsourcing.domain import datetime_now_with_tzinfo, event
 # from eventsourcing.pydantic.mutable import (
 #     PydanticAggregate,
 #     SnapshotState,

@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from unittest import TestCase
 
 from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     EnduringObject,
     Group,
     Selector,

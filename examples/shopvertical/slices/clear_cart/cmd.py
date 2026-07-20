@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.domain import AggregateEvent
 from examples.shopvertical.common import Command, get_events, put_events
 from examples.shopvertical.events import ClearedCart, SubmittedCart
 from examples.shopvertical.exceptions import CartAlreadySubmittedError

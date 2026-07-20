@@ -15,7 +15,7 @@ from psycopg_pool import ConnectionPool
 from psycopg_pool.base import AttemptWithBackoff
 
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
-from eventsourcing.domain_new import datetime_now_with_tzinfo
+from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.errors import (
     DatabaseError,
     DataError,

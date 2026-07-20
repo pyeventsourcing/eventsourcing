@@ -2,7 +2,7 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     AggregateEvent,
     null_metadata_in_context,
     put_metadata_in_context,

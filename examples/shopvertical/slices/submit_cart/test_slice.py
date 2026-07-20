@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
-from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.domain import AggregateEvent
 from examples.shopvertical.common import reset_application
 from examples.shopvertical.events import (
     AddedItemToCart,

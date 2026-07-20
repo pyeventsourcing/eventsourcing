@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from eventsourcing.application import AggregateNotFoundError
-from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.domain import AggregateEvent
 from examples.cargoshipping.application import BookingApplication
 from examples.cargoshipping.domainmodel import Cargo, CargoEvent
 from examples.searchabletimestamps.persistence import SearchableTimestampsRecorder

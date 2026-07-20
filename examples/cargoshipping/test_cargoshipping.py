@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from datetime import timedelta
 
-from eventsourcing.domain_new import datetime_now_with_tzinfo
+from eventsourcing.domain import datetime_now_with_tzinfo
 from examples.cargoshipping.application import BookingApplication
 from examples.cargoshipping.interface import BookingService, select_preferred_itinerary
 

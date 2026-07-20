@@ -3,7 +3,7 @@ from typing import Any
 from unittest.case import TestCase
 
 from eventsourcing.application import ProcessingEvent
-from eventsourcing.domain_new import AggregateEvent, EventEnvelope, TDecision
+from eventsourcing.domain import AggregateEvent, EventEnvelope, TDecision
 from eventsourcing.persistence import (
     IntegrityError,
     Transcoder,

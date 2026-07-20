@@ -49,7 +49,7 @@ the :ref:`decision <DCB Decision>` class.
 Slices
 ------
 
-Each slice shown below derives from the base class :class:`~eventsourcing.domain_new.Slice`.
+Each slice shown below derives from the base class :class:`~eventsourcing.domain.Slice`.
 
 The slices shown below are entirely independent of each other. They depend only on the "decision" event classes
 that are relevant to their use case. The big advantage of this style is that because slices define tight consistency

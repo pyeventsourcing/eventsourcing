@@ -9,7 +9,7 @@
 #     BaseAggregate,
 #     DomainEvent,
 # )
-# from eventsourcing.domain_new import ProgrammingError, event
+# from eventsourcing.domain import ProgrammingError, event
 # from eventsourcing.utils import (
 #     clear_topic_cache,
 #     get_topic,

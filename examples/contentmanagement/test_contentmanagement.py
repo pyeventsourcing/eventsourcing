@@ -3,7 +3,7 @@ from __future__ import annotations
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain_new import put_metadata_in_context
+from eventsourcing.domain import put_metadata_in_context
 from eventsourcing.system import NotificationLogReader
 from examples.contentmanagement.application import (
     ContentManagement,

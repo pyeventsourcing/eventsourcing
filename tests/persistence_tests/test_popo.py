@@ -4,7 +4,7 @@ from concurrent.futures.thread import ThreadPoolExecutor
 from uuid import uuid4
 
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
-from eventsourcing.domain_new import datetime_now_with_tzinfo
+from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.persistence import (
     AggregateEventMapper,
     AggregateRecorder,

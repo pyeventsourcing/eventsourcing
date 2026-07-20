@@ -13,7 +13,7 @@ import eventsourcing.msgspec.immutable
 import eventsourcing.pydantic.immutable
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
-from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.msgspec.immutable import MsgspecDecision
 from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 from eventsourcing.persistence import AggregateEventMapper

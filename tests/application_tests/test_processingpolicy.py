@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING
 from unittest.case import TestCase
 
 from eventsourcing.application import ProcessingEvent
-from eventsourcing.domain_new import triggers
+from eventsourcing.domain import triggers
 from eventsourcing.persistence import Tracking
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import PydanticAggregate
 from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 
 if TYPE_CHECKING:
-    from eventsourcing.domain_new import AggregateEvent
+    from eventsourcing.domain import AggregateEvent
 
 
 def policy(

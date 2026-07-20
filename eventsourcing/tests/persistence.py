@@ -22,7 +22,7 @@ from eventsourcing.dataclasses.legacy import (
     Transcoding,
 )
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     AbstractDecision,
     AggregateEvent,
     TaggedEvent,

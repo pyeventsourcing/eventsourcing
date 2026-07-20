@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from eventsourcing.domain_new import event
+from eventsourcing.domain import event
 from eventsourcing.msgspec.mutable import MsgspecAggregate
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,

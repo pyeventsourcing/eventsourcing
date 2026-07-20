@@ -115,7 +115,7 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
     from uuid import UUID, uuid4
 
     from eventsourcing.dcb.application import DCBApplication
-    from eventsourcing.domain_new import EnduringObject
+    from eventsourcing.domain import EnduringObject
     from eventsourcing.dcb.msgspec import Decision, MsgspecMapper
     from eventsourcing.domain import event
     from eventsourcing.projection import DCBApplicationSubscription
@@ -209,13 +209,13 @@ The example below shows how a projection can be defined.
 
 For projections that work with :ref:`DCB applications <DCB application>`, you will need to define the dispatching
 to work with :ref:`domain events <DCB Domain Event>`. Because the ``process_event()`` method will receive
-:class:`~eventsourcing.domain_new.Event` objects, and because :func:`~eventsourcing.dispatch.singledispatchmethod`
+:class:`~eventsourcing.domain.Event` objects, and because :func:`~eventsourcing.dispatch.singledispatchmethod`
 dispatches on the type of the first argument, so you will need to forward ``event.decision`` and define handlers for
-different types of :class:`~eventsourcing.domain_new.Decision`.
+different types of :class:`~eventsourcing.domain.Decision`.
 
 .. code-block:: python
 
-    from eventsourcing.domain_new import Event
+    from eventsourcing.domain import Event
     from eventsourcing.dcb.msgspec import Decision
 
 

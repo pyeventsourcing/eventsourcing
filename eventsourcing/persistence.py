@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Generic, Self
 from typing_extensions import TypeVar
 
 from eventsourcing.dcb.api import DCBEvent
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     NIL_UUID,
     AggregateEvent,
     TaggedEvent,

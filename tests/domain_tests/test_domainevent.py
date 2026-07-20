@@ -6,7 +6,7 @@
 # from uuid import UUID, uuid4
 #
 # import eventsourcing.domain_old
-# from eventsourcing import domain_new
+# from eventsourcing import domain
 # from eventsourcing.domain_old import (
 #     CanInitAggregate,
 #     CanMutateAggregate,
@@ -17,7 +17,7 @@
 #     create_utc_datetime_now,
 #     event_id_from_originator_id_and_version,
 # )
-# from eventsourcing.domain_new import datetime_now_with_tzinfo
+# from eventsourcing.domain import datetime_now_with_tzinfo
 #
 #
 # class TestMetaDomainEvent(TestCase):
@@ -122,15 +122,15 @@
 #         self.assertIsInstance(timestamp, datetime)
 #         self.assertEqual(timestamp.tzinfo, UTC)
 #
-#         orig_tzinfo = domain_new.TZINFO
+#         orig_tzinfo = domain.TZINFO
 #         alt_tzinfo = timezone(offset=timedelta(hours=1), name="AltTimeZone")
-#         domain_new.TZINFO = alt_tzinfo
+#         domain.TZINFO = alt_tzinfo
 #         try:
 #             timestamp = datetime_now_with_tzinfo()
 #             self.assertNotEqual(timestamp.tzinfo, UTC)
 #             self.assertEqual(timestamp.tzinfo, alt_tzinfo)
 #         finally:
-#             domain_new.TZINFO = orig_tzinfo
+#             domain.TZINFO = orig_tzinfo
 #
 #         # Verify deprecation warning for create_utc_datetime_now().
 #         with warnings.catch_warnings(record=True) as w:

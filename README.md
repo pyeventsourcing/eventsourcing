@@ -39,7 +39,7 @@ Define aggregates with the `Aggregate` class and the `@event` decorator.
 
 ```python
 from eventsourcing.domain_old import Aggregate
-from eventsourcing.domain_new import event
+from eventsourcing.domain import event
 
 
 class Dog(Aggregate):

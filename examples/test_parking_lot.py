@@ -9,7 +9,7 @@ from unittest import TestCase
 from uuid import NAMESPACE_URL, uuid5
 
 from eventsourcing.application import AggregateNotFoundError
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     AggregateEvent,
     datetime_now_with_tzinfo,
     triggers,

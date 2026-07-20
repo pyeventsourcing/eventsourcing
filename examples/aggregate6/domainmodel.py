@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from eventsourcing.dataclasses.immutable import DataclassDecision, Immutable
-from eventsourcing.domain_new import AggregateEvent, EventEnvelope, projector
+from eventsourcing.domain import AggregateEvent, EventEnvelope, projector
 
 
 class Dog(Immutable):

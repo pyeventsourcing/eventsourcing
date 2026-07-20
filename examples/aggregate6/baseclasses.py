@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import uuid4
 
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     EventEnvelope,
     MutatorFunction,
     ProjectorFunction,

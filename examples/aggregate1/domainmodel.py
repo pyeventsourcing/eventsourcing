@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from eventsourcing.domain_new import triggers
+from eventsourcing.domain import triggers
 from eventsourcing.pydantic.immutable import Immutable
 from eventsourcing.pydantic.mutable import PydanticAggregate
 

@@ -11,7 +11,7 @@
 #     CanSnapshotAggregate,
 #     TAggregateID,
 # )
-# from eventsourcing.domain_new import datetime_now_with_tzinfo, event
+# from eventsourcing.domain import datetime_now_with_tzinfo, event
 # from eventsourcing.msgspec.mapper import MsgspecMapper
 # from eventsourcing.msgspec.mutable import (
 #     MsgspecAggregate,

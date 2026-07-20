@@ -12,7 +12,7 @@ from uuid import uuid4
 from eventsourcing.application import AggregateNotFoundError, Application
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.legacy import Transcoding
-from eventsourcing.domain_new import Aggregate, triggers
+from eventsourcing.domain import Aggregate, triggers
 from eventsourcing.errors import InfrastructureFactoryError
 from eventsourcing.persistence import (
     AggregateEventMapper,

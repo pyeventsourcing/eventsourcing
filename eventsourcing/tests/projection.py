@@ -13,7 +13,7 @@ from eventsourcing.application import (
 )
 from eventsourcing.dcb.application import DCBApplication
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     AggregateEvent,
     EnduringObject,
     EventEnvelope,

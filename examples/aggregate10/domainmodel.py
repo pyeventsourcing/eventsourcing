@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from eventsourcing.domain_new import event
+from eventsourcing.domain import event
 from eventsourcing.msgspec.immutable import Immutable, MsgspecDecision
 from eventsourcing.msgspec.mutable import (
     MsgspecAggregate,

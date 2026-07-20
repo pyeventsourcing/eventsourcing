@@ -5,7 +5,7 @@ from typing import Self
 
 from pydantic import BaseModel
 
-from eventsourcing.domain_new import triggers
+from eventsourcing.domain import triggers
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import (
     PydanticAggregate,

@@ -3,7 +3,7 @@ from unittest import TestCase
 from eventsourcing.dataclasses.application import DataclassApplication
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.mutable import DataclassAggregate
-from eventsourcing.domain_new import triggers
+from eventsourcing.domain import triggers
 from eventsourcing.persistence import Tracking
 from eventsourcing.projection import ApplicationSubscription
 from eventsourcing.utils import get_topic

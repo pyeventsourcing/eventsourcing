@@ -5,7 +5,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from eventsourcing.domain_new import datetime_now_with_tzinfo, triggers
+from eventsourcing.domain import datetime_now_with_tzinfo, triggers
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import PydanticAggregate
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from eventsourcing.domain_new import AggregateEvent, EventEnvelope
+from eventsourcing.domain import AggregateEvent, EventEnvelope
 from examples.aggregate4.baseclasses import Aggregate, TimestampedDataclassDecision
 
 if TYPE_CHECKING:

@@ -13,7 +13,7 @@ from eventsourcing.dataclasses.legacy import (
     LegacyJSONTranscoder,
     UUIDAsHex,
 )
-from eventsourcing.domain_new import Aggregate, AggregateEvent, triggers
+from eventsourcing.domain import Aggregate, AggregateEvent, triggers
 from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,

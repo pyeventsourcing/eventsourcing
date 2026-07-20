@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Self, TypeVar
 
-from eventsourcing.domain_new import Aggregate
+from eventsourcing.domain import Aggregate
 from eventsourcing.msgspec.immutable import (
     Immutable,
     MsgspecDecision,

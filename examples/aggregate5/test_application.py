@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest import TestCase
 
-from eventsourcing.domain_new import put_metadata_in_context
+from eventsourcing.domain import put_metadata_in_context
 from examples.aggregate5.application import DogSchool
 
 

@@ -5,7 +5,7 @@
 #
 # import msgspec
 #
-# from eventsourcing.domain_new import datetime_now_with_tzinfo, AggregateEvent
+# from eventsourcing.domain import datetime_now_with_tzinfo, AggregateEvent
 # from eventsourcing.msgspec import immutable
 # from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 # from eventsourcing.persistence import AggregateEventMapper

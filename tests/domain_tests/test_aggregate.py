@@ -4,7 +4,7 @@ from unittest import TestCase
 from eventsourcing.dataclasses.application import DataclassApplication
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.mutable import DataclassAggregate
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     NIL_UUID,
     AbstractDecision,
     Aggregate,

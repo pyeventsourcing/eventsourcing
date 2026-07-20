@@ -9,7 +9,7 @@ from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.mutable import DataclassAggregate
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain_new import AggregateEvent, EventEnvelope, triggers
+from eventsourcing.domain import AggregateEvent, EventEnvelope, triggers
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError, Notification, Tracking
 from eventsourcing.pydantic.immutable import PydanticDecision

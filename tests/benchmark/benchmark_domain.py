@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from eventsourcing.domain_new import event
+from eventsourcing.domain import event
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import PydanticAggregate
 

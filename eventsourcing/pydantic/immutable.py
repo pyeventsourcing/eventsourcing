@@ -4,7 +4,7 @@ from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict
 
-import eventsourcing.domain_new
+import eventsourcing.domain
 from eventsourcing.utils import get_topic
 
 
@@ -12,7 +12,7 @@ class Immutable(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-class PydanticDecision(Immutable, eventsourcing.domain_new.AbstractDecision):
+class PydanticDecision(Immutable, eventsourcing.domain.AbstractDecision):
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
 

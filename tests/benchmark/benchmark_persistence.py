@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from eventsourcing.domain_new import event, triggers
+from eventsourcing.domain import event, triggers
 from eventsourcing.persistence import InfrastructureFactory, StoredEvent
 from eventsourcing.postgres import PostgresApplicationRecorder
 from eventsourcing.pydantic.application import PydanticApplication

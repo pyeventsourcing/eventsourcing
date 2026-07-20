@@ -7,7 +7,7 @@ from examples.contentmanagement.domainmodel import Page
 from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
-    from eventsourcing.domain_new import AggregateEvent, CollectEventsProtocol
+    from eventsourcing.domain import AggregateEvent, CollectEventsProtocol
     from eventsourcing.persistence import Recording
     from eventsourcing.pydantic.immutable import PydanticDecision
 

@@ -13,7 +13,7 @@ from warnings import warn
 from eventsourcing.application import Application, ProcessingEvent
 from eventsourcing.dcb.api import DCBQuery, DCBQueryItem
 from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     AbstractDecision,
     EventEnvelope,
     TaggedEvent,

@@ -15,7 +15,7 @@ from eventsourcing.dcb.api import (
     DCBSubscription,
     TDCBRecorder_co,
 )
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     Selector,
     TaggedEvent,
     TDecision,

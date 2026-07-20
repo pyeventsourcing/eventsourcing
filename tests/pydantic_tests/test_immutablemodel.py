@@ -3,7 +3,7 @@
 # from unittest import TestCase
 # from uuid import UUID, uuid4
 #
-# from eventsourcing.domain_new import datetime_now_with_tzinfo
+# from eventsourcing.domain import datetime_now_with_tzinfo
 # from eventsourcing.persistence import NullTranscoder
 # from eventsourcing.pydantic import immutable
 # from eventsourcing.pydantic.mapper import PydanticMapper

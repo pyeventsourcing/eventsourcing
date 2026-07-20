@@ -3,10 +3,10 @@ from datetime import date, datetime
 from uuid import UUID, uuid4
 
 import eventsourcing.dcb.persistence
-import eventsourcing.domain_new
+import eventsourcing.domain
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
-from eventsourcing.domain_new import datetime_now_with_tzinfo
+from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.tests.persistence import (
     AggregateEventMapperTestCase,
     TaggedEventMapperTestCase,
@@ -34,7 +34,7 @@ class TestDataclassTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase):
     def test_tagged_event_mapper(self) -> None:
         super()._test_tagged_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain_new.AbstractDecision:
+    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
         return MyDataclassDecision(
             x=CustomType(
                 a="1",
@@ -54,7 +54,7 @@ class TestDataclassTranscoderWithAggregateEventMapper(AggregateEventMapperTestCa
     def test_aggregate_event_mapper(self) -> None:
         super()._test_aggregate_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain_new.AbstractDecision:
+    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
         return MyDataclassDecision(
             x=CustomType(
                 a="1",

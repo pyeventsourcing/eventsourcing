@@ -9,7 +9,7 @@ from eventsourcing.pydantic.immutable import Immutable, PydanticDecision
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from eventsourcing.domain_new import AggregateEvent
+    from eventsourcing.domain import AggregateEvent
 
     Events: TypeAlias = Sequence[AggregateEvent[PydanticDecision]]
 

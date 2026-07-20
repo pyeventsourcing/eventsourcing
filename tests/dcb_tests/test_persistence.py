@@ -6,7 +6,7 @@ from eventsourcing.dcb.persistence import (
     NotFoundError,
 )
 from eventsourcing.dcb.popo import InMemoryDCBRecorder
-from eventsourcing.domain_new import EnduringObject, TaggedEvent
+from eventsourcing.domain import EnduringObject, TaggedEvent
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.msgspec.immutable import MsgspecDecision
 from eventsourcing.msgspec.transcoder import MsgspecTranscoder

@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 from typing_extensions import TypeVar
 
 from eventsourcing.application import ProcessingEvent  # noqa: TC001
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     Aggregate,
     AggregateEvent,
     EventEnvelope,

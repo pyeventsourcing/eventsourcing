@@ -4,7 +4,7 @@ from typing import cast
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain_new import Selector, TaggedEvent
+from eventsourcing.domain import Selector, TaggedEvent
 from examples.dcb_enrolment_with_enduring_objects.application import Course, Student
 
 

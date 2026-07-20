@@ -6,7 +6,7 @@ from uuid import uuid4
 from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.cryptography import AESCipher
 from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     EnduringObject,
     event,
     get_metadata_from_context,

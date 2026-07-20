@@ -19,7 +19,7 @@
 #     OriginatorIDError,
 #     OriginatorVersionError,
 # )
-# from eventsourcing.domain_new import datetime_now_with_tzinfo
+# from eventsourcing.domain import datetime_now_with_tzinfo
 # from eventsourcing.tests.bank_account_with_pydantic import (
 #     AccountClosedError,
 #     BankAccountWithPydantic,

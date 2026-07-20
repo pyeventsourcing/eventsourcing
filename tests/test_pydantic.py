@@ -2,7 +2,7 @@ from copy import deepcopy
 from threading import Thread
 from unittest import TestCase
 
-import eventsourcing.domain_new
+import eventsourcing.domain
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.transcoder import PydanticTranscoder
 from eventsourcing.tests.persistence import (
@@ -38,7 +38,7 @@ class TestPydanticTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase):
     def test_tagged_event_mapper(self) -> None:
         super()._test_tagged_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain_new.AbstractDecision:
+    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
         return MyPydanticDecision(a="1")
 
 
@@ -48,5 +48,5 @@ class TestPydanticTranscoderWithAggregateEventMapper(AggregateEventMapperTestCas
     def test_aggregate_event_mapper(self) -> None:
         super()._test_aggregate_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain_new.AbstractDecision:
+    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
         return MyPydanticDecision(a="1")

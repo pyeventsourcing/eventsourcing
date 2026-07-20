@@ -10,7 +10,7 @@ from eventsourcing.dataclasses.immutable import (
     coerce_value,
     get_init_types,
 )
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     AggregateEvent,
     EventEnvelope,
     WorksWithDecisions,

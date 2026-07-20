@@ -17,7 +17,7 @@ from typing import (
     overload,
 )
 
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     NIL_UUID_STR,
     Aggregate,
     AggregateEvent,

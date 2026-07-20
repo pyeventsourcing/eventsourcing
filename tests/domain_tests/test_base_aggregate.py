@@ -21,7 +21,7 @@
 #     OriginatorIDError,
 #     OriginatorVersionError,
 # )
-# from eventsourcing.domain_new import ProgrammingError, event
+# from eventsourcing.domain import ProgrammingError, event
 # from eventsourcing.utils import get_method_name
 #
 # X = int  # pyright: ignore [reportAssignmentType]

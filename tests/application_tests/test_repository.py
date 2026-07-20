@@ -12,7 +12,7 @@ from eventsourcing.application import (
     LRUCache,
     Repository,
 )
-from eventsourcing.domain_new import AggregateEvent, EventEnvelope
+from eventsourcing.domain import AggregateEvent, EventEnvelope
 from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,

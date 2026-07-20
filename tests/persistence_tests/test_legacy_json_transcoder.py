@@ -11,7 +11,7 @@ from eventsourcing.dataclasses.legacy import (
     LegacyJSONTranscoder,
     UUIDAsHex,
 )
-from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.errors import (
     MapperDeserialisationError,
     TranscodingNotRegisteredError,

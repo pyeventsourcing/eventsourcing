@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from eventsourcing.dataclasses.immutable import DataclassDecision, Immutable
-from eventsourcing.domain_new import AggregateEvent, EventEnvelope
+from eventsourcing.domain import AggregateEvent, EventEnvelope
 from eventsourcing.errors import ProgrammingError
 
 if TYPE_CHECKING:

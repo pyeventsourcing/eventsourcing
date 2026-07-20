@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, cast
 
-from eventsourcing.domain_new import AggregateEvent, EventEnvelope
+from eventsourcing.domain import AggregateEvent, EventEnvelope
 from eventsourcing.persistence import Recorder
 from eventsourcing.pydantic.application import PydanticApplication
 from eventsourcing.pydantic.immutable import PydanticDecision

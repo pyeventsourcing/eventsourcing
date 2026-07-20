@@ -2,7 +2,7 @@ from copy import deepcopy
 from threading import Thread
 from unittest import TestCase
 
-import eventsourcing.domain_new
+import eventsourcing.domain
 from eventsourcing.msgspec.immutable import MsgspecDecision
 from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 from eventsourcing.tests.persistence import (
@@ -40,7 +40,7 @@ class TestTaggedEventMapperWithMsgspecTranscoder(TaggedEventMapperTestCase):
     def test_tagged_event_mapper(self) -> None:
         super()._test_tagged_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain_new.AbstractDecision:
+    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
         return MyMsgspecDecision(a="1")
 
 
@@ -50,5 +50,5 @@ class TestMsgspecTranscoderWithAggregateEventMapper(AggregateEventMapperTestCase
     def test_aggregate_event_mapper(self) -> None:
         super()._test_aggregate_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain_new.AbstractDecision:
+    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
         return MyMsgspecDecision(a="1")

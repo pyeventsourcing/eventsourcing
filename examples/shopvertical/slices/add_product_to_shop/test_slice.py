@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.domain import AggregateEvent
 from examples.shopvertical.events import AddedProductToShop
 from examples.shopvertical.exceptions import ProductAlreadyInShopError
 from examples.shopvertical.slices.add_product_to_shop.cmd import AddProductToShop

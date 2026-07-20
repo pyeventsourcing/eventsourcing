@@ -16,7 +16,7 @@ from eventsourcing.application import (
     Section,
     TApplication,
 )
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     AggregateEvent,
     CollectEventsProtocol,
     EventEnvelope,

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from pydantic import Field
 
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     AggregateEvent,
     EventEnvelope,
     datetime_now_with_tzinfo,

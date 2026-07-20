@@ -7,7 +7,7 @@ from uuid import uuid4
 from eventsourcing.dcb.application import (
     DCBApplication,
 )
-from eventsourcing.domain_new import (
+from eventsourcing.domain import (
     Selector,
     Slice,
     event,

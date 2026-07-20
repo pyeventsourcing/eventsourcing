@@ -10,7 +10,7 @@ from functools import lru_cache
 from typing import Any, TypeVar, dataclass_transform
 from uuid import UUID
 
-import eventsourcing.domain_new
+import eventsourcing.domain
 
 _T = TypeVar("_T", bound="MetaImmutableDataclass")
 
@@ -58,7 +58,7 @@ class Immutable(metaclass=MetaImmutableDataclass):
     pass
 
 
-class DataclassDecision(Immutable, eventsourcing.domain_new.AbstractDecision):
+class DataclassDecision(Immutable, eventsourcing.domain.AbstractDecision):
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
 

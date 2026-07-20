@@ -19,7 +19,7 @@ from eventsourcing.dcb.persistence import (
     DCBInfrastructureFactory,
 )
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
-from eventsourcing.domain_new import NIL_UUID
+from eventsourcing.domain import NIL_UUID
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError
 from eventsourcing.postgres import (

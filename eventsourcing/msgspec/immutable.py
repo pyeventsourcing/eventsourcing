@@ -5,7 +5,7 @@ from typing import Any, Self, TypeVar
 
 import msgspec
 
-import eventsourcing.domain_new
+import eventsourcing.domain
 from eventsourcing.utils import get_topic
 
 _M = TypeVar("_M", bound="ImmutableMeta")
@@ -28,7 +28,7 @@ class Immutable(msgspec.Struct, metaclass=ImmutableMeta):
     pass
 
 
-class MsgspecDecision(Immutable, eventsourcing.domain_new.AbstractDecision):
+class MsgspecDecision(Immutable, eventsourcing.domain.AbstractDecision):
     def as_dict(self) -> dict[str, Any]:
         return {key: getattr(self, key) for key in self.__struct_fields__}
 

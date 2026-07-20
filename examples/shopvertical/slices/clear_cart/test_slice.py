@@ -2,7 +2,7 @@ import unittest
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
-from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.domain import AggregateEvent
 from examples.shopvertical.events import ClearedCart, SubmittedCart
 from examples.shopvertical.exceptions import CartAlreadySubmittedError
 from examples.shopvertical.slices.clear_cart.cmd import (
