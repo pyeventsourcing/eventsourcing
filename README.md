@@ -35,45 +35,48 @@ packages into a Python virtual environment.
 
 ## Synopsis
 
-Define aggregates with the `Aggregate` class and the `@event` decorator.
+Define aggregates with an "aggregate" class and the `@triggers` decorator.
+
+The `PydanticAggregate` class works with Pydantic "decision" classes.
 
 ```python
-from eventsourcing.domain_old import Aggregate
-from eventsourcing.domain import event
+from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.domain import triggers
 
 
-class Dog(Aggregate):
-    @event('Registered')
+class Dog(PydanticAggregate):
+    @triggers('Registered')
     def __init__(self, name: str) -> None:
         self.name = name
         self.tricks: list[str] = []
 
-    @event('TrickAdded')
+    @triggers('TrickAdded')
     def add_trick(self, trick: str) -> None:
         self.tricks.append(trick)
 ```
 
-Define application objects with the `Application` class.
+Define an application class that works with your aggregate classes.
+
+The `PydanticApplication` class works with Pydantic aggregates.
 
 ```python
 from typing import Any
-from uuid import UUID
 
-from eventsourcing.application import Application
+from eventsourcing.pydantic.application import PydanticApplication
 
 
-class DogSchool(Application):
-    def register_dog(self, name: str) -> UUID:
+class DogSchool(PydanticApplication):
+    def register_dog(self, name: str) -> str:
         dog = Dog(name)
         self.save(dog)
         return dog.id
 
-    def add_trick(self, dog_id: UUID, trick: str) -> None:
+    def add_trick(self, dog_id: str, trick: str) -> None:
         dog = self.repository.get(dog_id, Dog)
         dog.add_trick(trick)
         self.save(dog)
 
-    def get_dog(self, dog_id: UUID) -> dict[str, Any]:
+    def get_dog(self, dog_id: str) -> dict[str, Any]:
         dog = self.repository.get(dog_id, Dog)
         return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 ```
@@ -210,8 +213,8 @@ Please register questions, requests and
 [issues on GitHub](https://github.com/pyeventsourcing/eventsourcing/issues),
 or post in the project's Slack channel.
 
-There is a [Slack channel](https://join.slack.com/t/eventsourcinginpython/shared_invite/zt-3h2ip23yr-qCaMXXjmdnamZd7kjlD83w)
-for this project, which you are [welcome to join](https://join.slack.com/t/eventsourcinginpython/shared_invite/zt-3h2ip23yr-qCaMXXjmdnamZd7kjlD83w).
+There is a [Discord server](https://discord.gg/C8TVRdN9K5)
+for this project, which you are [welcome to join](https://discord.gg/C8TVRdN9K5).
 
 Please refer to the [documentation](https://eventsourcing.readthedocs.io/) for installation and usage guides.
 
