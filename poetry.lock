@@ -948,7 +948,7 @@ version = "0.21.1"
 description = "A fast serialization and validation library, with builtin support for JSON, MessagePack, YAML, and TOML."
 optional = false
 python-versions = ">=3.10"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "msgspec-0.21.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:72d9cd03241b8b2edb2e12dcc66c500fa480d8cbd71a8bac105809d468882064"},
     {file = "msgspec-0.21.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:ed2ab278200e743a1d2610a4e0c8fc74f6cecb8548544cdec43f927bd9265238"},
@@ -1132,14 +1132,14 @@ re2 = ["google-re2 (>=1.1)"]
 
 [[package]]
 name = "platformdirs"
-version = "4.10.0"
+version = "4.10.1"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "platformdirs-4.10.0-py3-none-any.whl", hash = "sha256:fb516cdb12eb0d857d0cd85a7c57cea4d060bee4578d6cf5a14dfdf8cbf8784a"},
-    {file = "platformdirs-4.10.0.tar.gz", hash = "sha256:31e761a6a0ca04faf7353ea759bdba55652be214725111e5aac52dfa29d4bef7"},
+    {file = "platformdirs-4.10.1-py3-none-any.whl", hash = "sha256:0e4eff26be2d75293977f7cddc153fd9b8eaa7fb0c7b64ffe4076cb443117443"},
+    {file = "platformdirs-4.10.1.tar.gz", hash = "sha256:ceab4084426fe6319ce18e86deada8ab1b7487c7aee7040c55e277c9ae793695"},
 ]
 
 [[package]]
@@ -2048,21 +2048,21 @@ files = [
 
 [[package]]
 name = "umadb"
-version = "0.6.5"
+version = "0.6.6"
 description = "Python client for UmaDB event store"
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "umadb-0.6.5-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:f9c164eec7aba4c2a738c82e516d36b05027e32fc35ad8510bc2ae82314b9714"},
-    {file = "umadb-0.6.5-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:2f83d495c4cb752d20c844a4fbbc0af2e09ecdfb7453a6fce940ded9f602a3eb"},
-    {file = "umadb-0.6.5-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:fa5da2eb2509434069fc51a902584722c4286171579ebe389c8df61077497d34"},
-    {file = "umadb-0.6.5-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:fa0261243417fda60f8d3b514336ef68e9fbd15ed59be161362ffaa8405c0e1e"},
-    {file = "umadb-0.6.5-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:78569e5859403aa3f19643416f2e9a8ed7ec7c5a4cfc1741aed620de4a3c1c85"},
-    {file = "umadb-0.6.5-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:6b85005b28cdfaaa0a204fbbdcd58de762fd78467f74e6be00e08dee52019822"},
-    {file = "umadb-0.6.5-cp310-abi3-win32.whl", hash = "sha256:63958b8f6808d46858808a535a9790ab7c5a0e04918119026e8567f75dc14976"},
-    {file = "umadb-0.6.5-cp310-abi3-win_amd64.whl", hash = "sha256:811e3d7912c718bf05d2e7b66a258df8424d9b5f22c4bd1e5d42203fb391a5b8"},
-    {file = "umadb-0.6.5.tar.gz", hash = "sha256:88a789849a03601db67489dec2784080444c95050c801f24098199394894c3dc"},
+    {file = "umadb-0.6.6-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:a638c0a1b99087864159c6b4fbc778baaef4aaeed84542fb694ff4fc662ca64b"},
+    {file = "umadb-0.6.6-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:80847c1f5f522cbd893817193adace649e395845bf10f3adf50090a9bad45cb7"},
+    {file = "umadb-0.6.6-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:9d9e7e9f152a9bfcb350547a9be3207665ed058b3d39a93fb8f579ff3b53ae42"},
+    {file = "umadb-0.6.6-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:fd5b9a17354557ea66dad9b65f059a04709e92a5f028611f7423865876391722"},
+    {file = "umadb-0.6.6-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:9821ee2f57a21b51d63eee29e6c448c3ed4bf66958ea5f93a7d002dc618bc2dc"},
+    {file = "umadb-0.6.6-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:d91530eaa70fb866adb907ca2a9908d7397f15d902cbfb9cdc75275e1d9cc060"},
+    {file = "umadb-0.6.6-cp310-abi3-win32.whl", hash = "sha256:221af3d9a3dcb167ce6f97f96195a3b5f9cdd75bcfda65ac4fd56a34fe71be84"},
+    {file = "umadb-0.6.6-cp310-abi3-win_amd64.whl", hash = "sha256:dd709c66263d427823a444eb5688493d26dc2760c0649eda6cc044c7c08fba3a"},
+    {file = "umadb-0.6.6.tar.gz", hash = "sha256:99a82cd7f2441b3df99d7d55cb3ba01e33a2eeab1b9fe4355bc31923fa749f3e"},
 ]
 
 [[package]]
@@ -2106,10 +2106,11 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [extras]
 crypto = ["pycryptodome"]
 cryptography = ["cryptography"]
+msgspec = ["msgspec"]
 postgres = ["psycopg"]
 pydantic = ["pydantic"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0"
-content-hash = "7014c24bd893d7271b65c6d4c690b5b9d007e13a63a7c76103626437d951a231"
+content-hash = "5d1c31eb3d7dce8ecf514026d15fe2bff3e0713ab389f49975bc34cc449efb78"
