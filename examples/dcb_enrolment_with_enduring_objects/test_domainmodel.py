@@ -5,7 +5,6 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.domain_new import Selector, TaggedEvent
-from examples.dcb_enrolment.interface import CourseID, StudentID
 from examples.dcb_enrolment_with_enduring_objects.application import Course, Student
 
 
@@ -13,7 +12,7 @@ class TestEnduringObjects(TestCase):
     def test_student(self) -> None:
         # Construct a student by calling the class.
         student = Student(
-            student_id=StudentID("student-" + str(uuid4())), name="Max", max_courses=3
+            student_id="student-" + str(uuid4()), name="Max", max_courses=3
         )
 
         # Check student id.
@@ -70,9 +69,7 @@ class TestEnduringObjects(TestCase):
 
     def test_course(self) -> None:
         # Construct a course by by calling the class.
-        course = Course(
-            course_id=CourseID("course-" + str(uuid4())), name="Biology", places=4
-        )
+        course = Course(course_id="course-" + str(uuid4()), name="Biology", places=4)
 
         # Check course id.
         self.assertTrue(course.id.startswith("course-"), course.id)

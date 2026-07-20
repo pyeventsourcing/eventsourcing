@@ -228,7 +228,7 @@ aggregate, and then using these to reconstruct an aggregate object.
 
 
 The repository :func:`~eventsourcing.application.Repository.get` method accepts
-three arguments: ``aggregate_id``, ``aggregate_cls``, ``version``, and ``projector_func``.
+three arguments: ``aggregate_id``, ``aggregate_cls``, ``version``, and ``projector``.
 The ``aggregate_id`` argument is required, and should be the ID of an already existing
 aggregate. If the aggregate is not found, the exception
 :class:`~eventsourcing.application.AggregateNotFoundError` will be raised.
@@ -237,7 +237,7 @@ The ``version`` argument is optional, and represents the required version of the
 If the requested version is greater than the highest available version of the aggregate, the
 highest available version of the aggregate will be returned.
 
-It is required to supply either an ``aggregate_cls`` or a ``projector_func``.
+It is required to supply either an ``aggregate_cls`` or a ``projector``.
 
 .. code-block:: python
 
@@ -270,7 +270,7 @@ It is required to supply either an ``aggregate_cls`` or a ``projector_func``.
     assert len(dog_v5.tricks) == 3
     assert dog_v5.tricks[-1] == "play dead"
 
-The ``projector_func`` argument is also optional, and can be used to pass in an alternative
+The ``projector`` argument is also optional, and can be used to pass in an alternative
 "mutator function" that will be used as the "aggregate projector" to reconstruct
 the current state of the aggregate from stored snapshots and domain events.
 By default, the repository will use the :func:`~eventsourcing.domain.AggregateEvent.mutate`

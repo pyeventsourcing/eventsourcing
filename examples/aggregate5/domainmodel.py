@@ -1,81 +1,84 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from eventsourcing.dispatch import singledispatchmethod
+from eventsourcing.dataclasses.immutable import DataclassDecision, Immutable
+from eventsourcing.domain_new import AggregateEvent, EventEnvelope
 from eventsourcing.errors import ProgrammingError
-from examples.aggregate5.baseclasses import Aggregate, DomainEvent
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
-@dataclass(frozen=True)
-class Dog(Aggregate):
+class Dog(Immutable):
+    id: str
+    version: int
     name: str
     tricks: tuple[str, ...]
 
-    @dataclass(frozen=True)
-    class Registered(DomainEvent):
+    class Registered(DataclassDecision):
         name: str
 
-    @dataclass(frozen=True)
-    class TrickAdded(DomainEvent):
+    class TrickAdded(DataclassDecision):
         trick: str
 
+    def trigger_event(
+        self, cls: type[DataclassDecision], **kwargs: Any
+    ) -> AggregateEvent[DataclassDecision]:
+        return AggregateEvent(
+            decision=cls(**kwargs),
+            originator_id=self.id,
+            originator_version=self.version + 1,
+        )
+
     @staticmethod
-    def register(name: str) -> tuple[Dog, DomainEvent]:
-        event = Dog.Registered(
-            originator_id=uuid4(),
+    def register(name: str) -> tuple[Dog, AggregateEvent[DataclassDecision]]:
+        event = AggregateEvent(
+            decision=Dog.Registered(
+                name=name,
+            ),
+            originator_id=str(uuid4()),
             originator_version=1,
-            name=name,
         )
         dog = Dog.mutate(event, None)
         return dog, event
 
-    def add_trick(self, trick: str) -> tuple[Dog, DomainEvent]:
+    def add_trick(self, trick: str) -> tuple[Dog, AggregateEvent[DataclassDecision]]:
         event = self.trigger_event(Dog.TrickAdded, trick=trick)
         dog = Dog.mutate(event, self)
         return dog, event
 
-    @singledispatchmethod
     @staticmethod
-    def mutate(event: DomainEvent, aggregate: Dog | None) -> Dog:  # noqa: ARG004
+    def mutate(event: EventEnvelope[DataclassDecision], dog: Dog | None) -> Dog:
         """Mutates aggregate with event."""
-        msg = f"Event type not supported: {type(event)}"
-        raise ProgrammingError(msg)
+        assert isinstance(event, AggregateEvent)
+        match event.decision:
+            case Dog.Registered(name=name):
+                return Dog(
+                    id=event.originator_id,
+                    version=event.originator_version,
+                    name=name,
+                    tricks=(),
+                )
 
-    @mutate.register
-    @staticmethod
-    def _(event: Dog.Registered, _: Dog | None) -> Dog:
-        return Dog(
-            id=event.originator_id,
-            version=event.originator_version,
-            created_on=event.timestamp,
-            modified_on=event.timestamp,
-            name=event.name,
-            tricks=(),
-        )
+            case Dog.TrickAdded(trick=trick):
+                assert dog is not None
+                return Dog(
+                    id=dog.id,
+                    version=event.originator_version,
+                    name=dog.name,
+                    tricks=(*dog.tricks, trick),
+                )
 
-    @mutate.register
-    @staticmethod
-    def _(event: Dog.TrickAdded, aggregate: Dog | None) -> Dog:
-        assert aggregate is not None
-        return Dog(
-            id=aggregate.id,
-            version=event.originator_version,
-            created_on=aggregate.created_on,
-            modified_on=event.timestamp,
-            name=aggregate.name,
-            tricks=(*aggregate.tricks, event.trick),
-        )
+            case _:
+                msg = f"Event type not supported: {type(event)}"
+                raise ProgrammingError(msg)
 
-    @mutate.register
     @staticmethod
-    def _(event: Dog.Snapshot, _: Dog | None) -> Dog:
-        return Dog(
-            id=event.state["id"],
-            version=event.state["version"],
-            created_on=event.state["created_on"],
-            modified_on=event.state["modified_on"],
-            name=event.state["name"],
-            tricks=tuple(event.state["tricks"]),  # comes back from JSON as a list
-        )
+    def projector(
+        dog: Dog | None, events: Iterable[EventEnvelope[DataclassDecision]]
+    ) -> Dog | None:
+        for event in events:
+            dog = Dog.mutate(event, dog)
+        return dog

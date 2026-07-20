@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
 from psycopg.sql import SQL, Identifier
@@ -13,8 +14,6 @@ from examples.searchabletimestamps.persistence import SearchableTimestampsRecord
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from datetime import datetime
-    from uuid import UUID
 
     from psycopg import Cursor
     from psycopg.rows import DictRow
@@ -75,7 +74,8 @@ class SearchableTimestampsApplicationRecorder(
     ) -> None:
         # Insert event timestamps.
         event_timestamps_data = cast(
-            "list[tuple[UUID, datetime, int]]", kwargs.get("event_timestamps_data")
+            list[tuple[str, datetime, int]],
+            kwargs.get("event_timestamps_data"),
         )
         for event_timestamp_data in event_timestamps_data:
             curs.execute(
@@ -86,7 +86,7 @@ class SearchableTimestampsApplicationRecorder(
         super()._insert_events(curs, stored_events, **kwargs)
 
     def get_version_at_timestamp(
-        self, originator_id: UUID, timestamp: datetime
+        self, originator_id: str, timestamp: datetime
     ) -> int | None:
         with self.datastore.get_connection() as conn, conn.cursor() as curs:
             curs.execute(

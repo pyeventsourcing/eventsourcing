@@ -29,7 +29,8 @@
 # from typing_extensions import TypeVar
 #
 # # from eventsourcing.domain_new import NIL_UUID, datetime_now_with_tzinfo, \
-# #     AbstractDecision, get_metadata_from_context, EventSourcingError, ProgrammingError, \
+# #     AbstractDecision, get_metadata_from_context, EventSourcingError, ProgrammingErro
+# r, \
 # #     filter_kwargs_for_method_params, CallableType, TDecoratableType, \
 # #     CommandMethodDecorator, decorated_func_callers, \
 # #     _raise_type_error_if_func_has_variable_params, _coerce_args_to_kwargs
@@ -72,7 +73,7 @@
 #
 #
 # def event_id_from_originator_id_and_version(
-#     originator_id: UUID | str,
+#     originator_id: str,
 #     originator_version: int,
 # ) -> UUID:
 #     """
@@ -139,7 +140,8 @@
 #
 #     @property
 #     def originator_version(self) -> int:
-#         """Integer identifying the version of the aggregate when the event occurred."""
+#         """Integer identifying the version of the aggregate when the event occurred.""
+#         "
 #         raise NotImplementedError  # pragma: no cover
 #
 #     @property
@@ -227,7 +229,8 @@
 #
 #
 # def create_utc_datetime_now() -> datetime:
-#     """Deprected in favour of :func:`~eventsourcing.domain.datetime_now_with_tzinfo`."""
+#     """Deprected in favour of :func:`~eventsourcing.domain.datetime_now_with_tzinfo`."
+#     ""
 #     msg = (
 #         "'create_utc_datetime_now()' is deprecated, "
 #         "use 'datetime_now_with_tzinfo()' instead"
@@ -345,7 +348,8 @@
 #          expected to be not ``None``.
 #
 #         Validates the ``aggregate`` argument by checking the event's
-#         :py:attr:`~eventsourcing.domain.HasOriginatorIDVersion.originator_id` equals the
+#         :py:attr:`~eventsourcing.domain.HasOriginatorIDVersion.originator_id` equals t
+#         he
 #         ``aggregate``'s :py:attr:`~eventsourcing.domain.Aggregate.id`, and the event's
 #         :py:attr:`~eventsourcing.domain.HasOriginatorIDVersion.originator_version` is
 #         one greater than the ``aggregate``'s current
@@ -428,13 +432,15 @@
 #     """Metaclass which ensures all domain event classes are frozen dataclasses."""
 #
 #     def __new__(
-#         cls, name: str, bases: tuple[type[TDomainEvent], ...], cls_dict: dict[str, Any]
+#         cls, name: str, bases: tuple[type[TDomainEvent], ...], cls_dict: dict[str, Any
+#         ]
 #     ) -> type[TDomainEvent]:
 #         event_cls = cast(
 #             "type[TDomainEvent]", super().__new__(cls, name, bases, cls_dict)
 #         )
 #         event_cls = dataclasses.dataclass(frozen=True, kw_only=True)(event_cls)
-#         event_cls.__signature__ = inspect.signature(event_cls.__init__)  # type: ignore[attr-defined]
+#         event_cls.__signature__ = inspect.signature(event_cls.__init__)  # type: ignor
+#         e[attr-defined]
 #         return event_cls
 #
 #
@@ -776,7 +782,8 @@
 #                             f"listed before {v.__name__}"
 #                         )
 #                     else:
-#                         reasons[(u, v)] = f"Inherited from {seq[0].__name__}'s MRO tree"
+#                         reasons[(u, v)] = f"Inherited from {seq[0].__name__}'s MRO tre
+#                         e"
 #
 #     # 3. Detect Cycles (Contradictions) using a simple cycle detector
 #     def find_cycle(
@@ -817,7 +824,8 @@
 #         # Isolate the breaking loop
 #         conflict_loop = cycle_path[cycle_path.index(cycle_path[-1]) :]
 #
-#         lines.append("❌ CONFLICT DETECTED: A cyclical ordering contradiction exists!")
+#         lines.append("❌ CONFLICT DETECTED: A cyclical ordering contradiction exists!"
+#         )
 #         lines.append(
 #             "-----------------------------------------------------------------"
 #         )
@@ -835,7 +843,8 @@
 #             "Review the reasons listed above. You likely need to change the order "
 #         )
 #         lines.append(
-#             "of the base classes in your definition line, or remove a redundant layout."
+#             "of the base classes in your definition line, or remove a redundant layout
+#             ."
 #         )
 #
 #     return "\n".join(lines)
@@ -858,7 +867,7 @@
 #         cls: type[Self],
 #         event_class: type[CanInitAggregate[TAggregateID]],
 #         *,
-#         id: TAggregateID | None = None,  # noqa: A002
+#         id: TAggregateID | None = None,
 #         **kwargs: Any,
 #     ) -> Self:
 #         """Constructs a new aggregate object instance."""
@@ -879,7 +888,8 @@
 #             try:
 #                 originator_id = cls.create_id(**create_id_kwargs)
 #             except NotImplementedError as e:
-#                 msg = f"Please pass an 'id' arg or define a create_id() method on {cls}"
+#                 msg = f"Please pass an 'id' arg or define a create_id() method on {cls
+#                 }"
 #                 raise NotImplementedError(msg) from e
 #
 #             if cls.originator_id_type and not isinstance(
@@ -1285,7 +1295,8 @@
 #
 #                     # Check this event class name is an attribute of aggregate cls.
 #                     if not hasattr(cls, given.__name__):
-#                         # TODO: Allow this by keeping track of use (like in dcb module).
+#                         # TODO: Allow this by keeping track of use (like in dcb module
+#                          ).
 #                         msg = (
 #                             "Event classes given in @event decorators must be "
 #                             f"attributes of the aggregate class: {given}"
@@ -1314,7 +1325,8 @@
 #                         event_decorator.event_cls_name
 #                     ] = event_decorator
 #
-#         # Check any create_id() method defined on this class is static or class method.
+#         # Check any create_id() method defined on this class is static or class method
+#         .
 #         if "create_id" in cls.__dict__ and not isinstance(
 #             cls.__dict__["create_id"], (staticmethod, classmethod)
 #         ):
@@ -1340,7 +1352,8 @@
 #                 ):
 #                     all_visible_event_classes[name] = value
 #
-#         # Ensure events that all event visible on this class are defined on this class,
+#         # Ensure events that all event visible on this class are defined on this class
+#         ,
 #         # that all "can mutate" classes are subclasses of the base event class, and of
 #         # any subclasses of any of their base event classes that we have redefined.
 #         # Also ensure that all events are consistent with the "originator ID type" of
@@ -1369,7 +1382,8 @@
 #                 value_args = safe_get_args(value_base)
 #
 #                 # 2. Determine which raw class to look for in the dict of redefineds.
-#                 search_target = value_origin if value_origin is not None else value_base
+#                 search_target = value_origin if value_origin is not None else value_ba
+#                 se
 #
 #                 if search_target in redefined_event_classes:
 #                     redefined_class = redefined_event_classes[search_target]
@@ -1475,7 +1489,8 @@
 #                     # Don't include base event class in bases of snapshot classes.
 #                     event_class_bases = (_fill_and_validate_id_type(cls, value),)
 #                     # Define event class.
-#                     event_class = cls._define_event_class(name, event_class_bases, None)
+#                     event_class = cls._define_event_class(name, event_class_bases, Non
+#                     e)
 #
 #                 else:
 #                     # Decide base classes of redefined event class: it must be
@@ -1485,7 +1500,8 @@
 #                         [value], redefined_bases, base_event_cls
 #                     )
 #                     # Define event class.
-#                     event_class = cls._define_event_class(name, event_class_bases, None)
+#                     event_class = cls._define_event_class(name, event_class_bases, Non
+#                     e)
 #
 #             # Check the event class is the right sort of thing.
 #             _validate_id_type(cls, event_class)
@@ -1580,7 +1596,8 @@
 #                         )
 #                         _validate_id_type(cls, initial_event_class)
 #                         # Set the event class as an attribute of the aggregate class.
-#                         setattr(cls, initial_event_class.__name__, initial_event_class)
+#                         setattr(cls, initial_event_class.__name__, initial_event_class
+#                         )
 #                 else:
 #                     _validate_id_type(cls, initial_event_class)
 #
@@ -1672,7 +1689,8 @@
 #                 if param_name == "id" and apply_method.__name__ == "__init__":
 #                     continue
 #                 # Don't override super class annotations, unless no default on param.
-#                 if param_name not in super_annotations or param.default == param.empty:
+#                 if param_name not in super_annotations or param.default == param.empty
+#                 :
 #                     annotations[param_name] = param.annotation or "typing.Any"
 #         event_cls_qualname = f"{cls.__qualname__}.{name}"
 #         event_cls_dict = {

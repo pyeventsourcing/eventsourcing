@@ -39,7 +39,7 @@ class TestDogSchool(TestCase):
 
         # Take snapshot.
         with put_metadata_in_context({"user_id": "admin-1"}):
-            school.take_snapshot(dog_id, version=3, projector_func=Dog.project_events)
+            school.take_snapshot(dog_id, version=3, projector=Dog.project_events)
 
         # Continue with snapshotted aggregate.
         dog = school.get_dog(dog_id)

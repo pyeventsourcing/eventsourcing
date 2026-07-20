@@ -16,7 +16,6 @@ from examples.shopvertical.slices.add_item_to_cart.cmd import (
 )
 
 if TYPE_CHECKING:
-    from eventsourcing.pydantic.immutable import DomainEvent, PydanticDecision
     from examples.shopvertical.common import Events
 
 

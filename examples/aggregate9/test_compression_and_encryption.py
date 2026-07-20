@@ -4,7 +4,6 @@ from unittest import TestCase
 
 from eventsourcing.cipher import AESCipher
 from examples.aggregate9.application import DogSchool
-from examples.aggregate9.domainmodel import project_dog
 
 
 class TestDogSchool(TestCase):
@@ -33,7 +32,7 @@ class TestDogSchool(TestCase):
         assert len(notifications) == 3
 
         # # Take snapshot.
-        # school.take_snapshot(dog_id, version=3, projector_func=project_dog)
+        # school.take_snapshot(dog_id, version=3, projector=project_dog)
         # dog = school.get_dog(dog_id)
         # assert dog["name"] == "Fido"
         # self.assertEqual(dog["tricks"], ("roll over", "play dead"))

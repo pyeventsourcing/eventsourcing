@@ -4,7 +4,6 @@ import dataclasses
 import inspect
 import typing
 from abc import ABCMeta
-from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from functools import lru_cache

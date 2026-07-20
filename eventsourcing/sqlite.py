@@ -346,7 +346,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
 
     def select_events(
         self,
-        originator_id: UUID | str,
+        originator_id: str,
         *,
         gt: int | None = None,
         lte: int | None = None,
@@ -375,7 +375,10 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
             c.execute(statement, params)
             return [
                 StoredEvent(
-                    originator_id=self.convert_originator_id(row["originator_id"]),
+                    # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
+                    originator_id=cast(
+                        str, self.convert_originator_id(row["originator_id"])
+                    ),
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=row["state"],
@@ -490,7 +493,10 @@ class SQLiteApplicationRecorder(
             return [
                 Notification(
                     id=row["rowid"],
-                    originator_id=self.convert_originator_id(row["originator_id"]),
+                    # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
+                    originator_id=cast(
+                        str, self.convert_originator_id(row["originator_id"])
+                    ),
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=row["state"],

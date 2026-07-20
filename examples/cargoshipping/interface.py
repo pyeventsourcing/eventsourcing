@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from examples.cargoshipping.domainmodel import (
     HandlingActivity,
@@ -41,7 +40,7 @@ class BookingService:
         return str(tracking_id)
 
     def get_cargo_details(self, tracking_id: str) -> CargoDetails:
-        cargo = self.app.get_cargo(UUID(tracking_id))
+        cargo = self.app.get_cargo(tracking_id)
 
         # Present 'next_expected_activity'.
         next_expected_activity: NextExpectedActivityDetails
@@ -84,12 +83,12 @@ class BookingService:
         }
 
     def change_destination(self, tracking_id: str, destination: str) -> None:
-        self.app.change_destination(UUID(tracking_id), Location[destination])
+        self.app.change_destination(tracking_id, Location[destination])
 
     def request_possible_routes_for_cargo(
         self, tracking_id: str
     ) -> list[ItineraryDetails]:
-        routes = self.app.request_possible_routes_for_cargo(UUID(tracking_id))
+        routes = self.app.request_possible_routes_for_cargo(tracking_id)
         return [self.dict_from_itinerary(route) for route in routes]
 
     def dict_from_itinerary(self, itinerary: Itinerary) -> ItineraryDetails:
@@ -113,10 +112,10 @@ class BookingService:
         tracking_id: str,
         route_details: ItineraryDetails,
     ) -> None:
-        routes = self.app.request_possible_routes_for_cargo(UUID(tracking_id))
+        routes = self.app.request_possible_routes_for_cargo(tracking_id)
         for route in routes:
             if route_details == self.dict_from_itinerary(route):
-                self.app.assign_route(UUID(tracking_id), route)
+                self.app.assign_route(tracking_id, route)
 
     def register_handling_event(
         self,
@@ -126,7 +125,7 @@ class BookingService:
         handling_activity: str,
     ) -> None:
         self.app.register_handling_event(
-            UUID(tracking_id),
+            tracking_id,
             voyage_number,
             Location[location],
             HandlingActivity[handling_activity],

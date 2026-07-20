@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
 from unittest import TestCase
 
 from eventsourcing.dataclasses.immutable import DataclassDecision
@@ -53,8 +52,9 @@ class TestEnduringObject(TestCase):
         self.assertIsInstance(event.decision, ObjCreated)
         self.assertEqual(event.decision.obj_id, "blah")
 
-        copy = Obj.__new__(Obj)
+        copy: Obj | None = Obj.__new__(Obj)
         copy = event.mutate(copy)
+        assert copy is not None
         self.assertEqual(copy.id, "blah")
 
     def test_enduring_object_with_decorated_command(self) -> None:
@@ -87,9 +87,10 @@ class TestEnduringObject(TestCase):
         self.assertIsInstance(event.decision, ObjUpdated)
         self.assertEqual(event.decision.a, "a")
 
-        copy = Obj.__new__(Obj)
+        copy: Obj | None = Obj.__new__(Obj)
         copy = pending[0].mutate(copy)
         copy = pending[1].mutate(copy)
+        assert copy is not None
         self.assertEqual(copy.id, "blah")
         self.assertEqual(my_obj.a, "a")
 
@@ -160,7 +161,7 @@ class TestGroup(TestCase):
         new2 = obj2.collect_events()
         new_both = group.collect_events()
 
-        copy1 = Obj1.__new__(Obj1)
+        copy1: Obj1 | None = Obj1.__new__(Obj1)
         for event in list(new1) + list(new_both):
             copy1 = event.mutate(copy1)
 
@@ -168,7 +169,7 @@ class TestGroup(TestCase):
         assert isinstance(copy1, Obj1)  # for mypy
         self.assertEqual("3", copy1.a)
 
-        copy2 = Obj2.__new__(Obj2)
+        copy2: Obj2 | None = Obj2.__new__(Obj2)
         for event in list(new2) + list(new_both):
             copy2 = event.mutate(copy2)
 
@@ -256,7 +257,7 @@ class TestSlice(TestCase):
 class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
     def test(self) -> None:
         # Define an enduring object that can update "a".
-        class MyObject(EnduringObject[DataclassDecision, str]):
+        class MyObject(EnduringObject[DataclassDecision]):
             class Created(DataclassDecision):
                 myobject_id: str
                 a: str
@@ -319,7 +320,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         new.extend(update.collect_events())
 
         # Reconstruct enduring object from all new events.
-        copy1 = MyObject.__new__(MyObject)
+        copy1: MyObject | None = MyObject.__new__(MyObject)
         for event in new:
             copy1 = event.mutate(copy1)
 
@@ -350,7 +351,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         create.execute()
         new = list(create.collect_events())
 
-        copy2 = MyObject.__new__(MyObject)
+        copy2: MyObject | None = MyObject.__new__(MyObject)
         for event in new:
             copy2 = event.mutate(copy2)
 

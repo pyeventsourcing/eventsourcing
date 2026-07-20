@@ -4,7 +4,6 @@ import traceback
 import zlib
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from threading import Event, Thread, get_ident
@@ -16,21 +15,15 @@ from uuid import UUID, uuid4
 
 from typing_extensions import TypeVar
 
-import eventsourcing
-from eventsourcing import persistence
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
-from eventsourcing.cryptography import AESCipher
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.legacy import (
-    DatetimeAsISO,
-    DecimalAsStr,
-    LegacyJSONTranscoder,
     Transcoding,
-    UUIDAsHex,
 )
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
 from eventsourcing.domain_new import (
+    AbstractDecision,
     AggregateEvent,
     TaggedEvent,
     datetime_now_with_tzinfo,
@@ -57,13 +50,12 @@ from eventsourcing.utils import Environment, get_topic
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
-    from typing import Never
 
 
 class RecorderTestCase(TestCase, ABC):
     INITIAL_VERSION = 1
 
-    def new_originator_id(self) -> UUID | str:
+    def new_originator_id(self) -> str:
         return str(uuid4())
 
     def assert_events_eq(
@@ -1149,7 +1141,7 @@ class NonInterleavingNotificationIDsBaseCase(RecorderTestCase, ABC):
         else:
             self.assertGreater(min_id_for_sequence2, max_id_for_sequence1)
 
-    def create_stack(self, originator_id: UUID | str) -> Sequence[StoredEvent]:
+    def create_stack(self, originator_id: str) -> Sequence[StoredEvent]:
         return [
             StoredEvent(
                 originator_id=originator_id,
@@ -1255,10 +1247,10 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         self.assertIsNone(mapper.cipher)
         self.assertIsNone(mapper.compressor)
 
-        class MapperSubclass(AggregateEventMapper):
+        class MapperSubclass(AggregateEventMapper[DataclassDecision]):
             pass
 
-        mapper: Mapper[DataclassDecision] = self.factory.mapper(
+        mapper = self.factory.mapper(
             transcoder=self.transcoder,
             mapper_class=MapperSubclass,
         )
@@ -1334,7 +1326,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         )
 
         domain_event = AggregateEvent(
-            originator_id=uuid4(),
+            originator_id=str(uuid4()),
             originator_version=1,
             decision=DataclassDecision(),
         )
@@ -1550,7 +1542,7 @@ class TranscoderTestCase(TestCase):
     def setUp(self) -> None:
         self.transcoder = self.construct_transcoder()
 
-    def construct_transcoder(self) -> Transcoder:
+    def construct_transcoder(self) -> Transcoder[Any]:
         raise NotImplementedError
 
     # def test_str(self) -> None:
@@ -1737,7 +1729,8 @@ class TranscoderTestCase(TestCase):
 
     # def test_custom_type_in_dict(self) -> None:
     #     # Int in dict in dict in dict.
-    #     obj = {"a": CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))}
+    #     obj = {"a": CustomType2(CustomType1(UUID("b2723fe2c01a40d2875ea3aac6a09ff5")))
+    #     }
     #     data = self.transcoder.encode(obj)
     #     decoded_obj = self.transcoder.decode(data, dict[str, Any])
     #     self.assertEqual(obj, decoded_obj)
@@ -1758,19 +1751,19 @@ class TranscoderTestCase(TestCase):
 
     def test_custom_type_error(self) -> None:
         # Expect a TypeError when encoding because transcoding not registered.
-        with self.assertRaises(AttributeError) as cm:
+        with self.assertRaises(AttributeError) as cm1:
             self.transcoder.encode(MyClass())
 
         self.assertEqual(
-            cm.exception.args[0], "'MyClass' object has no attribute 'as_dict'"
+            cm1.exception.args[0], "'MyClass' object has no attribute 'as_dict'"
         )
 
         # Expect a TypeError when encoding because transcoding not registered (nested).
-        with self.assertRaises(TypeError) as cm:
+        with self.assertRaises(TypeError) as cm2:
             self.transcoder.encode(MyDataclassDecision(my_class=MyClass()))
 
         self.assertEqual(
-            cm.exception.args[0],
+            cm2.exception.args[0],
             "Object of type <class 'eventsourcing.tests.persistence."
             "MyClass'> is not serializable. Please define "
             "and register a custom transcoding for this type.",
@@ -1779,18 +1772,18 @@ class TranscoderTestCase(TestCase):
         # Check we get a TypeError when decoding because transcodings aren't registered.
         data = b'{"_type_":"custom_type3_as_dict","_data_":""}'
 
-        with self.assertRaises(TypeError) as cm:
+        with self.assertRaises(TypeError) as cm3:
             self.transcoder.decode(data, dict[str, Any])
 
         self.assertEqual(
-            cm.exception.args[0],
+            cm3.exception.args[0],
             "Data serialized with name 'custom_type3_as_dict' is not "
             "deserializable. Please register a custom transcoding for this type.",
         )
 
 
 class TaggedEventMapperTestCase(TestCase, ABC):
-    transcoder_class: ClassVar[type[eventsourcing.persistence.Transcoder[Any]]]
+    transcoder_class: ClassVar[type[Transcoder[Any]]]
 
     def _test_tagged_event_mapper(self) -> None:
         event = TaggedEvent(
@@ -1858,14 +1851,14 @@ class TaggedEventMapperTestCase(TestCase, ABC):
         self.assertEqual(copy.metadata, event.metadata)
 
     @abstractmethod
-    def construct_decision(self) -> eventsourcing.domain_new.AbstractDecision:
+    def construct_decision(self) -> AbstractDecision:
         pass
 
     def construct_mapper(
         self,
         compressor: Compressor | None = None,
         cipher: Cipher | None = None,
-    ) -> persistence.TaggedEventMapper[Any]:
+    ) -> TaggedEventMapper[Any]:
         return TaggedEventMapper(
             transcoder=self.transcoder_class(),
             compressor=compressor,
@@ -1874,7 +1867,7 @@ class TaggedEventMapperTestCase(TestCase, ABC):
 
 
 class AggregateEventMapperTestCase(TestCase, ABC):
-    transcoder_class: ClassVar[type[eventsourcing.persistence.Transcoder[Any]]]
+    transcoder_class: ClassVar[type[Transcoder[Any]]]
 
     def _test_aggregate_event_mapper(self) -> None:
         event = AggregateEvent(
@@ -1951,14 +1944,14 @@ class AggregateEventMapperTestCase(TestCase, ABC):
         self.assertEqual(copy.metadata, event.metadata)
 
     @abstractmethod
-    def construct_decision(self) -> eventsourcing.domain_new.AbstractDecision:
+    def construct_decision(self) -> AbstractDecision:
         pass
 
     def construct_mapper(
         self,
         compressor: Compressor | None = None,
         cipher: Cipher | None = None,
-    ) -> eventsourcing.persistence.AggregateEventMapper[Any]:
+    ) -> AggregateEventMapper[Any]:
         return AggregateEventMapper(
             transcoder=self.transcoder_class(),
             compressor=compressor,

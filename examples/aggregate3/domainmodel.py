@@ -15,7 +15,7 @@ class Dog(PydanticAggregate):
     class TrickAdded(Event):
         trick: str
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.name: str = ""
         self.tricks: list[str] = []
 

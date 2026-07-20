@@ -6,14 +6,14 @@ from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.domain_new import AggregateEvent
 from examples.cargoshipping.application import BookingApplication
 from examples.cargoshipping.domainmodel import Cargo, CargoEvent
+from examples.searchabletimestamps.persistence import SearchableTimestampsRecorder
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from uuid import UUID
 
     from eventsourcing.application import ProcessingEvent
     from eventsourcing.persistence import Recording
-    from examples.searchabletimestamps.persistence import SearchableTimestampsRecorder
+    from eventsourcing.pydantic.immutable import PydanticDecision
 
 
 class CargoNotFoundError(AggregateNotFoundError):
@@ -21,7 +21,9 @@ class CargoNotFoundError(AggregateNotFoundError):
 
 
 class SearchableTimestampsApplication(BookingApplication):
-    def _record(self, processing_event: ProcessingEvent) -> list[Recording]:
+    def _record(
+        self, processing_event: ProcessingEvent[PydanticDecision]
+    ) -> list[Recording[PydanticDecision]]:
         event_timestamps_data = [
             (e.originator_id, e.decision.timestamp, e.originator_version)
             for e in processing_event.events
@@ -30,8 +32,8 @@ class SearchableTimestampsApplication(BookingApplication):
         processing_event.saved_kwargs["event_timestamps_data"] = event_timestamps_data
         return super()._record(processing_event)
 
-    def get_cargo_at_timestamp(self, tracking_id: UUID, timestamp: datetime) -> Cargo:
-        recorder = cast("SearchableTimestampsRecorder", self.recorder)
+    def get_cargo_at_timestamp(self, tracking_id: str, timestamp: datetime) -> Cargo:
+        recorder = cast(SearchableTimestampsRecorder, self.recorder)
         version = recorder.get_version_at_timestamp(tracking_id, timestamp)
         if version is None:
             raise CargoNotFoundError((tracking_id, timestamp))

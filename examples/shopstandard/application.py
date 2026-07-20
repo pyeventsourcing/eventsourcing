@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import TYPE_CHECKING, cast
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.persistence import IntegrityError
@@ -65,7 +64,7 @@ class Shop(PydanticApplication):
                 limit=1000000,
                 topics=[get_topic(ProductAdded)],
             )
-            if (product := self.repository.get(cast(UUID, n.originator_id), Product))
+            if (product := self.repository.get(n.originator_id, Product))
         )
 
     def get_cart_items(self, cart_id: str) -> Sequence[CartItem]:

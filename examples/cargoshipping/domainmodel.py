@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import Enum
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -116,7 +115,7 @@ class RouteAssigned(CargoEvent):
 
 
 class HandlingEventRegistered(CargoEvent):
-    tracking_id: UUID
+    tracking_id: str
     voyage_number: str | None
     location: Location
     handling_activity: HandlingActivity
@@ -221,7 +220,7 @@ class Cargo(PydanticAggregate):
     @triggers(HandlingEventRegistered)
     def register_handling_event(
         self,
-        tracking_id: UUID,
+        tracking_id: str,
         voyage_number: str | None,
         location: Location,
         handling_activity: HandlingActivity,

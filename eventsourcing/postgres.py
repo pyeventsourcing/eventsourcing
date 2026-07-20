@@ -76,7 +76,7 @@ NO_TRACEBACK = (Error, KeyboardInterrupt, CancelledError)
 
 
 class PgStoredEvent(NamedTuple):
-    originator_id: UUID | str
+    originator_id: str
     originator_version: int
     topic: str
     state: bytes
@@ -462,7 +462,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
 
     def construct_pg_stored_event(
         self,
-        originator_id: UUID | str,
+        originator_id: str,
         originator_version: int,
         topic: str,
         state: bytes,
@@ -520,7 +520,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def select_events(
         self,
-        originator_id: UUID | str,
+        originator_id: str,
         *,
         gt: int | None = None,
         lte: int | None = None,

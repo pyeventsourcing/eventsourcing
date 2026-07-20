@@ -8,7 +8,6 @@ from eventsourcing.persistence import Recorder
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from uuid import UUID
 
 
 @dataclass(frozen=True)

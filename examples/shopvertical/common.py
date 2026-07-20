@@ -8,7 +8,6 @@ from eventsourcing.pydantic.immutable import Immutable, PydanticDecision
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from uuid import UUID
 
     from eventsourcing.domain_new import AggregateEvent
 
@@ -39,7 +38,7 @@ def reset_application() -> None:
     _Globals.app = PydanticApplication()
 
 
-def get_events(originator_id: UUID) -> Events:
+def get_events(originator_id: str) -> Events:
     return tuple(_Globals.app.events.get(originator_id))
 
 

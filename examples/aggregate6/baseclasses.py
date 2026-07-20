@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import uuid4
 
 from eventsourcing.domain_new import (
+    EventEnvelope,
     MutatorFunction,
     ProjectorFunction,
     TDecision,
@@ -55,7 +56,7 @@ def aggregate_projector(
     mutator: MutatorFunction[TDecision, TAggregate],
 ) -> ProjectorFunction[TAggregate, TDecision]:
     def project_aggregate(
-        aggregate: TAggregate | None, events: Iterable[TDecision]
+        aggregate: TAggregate | None, events: Iterable[EventEnvelope[TDecision]]
     ) -> TAggregate | None:
         for event in events:
             aggregate = mutator(event, aggregate)

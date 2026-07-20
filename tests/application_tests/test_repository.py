@@ -12,12 +12,13 @@ from eventsourcing.application import (
     LRUCache,
     Repository,
 )
-from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.domain_new import AggregateEvent, EventEnvelope
 from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,
 )
 from eventsourcing.popo import POPOAggregateRecorder
+from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.transcoder import PydanticTranscoder
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
 from eventsourcing.tests.bank_account_with_pydantic import (
@@ -27,12 +28,10 @@ from eventsourcing.tests.bank_account_with_pydantic import (
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from eventsourcing.pydantic.immutable import PydanticDecision
-
 
 class TestRepository(TestCase):
     def test_get(self) -> None:
-        repository = Repository(
+        repository = Repository[PydanticDecision](
             EventStore(
                 mapper=AggregateEventMapper(transcoder=PydanticTranscoder()),
                 recorder=POPOAggregateRecorder(),
@@ -51,13 +50,13 @@ class TestRepository(TestCase):
     def test_with_snapshot_store(self) -> None:
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
-        event_store = EventStore(
+        event_store = EventStore[PydanticDecision](
             mapper=AggregateEventMapper(transcoder=(PydanticTranscoder())),
             recorder=event_recorder,
         )
         snapshot_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         snapshot_recorder.create_table()
-        snapshot_store = EventStore(
+        snapshot_store = EventStore[PydanticDecision](
             mapper=AggregateEventMapper(transcoder=(PydanticTranscoder())),
             recorder=snapshot_recorder,
         )
@@ -150,7 +149,7 @@ class TestRepository(TestCase):
     def test_without_snapshot_store(self) -> None:
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
-        event_store = EventStore(
+        event_store = EventStore[PydanticDecision](
             mapper=AggregateEventMapper(transcoder=(PydanticTranscoder())),
             recorder=event_recorder,
         )
@@ -220,30 +219,33 @@ class TestRepository(TestCase):
     def test_with_alternative_mutator_function(self) -> None:
         def bank_account_projector(
             initial: BankAccountWithPydantic | None,
-            domain_events: Iterable[AggregateEvent[PydanticDecision]],
-        ) -> BankAccountWithPydantic:
+            envelopes: Iterable[EventEnvelope[PydanticDecision]],
+        ) -> BankAccountWithPydantic | None:
             if initial is None:
                 initial = BankAccountWithPydantic.__new__(BankAccountWithPydantic)
-            return cast(
-                BankAccountWithPydantic,
-                reduce(lambda a, e: e.mutate(a), domain_events, initial),
+            return reduce(
+                lambda a, e: e.mutate(a),
+                envelopes,
+                cast(BankAccountWithPydantic | None, initial),
             )
 
         transcoder = PydanticTranscoder()
 
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
-        event_store = EventStore(
+        event_store = EventStore[PydanticDecision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
         snapshot_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         snapshot_recorder.create_table()
-        snapshot_store = EventStore(
+        snapshot_store = EventStore[PydanticDecision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=snapshot_recorder,
         )
-        repository = Repository(event_store, snapshot_store=snapshot_store)
+        repository = Repository[PydanticDecision](
+            event_store, snapshot_store=snapshot_store
+        )
 
         # Check key error.
         with self.assertRaises(AggregateNotFoundError):
@@ -267,7 +269,7 @@ class TestRepository(TestCase):
         event_store.put(pending)
 
         copy: BankAccountWithPydantic = repository.get(
-            account.id, projector_func=bank_account_projector
+            account.id, projector=bank_account_projector
         )
 
         assert isinstance(copy, BankAccountWithPydantic)
@@ -282,7 +284,7 @@ class TestRepository(TestCase):
         )
         snapshot_store.put([snapshot])
 
-        copy2 = repository.get(account.id, projector_func=bank_account_projector)
+        copy2 = repository.get(account.id, projector=bank_account_projector)
         assert isinstance(copy2, BankAccountWithPydantic)
 
         # Check copy has correct attribute values.
@@ -294,7 +296,7 @@ class TestRepository(TestCase):
         event_store.put(account.collect_events())
 
         # Check copy has correct attribute values.
-        copy3 = repository.get(account.id, projector_func=bank_account_projector)
+        copy3 = repository.get(account.id, projector=bank_account_projector)
         assert isinstance(copy3, BankAccountWithPydantic)
 
         assert copy3.id == account.id
@@ -302,33 +304,25 @@ class TestRepository(TestCase):
 
         # Check can get old version of account.
         copy4 = repository.get(
-            account.id, projector_func=bank_account_projector, version=copy.version
+            account.id, projector=bank_account_projector, version=copy.version
         )
 
         assert isinstance(copy4, BankAccountWithPydantic)
         assert copy4.balance == Decimal("65.00")
 
-        copy5 = repository.get(
-            account.id, projector_func=bank_account_projector, version=1
-        )
+        copy5 = repository.get(account.id, projector=bank_account_projector, version=1)
         assert isinstance(copy5, BankAccountWithPydantic)
         assert copy5.balance == Decimal("0.00")
 
-        copy6 = repository.get(
-            account.id, projector_func=bank_account_projector, version=2
-        )
+        copy6 = repository.get(account.id, projector=bank_account_projector, version=2)
         assert isinstance(copy6, BankAccountWithPydantic)
         assert copy6.balance == Decimal("10.00")
 
-        copy7 = repository.get(
-            account.id, projector_func=bank_account_projector, version=3
-        )
+        copy7 = repository.get(account.id, projector=bank_account_projector, version=3)
         assert isinstance(copy7, BankAccountWithPydantic)
         assert copy7.balance == Decimal("35.00"), copy7.balance
 
-        copy8 = repository.get(
-            account.id, projector_func=bank_account_projector, version=4
-        )
+        copy8 = repository.get(account.id, projector=bank_account_projector, version=4)
         assert isinstance(copy8, BankAccountWithPydantic)
         assert copy8.balance == Decimal("65.00"), copy8.balance
 
@@ -357,7 +351,7 @@ class TestRepository(TestCase):
 
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
-        event_store = EventStore(
+        event_store = EventStore[PydanticDecision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
@@ -389,7 +383,7 @@ class TestRepository(TestCase):
 
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
-        event_store = EventStore(
+        event_store = EventStore[PydanticDecision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
@@ -444,7 +438,7 @@ class TestRepository(TestCase):
 
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
-        event_store = EventStore(
+        event_store = EventStore[PydanticDecision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
@@ -473,7 +467,7 @@ class TestRepository(TestCase):
 
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
-        event_store = EventStore(
+        event_store = EventStore[PydanticDecision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
@@ -492,10 +486,10 @@ class TestRepository(TestCase):
         aggregate.append_transaction(Decimal("10.00"))
         event_store.put(aggregate.collect_events())
         with self.assertRaises(AggregateNotFoundError):
-            repository.get(aggregate.id, projector_func=lambda _, __: None)
+            repository.get(aggregate.id, projector=lambda _, __: None)
 
     def test_fastforward_lock(self) -> None:
-        repository = Repository(
+        repository = Repository[PydanticDecision](
             EventStore(
                 mapper=AggregateEventMapper(transcoder=PydanticTranscoder()),
                 recorder=POPOAggregateRecorder(),
@@ -503,7 +497,7 @@ class TestRepository(TestCase):
             cache_maxsize=2,
         )
         cache_maxsize = repository._fastforward_locks_cache.maxsize
-        aggregate_ids = [uuid4() for i in range(cache_maxsize + 1)]
+        aggregate_ids = [str(uuid4()) for i in range(cache_maxsize + 1)]
         self.assertEqual(0, len(repository._fastforward_locks_inuse))
         self.assertEqual(0, len(repository._fastforward_locks_cache.cache))
 

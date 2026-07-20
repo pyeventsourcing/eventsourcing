@@ -115,7 +115,7 @@ class SearchableTimestampsApplicationRecorder(
         return notification_ids
 
     def get_version_at_timestamp(
-        self, originator_id: UUID, timestamp: datetime.datetime
+        self, originator_id: str, timestamp: datetime.datetime
     ) -> int | None:
         with self.datastore.transaction(commit=False) as c:
             c.execute(self.select_event_timestamp_statement, (originator_id, timestamp))

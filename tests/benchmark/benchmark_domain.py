@@ -1,28 +1,25 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import pytest
 
 from eventsourcing.domain_new import event
-from eventsourcing.domain_old import Aggregate
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.mutable import PydanticAggregate
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
 
 
-@pytest.mark.benchmark(group="construct-aggregate-base-class")
-def test_construct_aggregate_base_class(benchmark: BenchmarkFixture) -> None:
-    benchmark(Aggregate)
-
-
 @pytest.mark.benchmark(group="define-aggregate-subclass")
 def test_define_aggregate(benchmark: BenchmarkFixture) -> None:
     def define_aggregate() -> None:
-        class A(Aggregate):
-            a: int
-            b: int
+        class A(PydanticAggregate):
+            @event("Created")
+            def __init__(self, a: int, b: int):
+                self.a = a
+                self.b = b
 
             @event("Continued")
             def subsequent(self, a: int, b: int) -> None:
@@ -34,10 +31,11 @@ def test_define_aggregate(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="construct-aggregate-subclass")
 def test_construct_aggregate_subclass(benchmark: BenchmarkFixture) -> None:
-    @dataclass
-    class A(Aggregate):
-        a: int
-        b: int
+    class A(PydanticAggregate):
+        @event("Created")
+        def __init__(self, a: int, b: int):
+            self.a = a
+            self.b = b
 
         @event("Commanded")
         def command(self, a: int, b: int) -> None:
@@ -52,18 +50,20 @@ def test_construct_aggregate_subclass(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="trigger-aggregate-event")
 def test_trigger_aggregate_event(benchmark: BenchmarkFixture) -> None:
-    @dataclass
-    class A(Aggregate):
-        a: int
-        b: int
+    class A(PydanticAggregate):
+        @event("Created")
+        def __init__(self, a: int, b: int):
+            self.a = a
+            self.b = b
 
-        class Commanded(Aggregate.Event):
+        class Commanded(PydanticDecision):
             a: int
             b: int
 
-            def apply(self, aggregate: A) -> None:
-                aggregate.a = self.a
-                aggregate.b = self.b
+        @event(Commanded)
+        def command(self, a: int, b: int) -> None:
+            self.a = a
+            self.b = b
 
     a = A(a=1, b=2)
 
@@ -75,12 +75,17 @@ def test_trigger_aggregate_event(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="call-decorated-command-method")
 def test_call_decorated_command_method(benchmark: BenchmarkFixture) -> None:
-    @dataclass
-    class A(Aggregate):
-        a: int
-        b: int
+    class A(PydanticAggregate):
+        @event("Created")
+        def __init__(self, a: int, b: int):
+            self.a = a
+            self.b = b
 
-        @event("Commanded")
+        class Commanded(PydanticDecision):
+            a: int
+            b: int
+
+        @event(Commanded)
         def command(self, a: int, b: int) -> None:
             self.a = a
             self.b = b

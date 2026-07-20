@@ -3,13 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain_new import AggregateEvent
 from eventsourcing.persistence import Tracking, TrackingRecorder
 from eventsourcing.postgres import PostgresTrackingRecorder
 from eventsourcing.projection import Projection
-from eventsourcing.pydantic.immutable import PydanticDecision
-from examples.contentmanagement.domainmodel import Page  # noqa: TC001
+from examples.contentmanagement.domainmodel import Page
 from examples.contentmanagement.utils import apply_diff
 from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 from examples.ftscontentmanagement.postgres import PostgresFtsRecorder
@@ -17,7 +14,8 @@ from examples.ftscontentmanagement.postgres import PostgresFtsRecorder
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from eventsourcing.domain_old import DomainEventProtocol, TAggregateID
+    from eventsourcing.domain_new import AggregateEvent
+    from eventsourcing.pydantic.immutable import PydanticDecision
 
 
 class FtsViewInterface(FtsRecorder, TrackingRecorder, ABC):

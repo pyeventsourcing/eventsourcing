@@ -11,7 +11,7 @@ from unittest import TestCase
 from eventsourcing.errors import WaitInterruptedError
 from eventsourcing.msgspec.application import MsgspecApplication
 from eventsourcing.msgspec.transcoder import MsgspecTranscoder
-from eventsourcing.persistence import AggregateEventMapper
+from eventsourcing.persistence import AggregateEventMapper, TrackingRecorder
 from eventsourcing.projection import (
     ApplicationSubscription,
     Projection,
@@ -297,7 +297,7 @@ class TestProjectionRunner(TestCase):
 
         # Call _process_events_loop and catch warning.
         with warnings.catch_warnings(record=True) as w:
-            ProjectionRunner._process_events_loop(
+            ProjectionRunner[MsgspecApplication, TrackingRecorder]._process_events_loop(
                 subscription,
                 projection,
                 has_error,
@@ -370,12 +370,12 @@ class BrokenProjectionError(Exception):
 
 
 # Define a projection that raises an exception.
-class BrokenProjection(Projection):
+class BrokenProjection(Projection[TrackingRecorder]):
     def process_event(self, envelope: Any, tracking: Tracking) -> None:
         raise BrokenProjectionError
 
 
 # Define a projection that stalls.
-class VerySlowProjection(Projection):
+class VerySlowProjection(Projection[TrackingRecorder]):
     def process_event(self, envelope: Any, tracking: Tracking) -> None:
         sleep(2)

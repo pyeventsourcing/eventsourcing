@@ -32,7 +32,7 @@ class TestEventStore(TestCase):
         recorder = SQLiteAggregateRecorder(
             SQLiteDatastore(":memory:", originator_id_type="text")
         )
-        event_store = EventStore(
+        event_store = EventStore[PydanticDecision](
             mapper=AggregateEventMapper(PydanticTranscoder()),
             recorder=recorder,
         )
@@ -49,7 +49,9 @@ class TestEventStore(TestCase):
         events = event_store.get(account.id)
 
         # Reconstruct the bank account.
-        copy = BankAccountWithPydantic.__new__(BankAccountWithPydantic)
+        copy: BankAccountWithPydantic | None = BankAccountWithPydantic.__new__(
+            BankAccountWithPydantic
+        )
         for event in events:
             assert isinstance(event, AggregateEvent)
             assert isinstance(event.decision, PydanticDecision)
@@ -61,9 +63,9 @@ class TestEventStore(TestCase):
         self.assertEqual(copy.balance, Decimal("65.00"))
 
         # Get last event.
-        events = tuple(event_store.get(account.id, desc=True, limit=1))
-        self.assertEqual(len(events), 1)
-        last_event = events[0]
+        events_tuple = tuple(event_store.get(account.id, desc=True, limit=1))
+        self.assertEqual(len(events_tuple), 1)
+        last_event = events_tuple[0]
 
         self.assertEqual(last_event.originator_id, account.id)
         assert type(last_event.decision) is BankAccountWithPydantic.TransactionAppended

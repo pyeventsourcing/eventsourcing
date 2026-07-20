@@ -16,7 +16,10 @@ from eventsourcing.persistence import TaggedEventMapper
 class TestRepository(TestCase):
     def test_repository(self) -> None:
         repo = DCBRepository[MsgspecDecision](
-            DCBEventStore(mapper=MsgspecTranscoder(), recorder=InMemoryDCBRecorder())
+            DCBEventStore(
+                mapper=TaggedEventMapper(transcoder=MsgspecTranscoder()),
+                recorder=InMemoryDCBRecorder(),
+            )
         )
         with self.assertRaises(NotFoundError):
             repo.get("not-an-object", EnduringObject)
@@ -24,7 +27,7 @@ class TestRepository(TestCase):
 
 class TestEventStore(TestCase):
     def test_event_store(self) -> None:
-        event_store = DCBEventStore(
+        event_store = DCBEventStore[MsgspecDecision](
             mapper=TaggedEventMapper(MsgspecTranscoder()),
             recorder=InMemoryDCBRecorder(),
         )

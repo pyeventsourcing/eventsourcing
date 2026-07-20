@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal  # noqa:TC003
 from typing import TYPE_CHECKING
 
 from eventsourcing.pydantic.immutable import Immutable

@@ -6,20 +6,17 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from unittest import TestCase
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import NAMESPACE_URL, uuid5
 
-from eventsourcing.application import AggregateNotFoundError, Application
+from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.domain_new import (
-    Aggregate,
     AggregateEvent,
     datetime_now_with_tzinfo,
     triggers,
 )
-from eventsourcing.persistence import Transcoder
 from eventsourcing.pydantic.application import PydanticApplication
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import PydanticAggregate
-from eventsourcing.pydantic.transcoder import PydanticTranscoder
 from eventsourcing.system import NotificationLogReader
 
 
@@ -99,9 +96,6 @@ class Vehicle(PydanticAggregate):
 
 
 class ParkingLot(PydanticApplication):
-    def construct_transcoder(self) -> Transcoder:
-        return PydanticTranscoder()
-
     def book(self, licence_plate: LicencePlate, product: type[Product]) -> None:
         try:
             vehicle = self.get_vehicle(licence_plate)

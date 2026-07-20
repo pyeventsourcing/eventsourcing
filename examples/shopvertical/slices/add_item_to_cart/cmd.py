@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from decimal import Decimal  # noqa: TC003
 from typing import TYPE_CHECKING
-from uuid import UUID  # noqa: TC003
 
 from eventsourcing.domain_new import AggregateEvent
 from examples.shopvertical.common import Command, get_events, put_events

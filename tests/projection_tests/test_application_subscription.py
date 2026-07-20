@@ -1,12 +1,10 @@
 from unittest import TestCase
 
-from eventsourcing.application import Application
 from eventsourcing.dataclasses.application import DataclassApplication
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.mutable import DataclassAggregate
-from eventsourcing.dataclasses.transcoder import DataclassTranscoder
-from eventsourcing.domain_new import Aggregate, triggers
-from eventsourcing.persistence import AggregateEventMapper, Tracking
+from eventsourcing.domain_new import triggers
+from eventsourcing.persistence import Tracking
 from eventsourcing.projection import ApplicationSubscription
 from eventsourcing.utils import get_topic
 

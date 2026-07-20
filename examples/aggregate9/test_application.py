@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
 from unittest import TestCase
-from uuid import UUID
 
 from examples.aggregate9.application import DogSchool
-from examples.aggregate9.domainmodel import project_dog
 
 
 class TestDogSchool(TestCase):
@@ -22,14 +19,14 @@ class TestDogSchool(TestCase):
         dog = school.get_dog(dog_id)
         self.assertEqual(dog["name"], "Fido")
         self.assertEqual(dog["tricks"], ("roll over", "play dead"))
-        self.assertIsInstance(dog["id"], UUID)
+        self.assertIsInstance(dog["id"], str)
 
         # Select notifications.
         notifications = school.notification_log.select(start=1, limit=10)
         assert len(notifications) == 3
 
         # # Take snapshot.
-        # school.take_snapshot(dog_id, version=3, projector_func=project_dog)
+        # school.take_snapshot(dog_id, version=3, projector=project_dog)
         # dog = school.get_dog(dog_id)
         # self.assertEqual(dog["name"], "Fido")
         # self.assertEqual(dog["tricks"], ("roll over", "play dead"))

@@ -166,7 +166,7 @@ class BankAccountsJSONClient:
             }
         )
         body = self.interface.open_account(body)
-        return UUID(json.loads(body)["account_id"])
+        return json.loads(body)["account_id"]
 
 
 class HTTPApplicationServer(Thread):

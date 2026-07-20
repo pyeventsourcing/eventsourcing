@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from unittest import TestCase
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from examples.shopstandard.application import Shop
 from examples.shopstandard.exceptions import (

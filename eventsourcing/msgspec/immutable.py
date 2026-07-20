@@ -1,27 +1,18 @@
 from __future__ import annotations
 
 from abc import ABCMeta
-from typing import TYPE_CHECKING, Any, Self, TypeVar
+from typing import Any, Self, TypeVar
 
 import msgspec
 
 import eventsourcing.domain_new
 from eventsourcing.utils import get_topic
 
-if TYPE_CHECKING:
-    from collections.abc import Iterable
-
-    from eventsourcing.domain_new import (
-        MutatorFunction,
-        ProjectorFunction,
-    )
-
-
 _M = TypeVar("_M", bound="ImmutableMeta")
 
 
 class ImmutableMeta(msgspec.StructMeta, ABCMeta):
-    def __new__(  # noqa: PYI019
+    def __new__(
         mcls: type[_M],
         name: str,
         bases: tuple[type, ...],

@@ -64,7 +64,7 @@ class FtsRecorderTestCase(TestCase, ABC):
 
         # Select page - page not found.
         with self.assertRaises(PageNotFoundError):
-            recorder.select_page(uuid4())
+            recorder.select_page(str(uuid4()))
 
     @abstractmethod
     def construct_recorder(self) -> FtsRecorder:

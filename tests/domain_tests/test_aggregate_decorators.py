@@ -185,7 +185,7 @@
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(a.version, 2)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_event_name_inferred_from_method_with_kwarg(self) -> None:
@@ -200,7 +200,7 @@
 #         self.assertEqual(a.value, 1)
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_event_name_inferred_from_method_with_default_kwarg(self) -> None:
@@ -219,7 +219,7 @@
 #         # Check default value is assigned.
 #         self.assertEqual(a.value, 3)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #         self.assertEqual(a.pending_events[1].value, 3)  # type: ignore[attr-defined]
 #
@@ -227,7 +227,7 @@
 #         a.value_changed(4)
 #         self.assertEqual(a.value, 4)
 #         self.assertEqual(len(a.pending_events), 3)
-#         self.assertIsInstance(a.pending_events[2], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[2], MyAgg.ValueChanged)
 #         [attr-defined]
 #         self.assertEqual(a.pending_events[2].value, 4)  # type: ignore[attr-defined]
 #
@@ -701,7 +701,7 @@
 #         self.assertEqual(a.value, 1)
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_event_called_to_redefine_method_with_explicit_name(self) -> None:
@@ -716,7 +716,7 @@
 #         self.assertEqual(a.value, 1)
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_event_called_to_redefine_method_with_implied_name(self) -> None:
@@ -731,7 +731,7 @@
 #         self.assertEqual(a.value, 1)
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_event_name_set_in_decorator_cannot_be_empty_string(self) -> None:
@@ -766,7 +766,7 @@
 #         self.assertEqual(a.value, 1)
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_property_decorates_event_with_name(self) -> None:
@@ -785,7 +785,7 @@
 #         self.assertEqual(a.value, 1)
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_property_called_with_decorated_set_method_with_name_given(self) -> None:
@@ -804,7 +804,7 @@
 #         self.assertEqual(a.value, 1)
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_property_called_with_decorated_set_method_with_name_inferred(self) -> Non
@@ -824,7 +824,7 @@
 #         self.assertEqual(a.value, 1)
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_property_called_with_wrapped_set_method_with_name_given(self) -> None:
@@ -842,7 +842,7 @@
 #         self.assertEqual(a.value, 1)
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_property_called_with_wrapped_set_method_with_name_inferred(self) -> None:
@@ -860,7 +860,7 @@
 #         self.assertEqual(a.value, 1)
 #         self.assertIsInstance(a, Aggregate)
 #         self.assertEqual(len(a.pending_events), 2)
-#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)  # type: ignore
+#         self.assertIsInstance(a.pending_events[1], MyAgg.ValueChanged)
 #         [attr-defined]
 #
 #     def test_raises_when_event_decorates_property_getter(self) -> None:

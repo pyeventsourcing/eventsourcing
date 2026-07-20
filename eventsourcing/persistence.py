@@ -10,8 +10,7 @@ from dataclasses import dataclass, field
 from threading import Condition, Event, Lock, Semaphore, Thread, Timer
 from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
-from typing import Any, Generic, Self
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, Generic, Self
 
 from typing_extensions import TypeVar
 
@@ -43,6 +42,10 @@ from eventsourcing.utils import (
     resolve_topic,
     strtobool,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
+
 
 # Backport Queue shutdown feature - remove when dropping support for Python 3.12.
 _T = TypeVar("_T")
@@ -248,7 +251,7 @@ class Mapper(ABC, Generic[TDecision]):
 
     def __init__(
         self,
-        transcoder: Transcoder,
+        transcoder: Transcoder[TDecision],
         compressor: Compressor | None = None,
         cipher: Cipher | None = None,
     ):
@@ -269,7 +272,8 @@ class Mapper(ABC, Generic[TDecision]):
 # #  (`event_state = dict(vars(domain_event.decision))`) and reconstructing Decision
 # #  class.
 # class DataclassMapper(Mapper):
-#     """Converts between dataclass domain event objects and :class:`StoredEvent` objects.
+#     """Converts between dataclass domain event objects and :class:`StoredEvent` object
+#     s.
 #
 #     Uses a :class:`Transcoder`, and optionally a cryptographic cipher and compressor.
 #     """
@@ -318,7 +322,8 @@ class Mapper(ABC, Generic[TDecision]):
 #
 #         # Support legacy data by supplementing domain event metadata
 #         # from separately stored event metadata.
-#         # # TODO: Also maybe store metadata separately from domain event as config option?
+#         # # TODO: Also maybe store metadata separately from domain event as config opt
+#          ion?
 #         # stored_metadata = stored_event.metadata
 #         # event_metadata = event_state.get("metadata")
 #         # if isinstance(stored_metadata, dict) and isinstance(event_metadata, dict):
@@ -372,7 +377,7 @@ class AggregateRecorder(Recorder, ABC):
     @abstractmethod
     def select_events(
         self,
-        originator_id: UUID | str,
+        originator_id: str,
         *,
         gt: int | None = None,
         lte: int | None = None,
@@ -523,15 +528,15 @@ class EventStore(Generic[TDecision]):
 
     def __init__(
         self,
-        mapper: Mapper,
+        mapper: Mapper[TDecision],
         recorder: AggregateRecorder,
     ):
-        self.mapper: Mapper = mapper
+        self.mapper = mapper
         self.recorder = recorder
 
     def put(
         self, domain_events: Sequence[AggregateEvent[TDecision]], **kwargs: Any
-    ) -> list[Recording]:
+    ) -> list[Recording[TDecision]]:
         """Stores domain events in aggregate sequence."""
         stored_events = list(map(self.mapper.to_stored_event, domain_events))
         recordings = []
@@ -680,11 +685,13 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
 
     def transcoder(
         self,
-    ) -> Transcoder:
+    ) -> Transcoder[TDecision]:
         """Constructs a transcoder."""
         transcoder_topic = self.env.get(self.TRANSCODER_TOPIC)
         if transcoder_topic:
-            transcoder_class: type[Transcoder] = resolve_topic(transcoder_topic)
+            transcoder_class: type[Transcoder[TDecision]] = resolve_topic(
+                transcoder_topic
+            )
         else:
             msg = f"Please set {self.TRANSCODER_TOPIC} in application environment"
             raise ProgrammingError(msg)
@@ -737,7 +744,7 @@ class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
         self,
         transcoder: Transcoder[TDecision] | None = None,
         mapper_class: type[Mapper[TDecision]] | None = None,
-    ) -> Mapper:
+    ) -> Mapper[TDecision]:
         """Constructs a mapper."""
         # Resolve MAPPER_TOPIC if no given class.
         if mapper_class is None:
@@ -763,9 +770,9 @@ class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
 
     def event_store(
         self,
-        mapper: Mapper | None = None,
+        mapper: Mapper[TDecision] | None = None,
         recorder: AggregateRecorder | None = None,
-    ) -> EventStore:
+    ) -> EventStore[TDecision]:
         """Constructs an event store."""
         return EventStore(
             mapper=mapper or self.mapper(),
@@ -1391,7 +1398,7 @@ class AggregateEventMapper(Mapper[TDecision]):
 class TaggedEventMapper(Generic[TDecision]):
     def __init__(
         self,
-        transcoder: Transcoder,
+        transcoder: Transcoder[TDecision],
         compressor: Compressor | None = None,
         cipher: Cipher | None = None,
     ):

@@ -150,7 +150,7 @@ class AbstractDecision(ABC):
         self.apply(obj)
         return obj
 
-    def apply(self, obj: Any) -> None:
+    def apply(self, obj: Any) -> None:  # noqa: B027
         pass
 
 
@@ -199,8 +199,9 @@ class CommandMethodDecorator:
         decorated_obj: DecoratableType,
         event_topic: str | None = None,
     ):
+
         self.is_name_inferred_from_method = False
-        self.given_event_cls: AbstractDecision | None = None
+        self.given_event_cls: type[AbstractDecision] | None = None
         self.given_event_name: str | None = None
         self.decorated_property: property | None = None
         self.is_property_setter = False
@@ -218,7 +219,8 @@ class CommandMethodDecorator:
 
         # Event class has been specified.
         elif isinstance(event_spec, type) and issubclass(event_spec, AbstractDecision):
-            # # Guard against associating more than one method body with any given class.
+            # # Guard against associating more than
+            # # one method body with any given class.
             # if (
             #     issubclass(event_spec, CanMutateAggregate)
             #     and event_spec in _given_event_classes
@@ -300,6 +302,8 @@ class CommandMethodDecorator:
         assert isinstance(args[0], Aggregate)
         aggregate_instance = args[0]
         bound = BoundCommandMethodDecorator(self, aggregate_instance)
+        # TODO: Possibly unnecessary to construct kwargs,
+        #  maybe try passing value as positional arg.
         property_setter_arg_value = args[1]
         kwargs = {self.property_setter_arg_name: property_setter_arg_value}
         bound.trigger(**kwargs)
@@ -359,10 +363,26 @@ class CommandMethodDecorator:
     def __set__(self, instance: SupportsEventDecorator[Any], value: Any) -> None:
         """Descriptor protocol for assigning to decorated property."""
         # Set decorated property indirectly by triggering an event.
+        # TODO: Possibly unnecessary to construct kwargs,
+        #  maybe try passing value as positional arg.
         assert self.property_setter_arg_name
         b = BoundCommandMethodDecorator(self, instance)
         kwargs = {self.property_setter_arg_name: value}
         b.trigger(**kwargs)
+
+
+# 1. Overload for when you pass an event specification (e.g., @event(Created))
+@overload
+def event(
+    arg: EventSpecType | None = None, /, *, topic: str | None = None
+) -> Callable[[TDecoratableType], TDecoratableType]: ...
+
+
+# 2. Overload for when you use it directly as a decorator (e.g., @event)
+@overload
+def event(
+    arg: TDecoratableType, /, *, topic: str | None = None
+) -> TDecoratableType: ...
 
 
 def event(
@@ -475,20 +495,11 @@ class UnboundCommandMethodDecorator:
         if len(args) < 1 or not isinstance(args[0], Aggregate):
             msg = "Expected aggregate as first argument"
             raise TypeError(msg)
-        aggregate: Aggregate = args[0]
-        assert isinstance(aggregate, Aggregate)
+        aggregate: SupportsEventDecorator[Any] = args[0]
+        assert isinstance(aggregate, SupportsEventDecorator)
         BoundCommandMethodDecorator(self.event_decorator, aggregate)(
             *args[1:], **kwargs
         )
-
-
-class CanTriggerEvent(Protocol):
-    def trigger_event(
-        self,
-        event_class: type[Any],
-        **kwargs: Any,
-    ) -> None:
-        pass  # pragma: no cover
 
 
 class BoundCommandMethodDecorator:
@@ -497,7 +508,9 @@ class BoundCommandMethodDecorator:
     will trigger a "decorated func caller" event.
     """
 
-    def __init__(self, event_decorator: CommandMethodDecorator, obj: CanTriggerEvent):
+    def __init__(
+        self, event_decorator: CommandMethodDecorator, obj: SupportsEventDecorator[Any]
+    ):
         """:param CommandMethodDecorator event_decorator:
         :param Aggregate aggregate:
         """
@@ -508,6 +521,9 @@ class BoundCommandMethodDecorator:
         self.__annotations__ = event_decorator.decorated_func.__annotations__
         self.__doc__ = event_decorator.decorated_func.__doc__
         self.obj = obj
+
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
+        self.trigger(*args, **kwargs)
 
     def trigger(self, *args: Any, **kwargs: Any) -> None:
         coerced_kwargs = _coerce_args_to_kwargs(
@@ -523,9 +539,6 @@ class BoundCommandMethodDecorator:
             raise KeyError(msg) from e
         filtered_kwargs = filter_kwargs_for_method_params(coerced_kwargs, event_cls)
         self.obj.trigger_event(event_cls, **filtered_kwargs)
-
-    def __call__(self, *args: Any, **kwargs: Any) -> None:
-        self.trigger(*args, **kwargs)
 
 
 _given_event_classes = set[type]()
@@ -573,7 +586,9 @@ def _coerce_args_to_kwargs(
     expects_id: bool = False,
 ) -> dict[str, Any]:
     # __init__ methods are WrapperDescriptorType, other method are FunctionType.
-    # assert isinstance(target_method, (FunctionType, WrapperDescriptorType, method)), target_method
+    # assert isinstance(
+    # target_method, (FunctionType, WrapperDescriptorType)
+    # ), target_method
 
     args = tuple(args)
     enumerated_args_names, keyword_defaults_items = _spec_coerce_args_to_kwargs(
@@ -704,7 +719,7 @@ class WorksWithDecisions(Generic[TDecision]):
             cls.works_with_decision_type = resolved_decision_type
 
     @classmethod
-    def _check_decision_type(cls, decision_cls: type[Any]) -> None:
+    def _check_decision_type(cls, decision_cls: Any) -> None:
         if cls.works_with_decision_type is None:
             msg = f"{cls} has no decision type argument"
             raise TypeError(msg)
@@ -724,7 +739,7 @@ class Perspective(WorksWithDecisions[TDecision], ABC):
     def __new__(cls, *_: Any, **__: Any) -> Self:
         self = super().__new__(cls)
         self.last_known_position = None
-        self.new_decisions: list[TaggedEvent[TDecision]] = []
+        self.new_decisions = []
         return self
 
     @abstractmethod
@@ -743,13 +758,13 @@ class Perspective(WorksWithDecisions[TDecision], ABC):
         """
         Constructs new event and appends to list of uncommitted events.
         """
-        type(self)._check_decision_type(decision_cls)
-        event = TaggedEvent[TDecision](
+        self._check_decision_type(decision_cls)
+        envelope = TaggedEvent[TDecision](
             tags=list(tags),
             decision=decision_cls(*args, **kwargs),
         )
-        event.mutate(self)
-        self.new_decisions.append(event)
+        envelope.mutate(self)
+        self.new_decisions.append(envelope)
 
     def collect_events(self) -> Sequence[TaggedEvent[Any]]:
         """
@@ -881,6 +896,14 @@ class SupportsEventDecorator(WorksWithDecisions[TDecision]):
         _new_class = types.new_class(name, bases, exec_body=populate_namespace)
         return cast(type[AbstractDecision], _new_class)
 
+    def trigger_event(
+        self,
+        decision_cls: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        raise NotImplementedError
+
 
 class MetaCallTriggersEvent(ABCMeta):
     def __call__(cls: type[_T], *args: Any, **kwargs: Any) -> _T:
@@ -904,7 +927,7 @@ class MetaCallTriggersEvent(ABCMeta):
 
         # assert issubclass(cls, EnduringObject)
 
-        return cls._create(*args, **kwargs)
+        return cls._create(*args, **kwargs)  # type: ignore[attr-defined]
 
 
 class CallTriggersEvent(
@@ -925,28 +948,30 @@ class CallTriggersEvent(
             return
         init_method.avoid_delegating_to_init_method = True
 
+    @classmethod
+    def _create(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError
 
-TID = TypeVar("TID", bound=str, default=str)
 
 _abstract_enduring_object_classes = set[type[Any]]()
 
 
 class EnduringObject(
-    CallTriggersEvent[TDecision],
     Perspective[TDecision],
-    Generic[TDecision, TID],
+    CallTriggersEvent[TDecision],
+    Generic[TDecision],
 ):
-    id: TID
+    id: str
 
     @classmethod
-    def _create(cls: type[Self], **kwargs: Any) -> Self:
-        obj = cls.__new__(cls, **kwargs)
+    def _create(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
+        obj = cls.__new__(cls, *args, **kwargs)
         # TODO: Maybe find a better way to do this, but it seems we need
         #  to set the `id` attribute before the call to `trigger_event()`?
         obj.id = next(iter(kwargs.values()))  # assume ID is first arg
         # Calling __init__ should trigger an event that
         # calls the original decorated __init__ method.
-        obj.__init__(**kwargs)  # type: ignore[misc]
+        obj.__init__(*args, **kwargs)  # type: ignore[misc]
         return obj
 
     def consistency_boundary(self) -> list[Selector[TDecision]]:
@@ -964,7 +989,7 @@ class EnduringObject(
 
 class Group(Perspective[TDecision]):
     _enduring_objects: list[EnduringObject[TDecision]]
-    classes: ClassVar[Sequence[type[EnduringObject[TDecision, Any]]]]
+    classes: ClassVar[Sequence[type[EnduringObject[TDecision]]]]
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -1057,7 +1082,7 @@ def _spec_filter_kwargs_for_method_params(method: Callable[..., Any]) -> set[str
     return set(method_signature.parameters)
 
 
-TAggregate = TypeVar("TAggregate", bound="Aggregate")
+TAggregate = TypeVar("TAggregate", bound="Aggregate[Any]")
 
 
 @dataclass(kw_only=True)
@@ -1065,8 +1090,8 @@ class AggregateEvent(EventEnvelope[TDecision_co]):
     originator_id: str
     originator_version: int
 
-    def mutate(self, obj: TAggregate | None) -> TAggregate | None:
-        assert obj is not None
+    def mutate(self, obj: _T | None) -> _T | None:
+        assert isinstance(obj, Aggregate)
         if obj.id == NIL_UUID_STR:
             # We received a shell, so initialise the `id` and `version`.
             obj.id = self.originator_id
@@ -1094,6 +1119,8 @@ class AggregateEvent(EventEnvelope[TDecision_co]):
 
 
 class Aggregate(CallTriggersEvent[TDecision]):
+    id: str
+    version: int
     INITIAL_VERSION = 1
     new_decisions: list[AggregateEvent[TDecision]]
 
@@ -1113,7 +1140,7 @@ class Aggregate(CallTriggersEvent[TDecision]):
 
     @classmethod
     def _create(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
-        obj = cls.__new__(cls, **kwargs)
+        obj = cls.__new__(cls, *args, **kwargs)
         # create_id_kwargs = filter_kwargs_for_method_params(
         #     _coerce_args_to_kwargs(cls.create_id, args, kwargs),
         #     cls.create_id,
@@ -1145,7 +1172,8 @@ class Aggregate(CallTriggersEvent[TDecision]):
             originator_version=self.version + 1,
         )
         # print(
-        #     f"Triggered {envelope.originator_id} version {envelope.originator_version}"
+        #     f"Triggered {envelope.originator_id} version {envelope.originator_version}
+        #     "
         # )
         envelope.mutate(self)
         self.new_decisions.append(envelope)
@@ -1171,29 +1199,29 @@ MutatorFunction = Callable[
 def projector(
     mutator: MutatorFunction[TDecision, _T],
 ) -> ProjectorFunction[_T, TDecision]:
-    def _projector(obj: _T | None, events: Iterable[TDecision]) -> _T | None:
+    def projector_function(
+        obj: _T | None, events: Iterable[EventEnvelope[TDecision]]
+    ) -> _T | None:
         for e in events:
             obj = mutator(e, obj)
         return obj
 
-    return _projector
+    return projector_function
 
 
-def default_mutator_function(envelope: EventEnvelope[TDecision], obj: _T | None) -> _T:
+@projector
+def evolve_aggregate(
+    envelope: EventEnvelope[TDecision],
+    obj: _T | None,
+) -> _T | None:
     return envelope.mutate(obj)
 
 
-default_aggregate_projector = projector(default_mutator_function)
-"""Projector function which works by successively
-calling mutate() on each of the given envelopes.
-"""
-
-
 @runtime_checkable
-class CollectEventsProtocol(Protocol[TDecision]):
+class CollectEventsProtocol(Protocol[TDecision_co]):
     """Protocol for aggregates that support collecting pending events."""
 
-    def collect_events(self) -> Sequence[AggregateEvent[TDecision]]:
+    def collect_events(self) -> Sequence[AggregateEvent[TDecision_co]]:
         """Returns a sequence of events."""
         raise NotImplementedError  # pragma: no cover
 

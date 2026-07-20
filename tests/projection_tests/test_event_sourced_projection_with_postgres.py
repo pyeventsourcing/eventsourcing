@@ -6,11 +6,8 @@ import traceback
 from threading import Thread
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from eventsourcing.application import Application
 from eventsourcing.errors import OperationalError
 from eventsourcing.msgspec.application import MsgspecApplication
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
-from eventsourcing.persistence import AggregateEventMapper
 from eventsourcing.projection import EventSourcedProjectionRunner
 from eventsourcing.tests.postgres_utils import drop_tables, pg_close_all_connections
 from eventsourcing.tests.projection import (
@@ -18,7 +15,6 @@ from eventsourcing.tests.projection import (
     EventSourcedProjectionTestCase,
     Student,
 )
-from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping

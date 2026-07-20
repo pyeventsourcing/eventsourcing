@@ -3,28 +3,27 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+from abc import ABC, abstractmethod
 from queue import Queue
 from threading import Event
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic
 from unittest.case import TestCase
 from unittest.mock import MagicMock
 
 from typing_extensions import TypeVar
 
 from eventsourcing.application import ProcessingEvent  # noqa: TC001
-from eventsourcing.dataclasses.application import DataclassApplication
-from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.dataclasses.mutable import DataclassAggregate
 from eventsourcing.domain_new import (
     Aggregate,
     AggregateEvent,
     EventEnvelope,
-    TDecision,
     triggers,
 )
 from eventsourcing.errors import ProgrammingError
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.mutable import PydanticAggregate
 from eventsourcing.system import (
     ConvertingThread,
     EventProcessingError,
@@ -51,7 +50,7 @@ from tests.application_tests.test_processapplication import EmailProcess
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
-    from eventsourcing.persistence import Notification, Tracking, Transcoder
+    from eventsourcing.persistence import Notification, Tracking
 
 
 class EmailProcess2(EmailProcess):
@@ -65,11 +64,11 @@ TRunner = TypeVar(
 )
 
 
-class Command(DataclassAggregate):
-    class Created(DataclassDecision):
+class Command(PydanticAggregate):
+    class Created(PydanticDecision):
         text: str
 
-    class Done(DataclassDecision):
+    class Done(PydanticDecision):
         output: str
         error: str
 
@@ -85,8 +84,8 @@ class Command(DataclassAggregate):
         self.error = error
 
 
-class Result(Aggregate[DataclassDecision]):
-    class Created(DataclassDecision):
+class Result(Aggregate[PydanticDecision]):
+    class Created(PydanticDecision):
         command_id: str
         output: str
         error: str
@@ -98,14 +97,13 @@ class Result(Aggregate[DataclassDecision]):
         self.error = error
 
 
-class TestSingleThreadedRunner(TestCase):
-    def construct_runner(
-        self, system: System, env: EnvType | None = None
-    ) -> Runner[Any]:
-        return SingleThreadedRunner(system, env)
+class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
+    @abstractmethod
+    def construct_runner(self, system: System, env: EnvType | None = None) -> TRunner:
+        raise NotImplementedError
 
     def wait_for_runner(self, runner: TRunner) -> None:
-        pass
+        raise NotImplementedError
 
     def test_runner_constructed_with_env_has_apps_with_env(self) -> None:
         system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
@@ -205,7 +203,7 @@ class TestSingleThreadedRunner(TestCase):
             self.assertEqual(len(section.items), 10)
 
     def test_system_with_processing_loop(self) -> None:
-        class Commands(DataclassApplication, ProcessApplication[DataclassDecision]):
+        class Commands(PydanticApplication, ProcessApplication[PydanticDecision]):
             def create_command(self, text: str) -> str:
                 command = Command(text=text)
                 self.save(command)
@@ -213,8 +211,8 @@ class TestSingleThreadedRunner(TestCase):
 
             def policy(
                 self,
-                envelope: EventEnvelope[DataclassDecision],
-                processing_event: ProcessingEvent[DataclassDecision],
+                envelope: EventEnvelope[PydanticDecision],
+                processing_event: ProcessingEvent[PydanticDecision],
             ) -> None:
                 match envelope.decision:
                     case Result.Created(
@@ -232,14 +230,14 @@ class TestSingleThreadedRunner(TestCase):
                 command = self.repository.get(command_id, Command)
                 return command.output, command.error
 
-        class Results(DataclassApplication, ProcessApplication[DataclassDecision]):
+        class Results(PydanticApplication, ProcessApplication[PydanticDecision]):
             def policy(
                 self,
-                envelope: AggregateEvent[DataclassDecision],
-                processing_event: ProcessingEvent,
+                envelope: EventEnvelope[PydanticDecision],
+                processing_event: ProcessingEvent[PydanticDecision],
             ) -> None:
-                match envelope.decision:
-                    case Command.Created(text=text):
+                match envelope:
+                    case AggregateEvent(decision=Command.Created(text=text)):
                         try:
                             openargs = shlex.split(text)
                             output = subprocess.check_output(openargs)  # noqa: S603
@@ -402,12 +400,30 @@ class TestSingleThreadedRunner(TestCase):
 #     runner_class = SingleThreadedRunner
 #
 #
-class TestNewSingleThreadedRunner(TestSingleThreadedRunner):
 
+
+class TestSingleThreadedRunner(RunnerTestCase[SingleThreadedRunner[PydanticDecision]]):
     def construct_runner(
         self, system: System, env: EnvType | None = None
-    ) -> NewSingleThreadedRunner:
-        return NewSingleThreadedRunner(system=system, env=env)
+    ) -> SingleThreadedRunner[PydanticDecision]:
+        return SingleThreadedRunner[PydanticDecision](system, env)
+
+    def wait_for_runner(self, runner: SingleThreadedRunner[PydanticDecision]) -> None:
+        pass
+
+
+class TestNewSingleThreadedRunner(
+    RunnerTestCase[NewSingleThreadedRunner[PydanticDecision]]
+):
+    def construct_runner(
+        self, system: System, env: EnvType | None = None
+    ) -> NewSingleThreadedRunner[PydanticDecision]:
+        return NewSingleThreadedRunner[PydanticDecision](system=system, env=env)
+
+    def wait_for_runner(
+        self, runner: NewSingleThreadedRunner[PydanticDecision]
+    ) -> None:
+        pass
 
     def test_ignores_recording_event_if_seen_subsequent(self) -> None:
         system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
@@ -450,7 +466,7 @@ class TestNewSingleThreadedRunner(TestSingleThreadedRunner):
 
 class TestPullingThread(TestCase):
     def test_receive_recording_event_does_not_block(self) -> None:
-        thread = PullingThread(
+        thread = PullingThread[PydanticDecision](
             converting_queue=Queue(),
             follower=MagicMock(),
             leader_name="BankAccountsWithPydantic",
@@ -478,7 +494,7 @@ class TestPullingThread(TestCase):
         self.assertTrue(thread.overflow_event.is_set())
 
     def test_stops_because_stopping_event_is_set(self) -> None:
-        thread = PullingThread(
+        thread = PullingThread[PydanticDecision](
             converting_queue=Queue(),
             follower=MagicMock(),
             leader_name="BankAccountsWithPydantic",
@@ -501,7 +517,7 @@ class TestPullingThread(TestCase):
         self.assertEqual(thread.recording_event_queue.qsize(), 2)
 
     def test_stops_because_recording_event_queue_was_poisoned(self) -> None:
-        thread = PullingThread(
+        thread = PullingThread[PydanticDecision](
             converting_queue=Queue(),
             follower=MagicMock(),
             leader_name="BankAccountsWithPydantic",
@@ -515,50 +531,53 @@ class TestPullingThread(TestCase):
         self.assertEqual(thread.recording_event_queue.qsize(), 0)
 
 
-class TestMultiThreadedRunner(TestSingleThreadedRunner):
-    def construct_runner(
-        self, system: System, env: EnvType | None = None
-    ) -> MultiThreadedRunner | NewMultiThreadedRunner:
-        return MultiThreadedRunner(system=system, env=env)
+class DeliberateError(Exception):
+    pass
 
+
+class BrokenInitialisation(EmailProcess):
+    def __init__(self, *_: Any, **__: Any) -> None:
+        msg = "Just testing error handling when initialisation is broken"
+        raise DeliberateError(msg)
+
+
+class BrokenProcessing(EmailProcess):
+    def process_event(
+        self, envelope: EventEnvelope[PydanticDecision], tracking: Tracking
+    ) -> None:
+        msg = "Just testing error handling when processing is broken"
+        raise DeliberateError(msg)
+
+
+TMultiThreadedRunner = TypeVar(
+    "TMultiThreadedRunner", bound=MultiThreadedRunner[Any] | NewMultiThreadedRunner[Any]
+)
+
+
+class MultiThreadedRunnerTestCase(RunnerTestCase[TMultiThreadedRunner], ABC):
     def test_ignores_recording_event_if_seen_subsequent(self) -> None:
         # Skipping this because this runner doesn't take
         # notice of attribute previous_max_notification_id.
         pass
 
-    class DeliberateError(Exception):
-        pass
-
     def wait_for_runner(
         self,
-        runner: MultiThreadedRunner[TDecision] | NewMultiThreadedRunner[TDecision],
+        runner: TMultiThreadedRunner,
     ) -> None:
         sleep(0.3)
         runner.reraise_thread_errors()
-
-    class BrokenInitialisation(EmailProcess):
-        def __init__(self, *_: Any, **__: Any) -> None:
-            msg = "Just testing error handling when initialisation is broken"
-            raise TestMultiThreadedRunner.DeliberateError(msg)
-
-    class BrokenProcessing(EmailProcess):
-        def process_event(
-            self, envelope: AggregateEvent[DataclassDecision], tracking: Tracking
-        ) -> None:
-            msg = "Just testing error handling when processing is broken"
-            raise TestMultiThreadedRunner.DeliberateError(msg)
 
     def test_stops_if_app_initialisation_is_broken(self) -> None:
         system = System(
             pipes=[
                 [
                     BankAccountsWithPydantic,
-                    TestMultiThreadedRunner.BrokenInitialisation,
+                    BrokenInitialisation,
                 ],
             ]
         )
 
-        with self.assertRaises(TestMultiThreadedRunner.DeliberateError) as cm:
+        with self.assertRaises(DeliberateError) as cm:
             self.construct_runner(system)
 
         self.assertEqual(
@@ -571,7 +590,7 @@ class TestMultiThreadedRunner(TestSingleThreadedRunner):
             pipes=[
                 [
                     BankAccountsWithPydantic,
-                    TestMultiThreadedRunner.BrokenProcessing,
+                    BrokenProcessing,
                 ],
             ]
         )
@@ -600,7 +619,7 @@ class TestMultiThreadedRunner(TestSingleThreadedRunner):
             pipes=[
                 [
                     BankAccountsWithPydantic,
-                    TestMultiThreadedRunner.BrokenProcessing,
+                    BrokenProcessing,
                 ],
             ]
         )
@@ -652,7 +671,7 @@ class TestMultiThreadedRunner(TestSingleThreadedRunner):
             pipes=[
                 [
                     BankAccountsWithPydantic,
-                    TestMultiThreadedRunner.BrokenProcessing,
+                    BrokenProcessing,
                 ],
             ]
         )
@@ -675,6 +694,15 @@ class TestMultiThreadedRunner(TestSingleThreadedRunner):
             "Just testing error handling when processing is broken",
             cm.exception.args[0],
         )
+
+
+class TestMultiThreadedRunner(
+    MultiThreadedRunnerTestCase[MultiThreadedRunner[PydanticDecision]]
+):
+    def construct_runner(
+        self, system: System, env: EnvType | None = None
+    ) -> MultiThreadedRunner[PydanticDecision]:
+        return MultiThreadedRunner(system=system, env=env)
 
 
 class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
@@ -773,17 +801,19 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
 
     def wait_for_runner(
         self,
-        runner: MultiThreadedRunner[TDecision] | NewMultiThreadedRunner[TDecision],
+        runner: MultiThreadedRunner[PydanticDecision],
     ) -> None:
         sleep(0.6)
         super().wait_for_runner(runner)
 
 
-class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
+class TestNewMultiThreadedRunner(
+    MultiThreadedRunnerTestCase[NewMultiThreadedRunner[PydanticDecision]]
+):
 
     def construct_runner(
         self, system: System, env: EnvType | None = None
-    ) -> NewMultiThreadedRunner:
+    ) -> NewMultiThreadedRunner[PydanticDecision]:
         return NewMultiThreadedRunner(system=system, env=env)
 
     class BrokenPulling(EmailProcess):
@@ -801,7 +831,7 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
     class BrokenConverting(EmailProcess):
         def convert_notifications(
             self, leader_name: str, notifications: Iterable[Notification]
-        ) -> list[ProcessingJob]:
+        ) -> list[ProcessingJob[PydanticDecision]]:
             msg = "Just testing error handling when converting is broken"
             raise ProgrammingError(msg)
 
@@ -928,3 +958,7 @@ class TestNewMultiThreadedRunner(TestMultiThreadedRunner):
             "Just testing error handling when pulling is broken",
             cm.exception.args[0],
         )
+
+
+del MultiThreadedRunnerTestCase
+del RunnerTestCase

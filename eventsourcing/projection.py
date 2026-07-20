@@ -365,9 +365,7 @@ class BaseProjectionRunner(Generic[TApplication]):
         subscription: ApplicationSubscription[TDecision],
         projection: EventSourcedProjection[Any] | Projection[Any],
         is_stopping: threading.Event,
-        runner: weakref.ReferenceType[
-            ProjectionRunner[Application[Any], TrackingRecorder]
-        ],
+        runner: weakref.ReferenceType[ProjectionRunner[TApplication, TrackingRecorder]],
     ) -> None:
         """Iterates over the subscription and calls process_event()."""
         try:

@@ -1,3 +1,4 @@
+from typing import Any
 from unittest import skip
 
 from eventsourcing.dataclasses.legacy import LegacyJSONTranscoder, UUIDAsHex
@@ -10,7 +11,7 @@ from eventsourcing.tests.persistence import (
 
 
 class TestJSONTranscoder(TranscoderTestCase):
-    def construct_transcoder(self) -> Transcoder:
+    def construct_transcoder(self) -> Transcoder[Any]:
         transcoder = LegacyJSONTranscoder()
         transcoder.register(CustomType1AsDict())
         transcoder.register(CustomType2AsDict())

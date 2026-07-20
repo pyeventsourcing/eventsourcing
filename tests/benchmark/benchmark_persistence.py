@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import pytest
 
-from eventsourcing.application import Application
-from eventsourcing.domain_new import event
-from eventsourcing.domain_old import Aggregate
+from eventsourcing.domain_new import event, triggers
 from eventsourcing.persistence import InfrastructureFactory, StoredEvent
 from eventsourcing.postgres import PostgresApplicationRecorder
+from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.mutable import PydanticAggregate
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import Environment, clear_topic_cache
 
@@ -100,7 +99,7 @@ rounds = {
 @pytest.mark.parametrize("num_events", [1, 100])
 @pytest.mark.benchmark(group="construct-stored-event")
 def test_stored_event(num_events: int, benchmark: BenchmarkFixture) -> None:
-    originator_id = uuid4()
+    originator_id = str(uuid4())
 
     def func() -> None:
         _ = [
@@ -135,14 +134,11 @@ def test_recorder_insert_events_1(
     ).application_recorder()
 
     def setup() -> Any:
-        if "text" in env:
-            originator_id: UUID | str = "test-" + str(uuid4())
-        else:
-            originator_id = uuid4()
-
+        # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
+        originator_id: str | UUID = "test-" + str(uuid4()) if "text" in env else uuid4()
         events = [
             StoredEvent(
-                originator_id=originator_id,
+                originator_id=cast(str, originator_id),
                 originator_version=i + 1,
                 topic="topic1",
                 state=b"state1",
@@ -173,14 +169,12 @@ def test_recorder_insert_events_2(
     num_events *= 2
 
     def setup() -> Any:
-        if "text" in env:
-            originator_id: UUID | str = "test-" + str(uuid4())
-        else:
-            originator_id = uuid4()
+        # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
+        originator_id: str | UUID = "test-" + str(uuid4()) if "text" in env else uuid4()
 
         events = [
             StoredEvent(
-                originator_id=originator_id,
+                originator_id=cast(str, originator_id),
                 originator_version=i + 1,
                 topic="topic1",
                 state=b"state1",
@@ -204,17 +198,15 @@ def test_recorder_insert_events_2(
 def test_recorder_insert_events_100(
     env: str, num_events: int, benchmark: BenchmarkFixture
 ) -> None:
-    recorder = InfrastructureFactory.construct(
+    factory: InfrastructureFactory[Any] = InfrastructureFactory.construct(
         env=Environment(name="benchmark", env=envs[env])
-    ).application_recorder()
+    )
+    recorder = factory.application_recorder()
 
     num_events *= 100
 
     def setup() -> Any:
-        if "text" in env:
-            originator_id: UUID | str = "test-" + str(uuid4())
-        else:
-            originator_id = uuid4()
+        originator_id: str = "test-" + str(uuid4())
 
         events = [
             StoredEvent(
@@ -242,14 +234,15 @@ def test_recorder_insert_events_100(
 def test_recorder_select_events(
     env: str, num_events: int, benchmark: BenchmarkFixture
 ) -> None:
-    recorder = InfrastructureFactory.construct(
+    factory: InfrastructureFactory[Any] = InfrastructureFactory.construct(
         env=Environment(name="benchmark", env=envs[env])
-    ).application_recorder()
+    )
+    recorder = factory.application_recorder()
 
     if "text" in env or "functions" in env:
         pytest.skip("nothing to do")
 
-    originator_id = uuid4()
+    originator_id = str(uuid4())
 
     events = [
         StoredEvent(
@@ -280,13 +273,14 @@ def test_app_save(env: str, num_events: int, benchmark: BenchmarkFixture) -> Non
     if "text" in env:
         pytest.skip("Skipping test (text IDs not supported by test)")
 
-    app = Application(env=envs[env])
+    app = PydanticApplication(env=envs[env])
 
     clear_topic_cache()
 
-    @dataclass
-    class A(Aggregate):
-        a: int
+    class A(PydanticAggregate):
+        @event("Created")
+        def __init__(self, a: int):
+            self.a = a
 
         @event("Continued")
         def subsequent(self, a: int) -> None:
@@ -298,7 +292,7 @@ def test_app_save(env: str, num_events: int, benchmark: BenchmarkFixture) -> Non
             agg.subsequent(a=i + 1)
         return (app, agg), {}
 
-    def func(app: Application, agg: Aggregate) -> None:
+    def func(app: PydanticApplication, agg: PydanticAggregate) -> None:
         app.save(agg)
 
     try:
@@ -315,15 +309,16 @@ def test_app_command(env: str, num_events: int, benchmark: BenchmarkFixture) -> 
     if "text" in env:
         pytest.skip("Skipping test (text IDs not supported by test)")
 
-    @dataclass
-    class A(Aggregate):
-        a: int
+    class A(PydanticAggregate):
+        @event("Created")
+        def __init__(self, a: int):
+            self.a = a
 
         @event("Continued")
         def subsequent(self, a: int) -> None:
             self.a = a
 
-    class MyApplication(Application):
+    class MyApplication(PydanticApplication):
         def command(self) -> None:
             agg = A(a=0)
             for i in range(num_events - 1):
@@ -350,22 +345,23 @@ def test_repository_get(env: str, num_events: int, benchmark: BenchmarkFixture) 
 
     clear_topic_cache()
 
-    @dataclass
-    class A(Aggregate):
-        a: int
+    class A(PydanticAggregate):
+        @triggers("Created")
+        def __init__(self, a: int):
+            self.a = a
 
-        @event("Continued")
+        @triggers("Continued")
         def subsequent(self, a: int) -> None:
             self.a = a
 
-    app = Application(env=envs[env])
+    app = PydanticApplication(env=envs[env])
     agg = A(a=0)
     for i in range(num_events - 1):
         agg.subsequent(a=i + 1)
     app.save(agg)
 
     def func() -> None:
-        app.repository.get(agg.id)
+        app.repository.get(agg.id, A)
 
     try:
         benchmark(func)

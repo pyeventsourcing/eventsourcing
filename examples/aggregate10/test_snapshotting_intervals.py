@@ -1,19 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import Any, ClassVar
 from unittest import TestCase
 
 from examples.aggregate10.application import DogSchool
 from examples.aggregate10.domainmodel import Dog
 
-if TYPE_CHECKING:
-    from eventsourcing.domain_old import MutableOrImmutableAggregate
-
 
 class SubDogSchool(DogSchool):
-    snapshotting_intervals: ClassVar[dict[type[MutableOrImmutableAggregate], int]] = {
-        Dog: 1
-    }
+    snapshotting_intervals: ClassVar[dict[type[Any], int]] = {Dog: 1}
 
 
 class TestDogSchool(TestCase):

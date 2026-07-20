@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from uuid import UUID
-
 from eventsourcing.domain_new import event
 from eventsourcing.pydantic.immutable import Immutable
 from eventsourcing.pydantic.mutable import (

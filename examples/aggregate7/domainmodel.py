@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime  # noqa:TC003
 from uuid import uuid4
 
 from pydantic import Field
 
-from eventsourcing.domain_new import AggregateEvent, datetime_now_with_tzinfo, projector
+from eventsourcing.domain_new import (
+    AggregateEvent,
+    EventEnvelope,
+    datetime_now_with_tzinfo,
+    projector,
+)
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.pydantic.immutable import (
     Immutable,
@@ -60,10 +65,12 @@ def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[PydanticDecision]:
     )
 
 
-def mutate_dog(
-    envelope: AggregateEvent[PydanticDecision], dog: Dog | None
+@projector
+def evolve_dog(
+    envelope: EventEnvelope[PydanticDecision], dog: Dog | None
 ) -> Dog | None:
     """Mutates aggregate with event."""
+    assert isinstance(envelope, AggregateEvent)
     match envelope.decision:
         case DogRegistered(name=name, timestamp=timestamp):
             return Dog(
@@ -87,6 +94,3 @@ def mutate_dog(
             )
         case _:
             raise ProgrammingError
-
-
-project_dog = projector(mutate_dog)

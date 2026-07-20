@@ -1,40 +1,35 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import NewType
-
-StudentID = NewType("StudentID", str)
-
-CourseID = NewType("CourseID", str)
 
 
 class EnrolmentInterface(ABC):
     @abstractmethod
-    def register_student(self, name: str, max_courses: int) -> StudentID:
+    def register_student(self, name: str, max_courses: int) -> str:
         """
         Register a new student.
         """
 
     @abstractmethod
-    def register_course(self, name: str, places: int) -> CourseID:
+    def register_course(self, name: str, places: int) -> str:
         """
         Register a new course.
         """
 
     @abstractmethod
-    def join_course(self, student_id: StudentID, course_id: CourseID) -> None:
+    def join_course(self, student_id: str, course_id: str) -> None:
         """
         Enrol a student on a course.
         """
 
     @abstractmethod
-    def list_students_for_course(self, course_id: CourseID) -> list[str]:
+    def list_students_for_course(self, course_id: str) -> list[str]:
         """
         List students enrolled on a course.
         """
 
     @abstractmethod
-    def list_courses_for_student(self, student_id: StudentID) -> list[str]:
+    def list_courses_for_student(self, student_id: str) -> list[str]:
         """
         List courses enrolled by a student.
         """

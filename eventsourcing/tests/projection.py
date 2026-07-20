@@ -18,7 +18,6 @@ from eventsourcing.domain_new import (
     EnduringObject,
     EventEnvelope,
     TaggedEvent,
-    TDecision,
     put_metadata_in_context,
     triggers,
 )
@@ -102,8 +101,8 @@ class EventCountersInterface(EventCountersView, ABC):
 class Counters(EventSourcedProjection[MsgspecDecision], MsgspecApplication):
     def policy(
         self,
-        envelope: EventEnvelope[TDecision],
-        processing_event: ProcessingEvent[TDecision],
+        envelope: EventEnvelope[MsgspecDecision],
+        processing_event: ProcessingEvent[MsgspecDecision],
     ) -> None:
         topic = get_topic(type(envelope.decision))
         try:
@@ -204,7 +203,7 @@ class DCBSpannerThrown(MsgspecDecision):
 
 
 # Define a perspective.
-class Thing(EnduringObject[MsgspecDecision, str]):
+class Thing(EnduringObject[MsgspecDecision]):
     class Created(MsgspecDecision):
         thing_id: str
 

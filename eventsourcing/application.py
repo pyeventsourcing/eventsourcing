@@ -23,11 +23,10 @@ from eventsourcing.domain_new import (
     AggregateEvent,
     CanMutateProtocol,
     CollectEventsProtocol,
-    EventEnvelope,
     ProjectorFunction,
     TDecision,
     WorksWithDecisions,
-    default_aggregate_projector,
+    evolve_aggregate,
 )
 from eventsourcing.errors import EventSourcingError, ProgrammingError
 from eventsourcing.persistence import (
@@ -38,6 +37,7 @@ from eventsourcing.persistence import (
     Notification,
     Recording,
     Tracking,
+    TrackingRecorder,
     Transcoder,
 )
 from eventsourcing.utils import (
@@ -50,7 +50,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
     from types import TracebackType
     from typing import Self
-    from uuid import UUID
 
 _KT = TypeVar("_KT")
 _VT = TypeVar("_VT")
@@ -233,7 +232,19 @@ class Repository(WorksWithDecisions[TDecision]):
         aggregate_id: str,
         *,
         version: int | None = None,
-        projector_func: ProjectorFunction[_T, TDecision],
+        projector: ProjectorFunction[_T, TDecision],
+        fastforward_skipping: bool = False,
+        deepcopy_from_cache: bool = True,
+    ) -> _T: ...
+
+    @overload
+    def get(
+        self,
+        aggregate_id: str,
+        aggregate_cls: type[_T] | None,
+        *,
+        version: int | None = None,
+        projector: ProjectorFunction[_T, TDecision],
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
     ) -> _T: ...
@@ -244,7 +255,7 @@ class Repository(WorksWithDecisions[TDecision]):
         aggregate_cls: type[_T] | None = None,
         *,
         version: int | None = None,
-        projector_func: ProjectorFunction[_T, TDecision] = default_aggregate_projector,
+        projector: ProjectorFunction[_T, TDecision] | None = None,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
     ) -> _T:
@@ -254,21 +265,24 @@ class Repository(WorksWithDecisions[TDecision]):
 
         # Need to know what type of thing we are dealing with, either from
         # the `aggregate_cls` or from a custom projector function.
-        if aggregate_cls is None and projector_func is default_aggregate_projector:
+        if aggregate_cls is None and projector is None:
             msg = (
                 "Please supply either a mutable aggregate "
                 "class or a projector function for the aggregate"
             )
             raise ProgrammingError(msg)
 
+        if projector is None:
+            projector = cast(ProjectorFunction[_T, TDecision], evolve_aggregate)
+
         if self.cache and version is None:
             try:
                 # Look for aggregate in the cache.
-                aggregate = cast(_T, self.cache.get(aggregate_id))
+                aggregate = self.cache.get(aggregate_id)
             except KeyError:
                 # Reconstruct aggregate from stored events.
                 aggregate = self._reconstruct_aggregate(
-                    aggregate_id, aggregate_cls, None, projector_func
+                    aggregate_id, aggregate_cls, None, projector
                 )
                 # Put aggregate in the cache.
                 self.cache.put(aggregate_id, aggregate)
@@ -284,7 +298,7 @@ class Repository(WorksWithDecisions[TDecision]):
                                 new_events = self.event_store.get(
                                     originator_id=aggregate_id, gt=aggregate.version
                                 )
-                                _aggregate = projector_func(
+                                _aggregate = projector(
                                     aggregate,
                                     new_events,
                                 )
@@ -302,16 +316,16 @@ class Repository(WorksWithDecisions[TDecision]):
         else:
             # Reconstruct historical version of aggregate from stored events.
             aggregate = self._reconstruct_aggregate(
-                aggregate_id, aggregate_cls, version, projector_func
+                aggregate_id, aggregate_cls, version, projector
             )
         return aggregate
 
     def _reconstruct_aggregate(
         self,
         aggregate_id: str,
-        aggregate_cls: _T | None,
+        aggregate_cls: type[_T] | None,
         version: int | None,
-        projector_func: ProjectorFunction[_T, TDecision],
+        projector: ProjectorFunction[_T, TDecision],
     ) -> _T:
         gt: int | None = None
 
@@ -340,15 +354,13 @@ class Repository(WorksWithDecisions[TDecision]):
         # Reconstruct the aggregate from its events.
         initial: _T | None = (
             aggregate_cls.__new__(aggregate_cls)
-            if aggregate_cls and projector_func is default_aggregate_projector
+            if aggregate_cls and projector is evolve_aggregate
             else None
         )
 
         iterable_of_events = chain(snapshots, aggregate_events)
 
-        iterable_of_events = list(iterable_of_events)
-
-        aggregate = projector_func(
+        aggregate = projector(
             initial,
             iterable_of_events,
         )
@@ -558,26 +570,27 @@ class ProcessingEvent(Generic[TDecision]):
     def __init__(self, tracking: Tracking | None = None):
         """Initialises the process event with the given tracking object."""
         self.tracking = tracking
-        self.events: list[EventEnvelope[TDecision]] = []
-        self.aggregates: dict[str, _T] = {}
+        self.events: list[AggregateEvent[TDecision]] = []
+        self.aggregates: dict[str, Aggregate[TDecision]] = {}
         self.saved_kwargs: dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: CollectEventsProtocol[TDecision] | EventEnvelope[TDecision] | None,
+        *objs: CollectEventsProtocol[TDecision] | AggregateEvent[TDecision] | None,
         **kwargs: Any,
     ) -> None:
         """Collects pending domain events from the given aggregate."""
         for obj in objs:
             if obj is None:
                 continue
-            if isinstance(obj, EventEnvelope):
+            if isinstance(obj, AggregateEvent):
                 self.events.append(obj)
             else:
                 if isinstance(obj, CollectEventsProtocol):
                     for event in obj.collect_events():
                         self.events.append(event)
-                self.aggregates[obj.id] = obj
+                if isinstance(obj, Aggregate):
+                    self.aggregates[obj.id] = obj
 
         self.saved_kwargs.update(kwargs)
 
@@ -595,7 +608,6 @@ class Application(WorksWithDecisions[TDecision]):
             ProjectorFunction[Any, Any],
         ]
     ] = {}
-    snapshot_class: type[Any] | None = None
     log_section_size = 10
     notify_topics: Sequence[str] = []
 
@@ -622,8 +634,10 @@ class Application(WorksWithDecisions[TDecision]):
         #             f" {aggregate_id_type}"
         #         )
         #         raise TypeError(msg)
-        # if cls.snapshot_class is not None and not isinstance(cls.snapshot_class, type):
-        #     msg = f"The 'snapshot_class' of {cls} is not a class: {cls.snapshot_class}"
+        # if cls.snapshot_class is not None and not isinstance(cls.snapshot_class, type)
+        # :
+        #     msg = f"The 'snapshot_class' of {cls} is not a class: {cls.snapshot_class}
+        #     "
         #     raise ProgrammingError(msg)
 
     def __init__(self, env: EnvType | None = None) -> None:
@@ -693,7 +707,9 @@ class Application(WorksWithDecisions[TDecision]):
             _env.update(env)
         return Environment(name, _env)
 
-    def construct_factory(self, env: Environment) -> InfrastructureFactory:
+    def construct_factory(
+        self, env: Environment
+    ) -> InfrastructureFactory[TrackingRecorder]:
         """Constructs an :class:`~eventsourcing.persistence.InfrastructureFactory`
         for use by the application.
         """
@@ -707,7 +723,7 @@ class Application(WorksWithDecisions[TDecision]):
         self._check_decision_type(transcoder)
         return self.factory.mapper(transcoder=transcoder)
 
-    def construct_transcoder(self) -> Transcoder:
+    def construct_transcoder(self) -> Transcoder[TDecision]:
         """Constructs a :class:`~eventsourcing.persistence.Transcoder`
         for use by the application.
         """
@@ -763,7 +779,7 @@ class Application(WorksWithDecisions[TDecision]):
 
     def save(
         self,
-        *objs: CollectEventsProtocol[TDecision] | EventEnvelope[TDecision] | None,
+        *objs: CollectEventsProtocol[TDecision] | AggregateEvent[TDecision] | None,
         **kwargs: Any,
     ) -> list[Recording[TDecision]]:
         """Collects pending events from given aggregates and
@@ -773,7 +789,7 @@ class Application(WorksWithDecisions[TDecision]):
             match obj:
                 case None:
                     continue
-                case EventEnvelope(decision=decision):
+                case AggregateEvent(decision=decision):
                     self._check_decision_type(type(decision))
                 case _:
                     self._check_decision_type(type(obj))
@@ -809,7 +825,7 @@ class Application(WorksWithDecisions[TDecision]):
                 interval = self.snapshotting_intervals.get(type(aggregate))
                 if interval is not None and event.originator_version % interval == 0:
                     try:
-                        projector_func = self.snapshotting_projectors[type(aggregate)]
+                        projector = self.snapshotting_projectors[type(aggregate)]
                     except KeyError:
                         if not isinstance(event, CanMutateProtocol):
                             msg = (
@@ -825,12 +841,12 @@ class Application(WorksWithDecisions[TDecision]):
                             )
                             raise ProgrammingError(msg) from None
 
-                        projector_func = default_aggregate_projector
+                        projector = evolve_aggregate
                     self.take_snapshot(
                         aggregate_id=event.originator_id,
                         aggregate_cls=type(aggregate),
                         version=event.originator_version,
-                        projector_func=projector_func,
+                        projector=projector,
                     )
 
     def take_snapshot(
@@ -839,7 +855,7 @@ class Application(WorksWithDecisions[TDecision]):
         aggregate_cls: type[_T] | None = None,
         *,
         version: int | None = None,
-        projector_func: ProjectorFunction[Any, Any] = default_aggregate_projector,
+        projector: ProjectorFunction[Any, Any] = evolve_aggregate,
     ) -> None:
         """Takes a snapshot of the recorded state of the aggregate,
         and puts the snapshot in the snapshot store.
@@ -854,7 +870,7 @@ class Application(WorksWithDecisions[TDecision]):
             )
             raise AssertionError(msg)
         aggregate = self.repository.get(
-            aggregate_id, aggregate_cls, version=version, projector_func=projector_func
+            aggregate_id, aggregate_cls, version=version, projector=projector
         )
         snapshot_class = getattr(type(aggregate), "Snapshot", None)
         if snapshot_class is None:

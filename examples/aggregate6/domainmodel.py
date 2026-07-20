@@ -1,88 +1,65 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from functools import singledispatch
 from uuid import uuid4
 
-from examples.aggregate6.baseclasses import (
-    Aggregate,
-    DomainEvent,
-    Snapshot,
-    aggregate_projector,
-)
+from eventsourcing.dataclasses.immutable import DataclassDecision, Immutable
+from eventsourcing.domain_new import AggregateEvent, EventEnvelope, projector
 
 
-@dataclass(frozen=True)
-class Dog(Aggregate):
+class Dog(Immutable):
+    id: str
+    version: int
     name: str
     tricks: tuple[str, ...]
 
 
-@dataclass(frozen=True)
-class DogRegistered(DomainEvent):
+class DogRegistered(DataclassDecision):
     name: str
 
 
-@dataclass(frozen=True)
-class TrickAdded(DomainEvent):
+class TrickAdded(DataclassDecision):
     trick: str
 
 
-def register_dog(name: str) -> DomainEvent:
-    return DogRegistered(
-        originator_id=uuid4(),
+def register_dog(name: str) -> AggregateEvent[DataclassDecision]:
+    return AggregateEvent(
+        decision=DogRegistered(
+            name=name,
+        ),
+        originator_id=str(uuid4()),
         originator_version=1,
-        name=name,
     )
 
 
-def add_trick(dog: Dog, trick: str) -> DomainEvent:
-    return TrickAdded(
+def add_trick(dog: Dog, trick: str) -> AggregateEvent[DataclassDecision]:
+    return AggregateEvent(
+        decision=TrickAdded(
+            trick=trick,
+        ),
         originator_id=dog.id,
         originator_version=dog.version + 1,
-        trick=trick,
     )
 
 
-@singledispatch
-def mutate_dog(_: DomainEvent, __: Dog | None) -> Dog | None:
-    """Mutates aggregate with event."""
-
-
-@mutate_dog.register
-def _(event: DogRegistered, _: None) -> Dog:
-    return Dog(
-        id=event.originator_id,
-        version=event.originator_version,
-        created_on=event.timestamp,
-        modified_on=event.timestamp,
-        name=event.name,
-        tricks=(),
-    )
-
-
-@mutate_dog.register
-def _(event: TrickAdded, dog: Dog) -> Dog:
-    return Dog(
-        id=dog.id,
-        version=event.originator_version,
-        created_on=dog.created_on,
-        modified_on=event.timestamp,
-        name=dog.name,
-        tricks=(*dog.tricks, event.trick),
-    )
-
-
-@mutate_dog.register
-def _(event: Snapshot, _: None) -> Dog:
-    return Dog(
-        id=event.state["id"],
-        version=event.state["version"],
-        created_on=event.state["created_on"],
-        modified_on=event.state["modified_on"],
-        name=event.state["name"],
-        tricks=tuple(event.state["tricks"]),  # comes back from JSON as a list
-    )
-
-
-project_dog = aggregate_projector(mutate_dog)
+@projector
+def mutate_dog(event: EventEnvelope[DataclassDecision], dog: Dog | None) -> Dog | None:
+    assert isinstance(event, AggregateEvent)
+    match event.decision:
+        case DogRegistered(name=name):
+            return Dog(
+                id=event.originator_id,
+                version=event.originator_version,
+                name=name,
+                tricks=(),
+            )
+        case TrickAdded(trick=trick):
+            assert dog is not None
+            return Dog(
+                id=dog.id,
+                version=event.originator_version,
+                name=dog.name,
+                tricks=(*dog.tricks, trick),
+            )
+        case _:
+            msg = f"Type not support: {type(event.decision)}"
+            raise TypeError(msg)

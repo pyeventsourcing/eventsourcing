@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
+from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.legacy import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -43,12 +44,12 @@ class TestDataclassMapper(TestCase):
             decision=BankAccountWithDataclasses.TransactionAppended(
                 amount=Decimal("10.00"),
             ),
-            originator_id=uuid4(),
+            originator_id=str(uuid4()),
             originator_version=123456,
         )
 
         # Construct mapper with transcoder.
-        mapper = AggregateEventMapper(transcoder=transcoder)
+        mapper = AggregateEventMapper[DataclassDecision](transcoder=transcoder)
 
         # Map to stored event.
         stored_event = mapper.to_stored_event(domain_event)

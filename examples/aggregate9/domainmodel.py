@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from functools import singledispatch
 from uuid import uuid4
 
-import msgspec.json
-
-from eventsourcing.domain_new import AggregateEvent, projector
+from eventsourcing.domain_new import AggregateEvent, EventEnvelope, projector
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.msgspec.immutable import (
     Immutable,
@@ -34,7 +31,7 @@ class TrickAdded(MsgspecDecision):
 def register_dog(name: str) -> AggregateEvent[MsgspecDecision]:
     return AggregateEvent(
         decision=DogRegistered(name=name),
-        originator_id=uuid4(),
+        originator_id=str(uuid4()),
         originator_version=1,
     )
 
@@ -47,10 +44,10 @@ def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[MsgspecDecision]:
     )
 
 
-def mutate_dog(
-    envelope: AggregateEvent[MsgspecDecision], dog: Dog | None
-) -> Dog | None:
+@projector
+def evolve_dog(envelope: EventEnvelope[MsgspecDecision], dog: Dog | None) -> Dog | None:
     """Mutates aggregate with event."""
+    assert isinstance(envelope, AggregateEvent)
     match envelope.decision:
         case DogRegistered(name=name):
             return Dog(
@@ -70,6 +67,3 @@ def mutate_dog(
         case _:
             msg = f"Decision type not supported: {envelope.decision}"
             raise ProgrammingError(msg)
-
-
-project_dog = projector(mutate_dog)

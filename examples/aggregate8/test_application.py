@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from unittest import TestCase
 
 from examples.aggregate8.application import DogSchool

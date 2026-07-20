@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import field
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.domain_new import Aggregate, event, get_metadata_from_context
+from eventsourcing.domain_new import event, get_metadata_from_context
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import PydanticAggregate
 from examples.contentmanagement.utils import apply_diff, create_diff
@@ -62,7 +62,7 @@ class Slug(PydanticAggregate):
         self.page_id = page_id
 
     @staticmethod
-    def create_id(name: str) -> UUID:
+    def create_id(name: str) -> str:
         return str(uuid5(NAMESPACE_URL, f"/slugs/{name}"))
 
     @event("PageUpdated")
@@ -71,4 +71,4 @@ class Slug(PydanticAggregate):
 
 
 class PageLogged(PydanticDecision):
-    page_id: UUID
+    page_id: str

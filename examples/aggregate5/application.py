@@ -1,27 +1,24 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from eventsourcing.application import Application
+from eventsourcing.dataclasses.application import DataclassApplication
 from examples.aggregate5.domainmodel import Dog
 
-if TYPE_CHECKING:
-    from uuid import UUID
 
-
-class DogSchool(Application):
+class DogSchool(DataclassApplication):
     is_snapshotting_enabled = True
 
-    def register_dog(self, name: str) -> UUID:
+    def register_dog(self, name: str) -> str:
         dog, event = Dog.register(name)
         self.save(event)
         return dog.id
 
-    def add_trick(self, dog_id: UUID, trick: str) -> None:
-        dog = self.repository.get(dog_id, projector_func=Dog.projector)
+    def add_trick(self, dog_id: str, trick: str) -> None:
+        dog = self.repository.get(dog_id, projector=Dog.projector)
         dog, event = dog.add_trick(trick)
         self.save(event)
 
-    def get_dog(self, dog_id: UUID) -> dict[str, Any]:
-        dog = self.repository.get(dog_id, projector_func=Dog.projector)
+    def get_dog(self, dog_id: str) -> dict[str, Any]:
+        dog = self.repository.get(dog_id, projector=Dog.projector)
         return {"name": dog.name, "tricks": dog.tricks}

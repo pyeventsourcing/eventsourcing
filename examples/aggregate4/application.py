@@ -1,35 +1,27 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from eventsourcing.application import Application
-from eventsourcing.dataclasses.transcoder import DataclassTranscoder
-from eventsourcing.persistence import Transcoder
-from examples.aggregate4.baseclasses import DomainEvent
+from eventsourcing.dataclasses.application import DataclassApplication
 from examples.aggregate4.domainmodel import Dog
 
-if TYPE_CHECKING:
-    from uuid import UUID
 
-
-class DogSchool(Application[DomainEvent]):
+class DogSchool(DataclassApplication):
     is_snapshotting_enabled = True
 
-    def construct_transcoder(self) -> Transcoder[DomainEvent]:
-        return DataclassTranscoder()
-
-    def register_dog(self, name: str) -> UUID:
+    def register_dog(self, name: str) -> str:
         dog = Dog.register(name)
         self.save(dog)
         return dog.id
 
-    def add_trick(self, dog_id: UUID, trick: str) -> None:
-        dog: Dog = self.repository.get(dog_id, projector_func=Dog.project_events)
+    def add_trick(self, dog_id: str, trick: str) -> None:
+        dog: Dog = self.repository.get(dog_id, projector=Dog.project_events)
         dog.add_trick(trick)
         self.save(dog)
 
-    def get_dog(self, dog_id: UUID) -> dict[str, Any]:
-        dog: Dog = self.repository.get(dog_id, projector_func=Dog.project_events)
+    def get_dog(self, dog_id: str) -> dict[str, Any]:
+        dog = self.repository.get(dog_id, projector=Dog.project_events)
+        assert dog is not None
         return {
             "name": dog.name,
             "tricks": tuple(dog.tricks),

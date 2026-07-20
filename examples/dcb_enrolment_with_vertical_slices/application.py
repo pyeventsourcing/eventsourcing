@@ -17,12 +17,10 @@ from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 from eventsourcing.utils import get_topic
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
-    CourseID,
     CourseNotFoundError,
     EnrolmentInterface,
     FullyBookedError,
     NotAlreadyJoinedError,
-    StudentID,
     StudentNotFoundError,
     TooManyCoursesError,
 )
@@ -32,50 +30,50 @@ if TYPE_CHECKING:
 
 
 class StudentJoinedCourse(MsgspecDecision):
-    student_id: StudentID
-    course_id: CourseID
+    student_id: str
+    course_id: str
 
 
 class StudentLeftCourse(MsgspecDecision):
-    student_id: StudentID
-    course_id: CourseID
+    student_id: str
+    course_id: str
 
 
 class StudentRegistered(MsgspecDecision):
-    student_id: StudentID
+    student_id: str
     name: str
     max_courses: int
 
 
 class StudentNameUpdated(MsgspecDecision):
-    student_id: StudentID
+    student_id: str
     name: str
 
 
 class StudentMaxCoursesUpdated(MsgspecDecision):
-    student_id: StudentID
+    student_id: str
     max_courses: int
 
 
 class CourseRegistered(MsgspecDecision):
-    course_id: CourseID
+    course_id: str
     name: str
     places: int
 
 
 class CourseNameUpdated(MsgspecDecision):
-    course_id: CourseID
+    course_id: str
     name: str
 
 
 class CoursePlacesUpdated(MsgspecDecision):
-    course_id: CourseID
+    course_id: str
     places: int
 
 
 class RegisterStudent(Slice[MsgspecDecision]):
     def __init__(self, name: str, max_courses: int):
-        self.student_id = StudentID(f"student-{uuid4()}")
+        self.student_id = f"student-{uuid4()}"
         self.name = name
         self.max_courses = max_courses
 
@@ -93,7 +91,7 @@ class RegisterStudent(Slice[MsgspecDecision]):
 
 
 class UpdateStudentName(Slice[MsgspecDecision]):
-    def __init__(self, student_id: StudentID, name: str) -> None:
+    def __init__(self, student_id: str, name: str) -> None:
         self.student_id = student_id
         self.name = name
         self.student_was_registered: bool = False
@@ -118,7 +116,7 @@ class UpdateStudentName(Slice[MsgspecDecision]):
 
 
 class UpdateMaxCourses(Slice[MsgspecDecision]):
-    def __init__(self, student_id: StudentID, max_courses: int) -> None:
+    def __init__(self, student_id: str, max_courses: int) -> None:
         self.student_id = student_id
         self.max_courses = max_courses
         self.student_was_registered: bool = False
@@ -147,7 +145,7 @@ class RegisterCourse(Slice[MsgspecDecision]):
     def __init__(self, name: str, places: int):
         self.name = name
         self.places = places
-        self.course_id = CourseID(f"course-{uuid4()}")
+        self.course_id = f"course-{uuid4()}"
 
     def consistency_boundary(self) -> Selector[MsgspecDecision]:
         return Selector(types=[CourseRegistered], tags=[self.course_id])
@@ -163,7 +161,7 @@ class RegisterCourse(Slice[MsgspecDecision]):
 
 
 class UpdateCourseName(Slice[MsgspecDecision]):
-    def __init__(self, course_id: CourseID, name: str) -> None:
+    def __init__(self, course_id: str, name: str) -> None:
         self.course_id = course_id
         self.name = name
         self.course_was_registered: bool = False
@@ -188,7 +186,7 @@ class UpdateCourseName(Slice[MsgspecDecision]):
 
 
 class UpdatePlaces(Slice[MsgspecDecision]):
-    def __init__(self, course_id: CourseID, places: int) -> None:
+    def __init__(self, course_id: str, places: int) -> None:
         self.course_id = course_id
         self.places = places
         self.course_was_registered: bool = False
@@ -213,15 +211,15 @@ class UpdatePlaces(Slice[MsgspecDecision]):
 
 
 class StudentJoinsCourse(Slice[MsgspecDecision]):
-    def __init__(self, student_id: StudentID, course_id: CourseID) -> None:
+    def __init__(self, student_id: str, course_id: str) -> None:
         self.student_id = student_id
         self.course_id = course_id
         self.course_was_registered = False
         self.student_was_registered = False
         self.student_max_courses = 0
         self.course_places = 0
-        self.students_on_course: list[StudentID] = []
-        self.courses_for_student: list[CourseID] = []
+        self.students_on_course: list[str] = []
+        self.courses_for_student: list[str] = []
 
     def consistency_boundary(self) -> list[Selector[MsgspecDecision]]:
         return [
@@ -256,14 +254,14 @@ class StudentJoinsCourse(Slice[MsgspecDecision]):
         self.course_places = places
 
     @event(StudentJoinedCourse)
-    def _(self, student_id: StudentID, course_id: CourseID) -> None:
+    def _(self, student_id: str, course_id: str) -> None:
         if student_id == self.student_id:
             self.courses_for_student.append(course_id)
         if course_id == self.course_id:
             self.students_on_course.append(student_id)
 
     @event(StudentLeftCourse)
-    def _(self, student_id: StudentID, course_id: CourseID) -> None:
+    def _(self, student_id: str, course_id: str) -> None:
         if student_id == self.student_id:
             self.courses_for_student.remove(course_id)
         if course_id == self.course_id:
@@ -297,13 +295,13 @@ class StudentJoinsCourse(Slice[MsgspecDecision]):
 
 
 class StudentLeavesCourse(Slice[MsgspecDecision]):
-    def __init__(self, student_id: StudentID, course_id: CourseID) -> None:
+    def __init__(self, student_id: str, course_id: str) -> None:
         self.student_id = student_id
         self.course_id = course_id
         self.course_was_registered = False
         self.student_was_registered = False
-        self.students_on_course: list[StudentID] = []
-        self.courses_for_student: list[CourseID] = []
+        self.students_on_course: list[str] = []
+        self.courses_for_student: list[str] = []
 
     def consistency_boundary(self) -> list[Selector[MsgspecDecision]]:
         return [
@@ -326,14 +324,14 @@ class StudentLeavesCourse(Slice[MsgspecDecision]):
         self.course_was_registered = True
 
     @event(StudentJoinedCourse)
-    def _(self, student_id: StudentID, course_id: CourseID) -> None:
+    def _(self, student_id: str, course_id: str) -> None:
         if student_id == self.student_id:
             self.courses_for_student.append(course_id)
         if course_id == self.course_id:
             self.students_on_course.append(student_id)
 
     @event(StudentLeftCourse)
-    def _(self, student_id: StudentID, course_id: CourseID) -> None:
+    def _(self, student_id: str, course_id: str) -> None:
         if student_id == self.student_id:
             self.courses_for_student.remove(course_id)
         if course_id == self.course_id:
@@ -355,9 +353,9 @@ class StudentLeavesCourse(Slice[MsgspecDecision]):
 
 
 class StudentsIDs(Slice[MsgspecDecision]):
-    def __init__(self, course_id: CourseID) -> None:
+    def __init__(self, course_id: str) -> None:
         self.course_id = course_id
-        self.student_ids: list[StudentID] = []
+        self.student_ids: list[str] = []
 
     def consistency_boundary(self) -> Selector[MsgspecDecision]:
         return Selector(
@@ -365,19 +363,17 @@ class StudentsIDs(Slice[MsgspecDecision]):
         )
 
     @event(StudentJoinedCourse)
-    def _(self, student_id: StudentID) -> None:
+    def _(self, student_id: str) -> None:
         self.student_ids.append(student_id)
 
     @event(StudentLeftCourse)
-    def _(self, student_id: StudentID) -> None:
+    def _(self, student_id: str) -> None:
         self.student_ids.remove(student_id)
 
 
 class StudentNames(Slice[MsgspecDecision]):
-    def __init__(self, student_ids: list[StudentID]) -> None:
-        self.student_id_names: dict[StudentID, str | None] = dict.fromkeys(
-            student_ids, None
-        )
+    def __init__(self, student_ids: list[str]) -> None:
+        self.student_id_names: dict[str, str | None] = dict.fromkeys(student_ids, None)
 
     def consistency_boundary(self) -> list[Selector[MsgspecDecision]]:
         return [
@@ -386,11 +382,11 @@ class StudentNames(Slice[MsgspecDecision]):
         ]
 
     @event(StudentRegistered)
-    def _(self, student_id: StudentID, name: str) -> None:
+    def _(self, student_id: str, name: str) -> None:
         self.student_id_names[student_id] = name
 
     @event(StudentNameUpdated)
-    def _(self, student_id: StudentID, name: str) -> None:
+    def _(self, student_id: str, name: str) -> None:
         self.student_id_names[student_id] = name
 
     @property
@@ -399,9 +395,9 @@ class StudentNames(Slice[MsgspecDecision]):
 
 
 class CourseIDs(Slice[MsgspecDecision]):
-    def __init__(self, student_id: StudentID) -> None:
+    def __init__(self, student_id: str) -> None:
         self.student_id = student_id
-        self.course_ids: list[CourseID] = []
+        self.course_ids: list[str] = []
 
     def consistency_boundary(self) -> Selector[MsgspecDecision]:
         return Selector(
@@ -409,19 +405,17 @@ class CourseIDs(Slice[MsgspecDecision]):
         )
 
     @event(StudentJoinedCourse)
-    def _(self, course_id: CourseID) -> None:
+    def _(self, course_id: str) -> None:
         self.course_ids.append(course_id)
 
     @event(StudentLeftCourse)
-    def _(self, course_id: CourseID) -> None:
+    def _(self, course_id: str) -> None:
         self.course_ids.remove(course_id)
 
 
 class CourseNames(Slice[MsgspecDecision]):
-    def __init__(self, course_ids: list[CourseID]) -> None:
-        self.course_id_names: dict[CourseID, str | None] = dict.fromkeys(
-            course_ids, None
-        )
+    def __init__(self, course_ids: list[str]) -> None:
+        self.course_id_names: dict[str, str | None] = dict.fromkeys(course_ids, None)
 
     def consistency_boundary(self) -> list[Selector[MsgspecDecision]]:
         return [
@@ -430,11 +424,11 @@ class CourseNames(Slice[MsgspecDecision]):
         ]
 
     @event(CourseRegistered)
-    def _(self, course_id: CourseID, name: str) -> None:
+    def _(self, course_id: str, name: str) -> None:
         self.course_id_names[course_id] = name
 
     @event(CourseNameUpdated)
-    def _(self, course_id: CourseID, name: str) -> None:
+    def _(self, course_id: str, name: str) -> None:
         self.course_id_names[course_id] = name
 
     @property
@@ -443,12 +437,12 @@ class CourseNames(Slice[MsgspecDecision]):
 
 
 class Student(Slice[MsgspecDecision]):
-    def __init__(self, student_id: StudentID) -> None:
+    def __init__(self, student_id: str) -> None:
         self.student_id = student_id
         self.student_was_registered: bool = False
         self.name: str = ""
         self.max_courses: int = 0
-        self.course_ids: list[CourseID] = []
+        self.course_ids: list[str] = []
 
     def consistency_boundary(self) -> Selector[MsgspecDecision]:
         return Selector(tags=[self.student_id])
@@ -468,21 +462,21 @@ class Student(Slice[MsgspecDecision]):
         self.max_courses = max_courses
 
     @event(StudentJoinedCourse)
-    def _(self, course_id: CourseID) -> None:
+    def _(self, course_id: str) -> None:
         self.course_ids.append(course_id)
 
     @event(StudentLeftCourse)
-    def _(self, course_id: CourseID) -> None:
+    def _(self, course_id: str) -> None:
         self.course_ids.remove(course_id)
 
 
 class Course(Slice[MsgspecDecision]):
-    def __init__(self, course_id: CourseID) -> None:
+    def __init__(self, course_id: str) -> None:
         self.course_id = course_id
         self.course_was_registered: bool = False
         self.name: str = ""
         self.places = 0
-        self.student_ids: list[StudentID] = []
+        self.student_ids: list[str] = []
 
     def consistency_boundary(self) -> Selector[MsgspecDecision]:
         return Selector(tags=[self.course_id])
@@ -502,11 +496,11 @@ class Course(Slice[MsgspecDecision]):
         self.places = places
 
     @event(StudentJoinedCourse)
-    def _(self, student_id: StudentID) -> None:
+    def _(self, student_id: str) -> None:
         self.student_ids.append(student_id)
 
     @event(StudentLeftCourse)
-    def _(self, student_id: StudentID) -> None:
+    def _(self, student_id: str) -> None:
         self.student_ids.remove(student_id)
 
 
@@ -516,40 +510,40 @@ class EnrolmentWithVerticalSlices(DCBApplication[MsgspecDecision], EnrolmentInte
         **DCBApplication.env,
     }
 
-    def register_student(self, name: str, max_courses: int) -> StudentID:
+    def register_student(self, name: str, max_courses: int) -> str:
         return self.do(RegisterStudent(name, max_courses)).student_id
 
-    def register_course(self, name: str, places: int) -> CourseID:
+    def register_course(self, name: str, places: int) -> str:
         return self.do(RegisterCourse(name, places)).course_id
 
-    def join_course(self, student_id: StudentID, course_id: CourseID) -> None:
+    def join_course(self, student_id: str, course_id: str) -> None:
         self.do(StudentJoinsCourse(student_id, course_id))
 
-    def leave_course(self, student_id: StudentID, course_id: CourseID) -> None:
+    def leave_course(self, student_id: str, course_id: str) -> None:
         self.do(StudentLeavesCourse(student_id, course_id))
 
-    def list_students_for_course(self, course_id: CourseID) -> list[str]:
+    def list_students_for_course(self, course_id: str) -> list[str]:
         return self.do(StudentNames(self.do(StudentsIDs(course_id)).student_ids)).names
 
-    def list_courses_for_student(self, student_id: StudentID) -> list[str]:
+    def list_courses_for_student(self, student_id: str) -> list[str]:
         return self.do(CourseNames(self.do(CourseIDs(student_id)).course_ids)).names
 
-    def update_student_name(self, student_id: StudentID, name: str) -> None:
+    def update_student_name(self, student_id: str, name: str) -> None:
         self.do(UpdateStudentName(student_id, name))
 
-    def update_max_courses(self, student_id: StudentID, max_courses: int) -> None:
+    def update_max_courses(self, student_id: str, max_courses: int) -> None:
         self.do(UpdateMaxCourses(student_id, max_courses))
 
-    def update_course_name(self, course_id: CourseID, name: str) -> None:
+    def update_course_name(self, course_id: str, name: str) -> None:
         self.do(UpdateCourseName(course_id, name))
 
-    def update_places(self, course_id: CourseID, places: int) -> None:
+    def update_places(self, course_id: str, places: int) -> None:
         self.do(UpdatePlaces(course_id, places))
 
-    def get_student(self, student_id: StudentID) -> Student:
+    def get_student(self, student_id: str) -> Student:
         return self.do(Student(student_id=student_id))
 
-    def get_course(self, course_id: CourseID) -> Course:
+    def get_course(self, course_id: str) -> Course:
         return self.do(Course(course_id=course_id))
 
 

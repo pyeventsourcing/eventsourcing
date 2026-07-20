@@ -22,7 +22,6 @@ from eventsourcing.utils import resolve_topic, reversed_keys
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
-    from uuid import UUID
 
 
 class POPORecorder:
@@ -78,7 +77,7 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
 
     def select_events(
         self,
-        originator_id: UUID | str,
+        originator_id: str,
         *,
         gt: int | None = None,
         lte: int | None = None,

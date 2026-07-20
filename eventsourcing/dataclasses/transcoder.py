@@ -4,7 +4,7 @@ import dataclasses
 import json
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, TypeVar
+from typing import Any
 from uuid import UUID
 
 from eventsourcing.dataclasses.immutable import DataclassDecision
@@ -12,7 +12,7 @@ from eventsourcing.persistence import Transcoder
 
 
 class DataclassTranscoder(Transcoder[DataclassDecision]):
-    def __init__(self):
+    def __init__(self) -> None:
         self.encoder = json.JSONEncoder(
             default=self._dump_obj,
             separators=(",", ":"),

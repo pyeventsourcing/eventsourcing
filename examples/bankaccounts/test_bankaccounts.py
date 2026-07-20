@@ -14,7 +14,7 @@ class TestBankAccounts(unittest.TestCase):
 
         # Check account not found error.
         with self.assertRaises(AccountNotFoundError):
-            app.get_balance(uuid4())
+            app.get_balance(str(uuid4()))
 
         # Create account #1.
         account_id1 = app.open_account(

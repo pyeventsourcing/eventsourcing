@@ -109,7 +109,7 @@ class Follower(EventSourcedProjection[TDecision]):
                 self.process_event(domain_event, tracking)
 
     def process_event(
-        self, envelope: AggregateEvent[TDecision], tracking: Tracking
+        self, envelope: EventEnvelope[TDecision], tracking: Tracking
     ) -> None:
         with self.processing_lock:
             super().process_event(envelope, tracking)
@@ -190,7 +190,7 @@ class Leader(Application[TDecision]):
 
     def save(
         self,
-        *objs: CollectEventsProtocol[TDecision] | EventEnvelope[TDecision] | None,
+        *objs: CollectEventsProtocol[TDecision] | AggregateEvent[TDecision] | None,
         **kwargs: Any,
     ) -> list[Recording[TDecision]]:
         if self.previous_max_notification_id is None:

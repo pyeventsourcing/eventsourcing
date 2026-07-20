@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import NAMESPACE_URL, uuid5
 
 from eventsourcing.application import (
     AggregateNotFoundError,
-    Application,
     EventSourcedLog,
 )
 from eventsourcing.pydantic.application import PydanticApplication
@@ -14,7 +13,6 @@ from examples.contentmanagement.domainmodel import Page, PageLogged, Slug
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from eventsourcing.domain_old import MutableOrImmutableAggregate
     from eventsourcing.utils import EnvType
 
 PageDetailsType = dict[str, str | Any]
@@ -43,7 +41,7 @@ class ContentManagement(PydanticApplication):
         page = self._get_page_by_slug(slug)
         return self._details_from_page(page)
 
-    def get_page_by_id(self, page_id: UUID) -> PageDetailsType:
+    def get_page_by_id(self, page_id: str) -> PageDetailsType:
         page = self._get_page_by_id(page_id)
         return self._details_from_page(page)
 

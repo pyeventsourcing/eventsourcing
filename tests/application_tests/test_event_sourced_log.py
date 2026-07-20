@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from unittest import TestCase
-from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from eventsourcing.application import Application, EventSourcedLog
+from eventsourcing.application import EventSourcedLog
 from eventsourcing.dataclasses.application import DataclassApplication
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.legacy import (
@@ -36,14 +36,14 @@ class TestEventSourcedLog(TestCase):
         transcoder.register(DatetimeAsISO())
 
         event_recorder = POPOAggregateRecorder()
-        event_store = EventStore(
+        event_store = EventStore[DataclassDecision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
 
         log: EventSourcedLog[LoggedID] = EventSourcedLog(
             events=event_store,
-            originator_id=uuid5(NAMESPACE_URL, "/aggregates"),
+            originator_id=str(uuid5(NAMESPACE_URL, "/aggregates")),
             event_cls=LoggedID,
         )
         id1 = str(uuid4())
@@ -98,7 +98,7 @@ class TestEventSourcedLog(TestCase):
                 pass
 
             @triggers(Created)
-            def __init__(self):
+            def __init__(self) -> None:
                 pass
 
         class MyApplication(DataclassApplication):
@@ -110,13 +110,13 @@ class TestEventSourcedLog(TestCase):
                     event_cls=LoggedID,
                 )
 
-            def create_aggregate(self) -> UUID:
+            def create_aggregate(self) -> str:
                 aggregate = MyAggregate()
                 logged_id = self.aggregate_log.trigger_event(aggregate_id=aggregate.id)
                 self.save(aggregate, logged_id)
                 return aggregate.id
 
-            def construct_transcoder(self) -> Transcoder:
+            def construct_transcoder(self) -> Transcoder[DataclassDecision]:
                 transcoder = LegacyJSONTranscoder()
                 transcoder.register(UUIDAsHex())
                 transcoder.register(DecimalAsStr())
@@ -147,7 +147,7 @@ class TestEventSourcedLog(TestCase):
         transcoder.register(DatetimeAsISO())
 
         event_recorder = POPOAggregateRecorder()
-        event_store = EventStore(
+        event_store = EventStore[DataclassDecision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
@@ -163,15 +163,15 @@ class TestEventSourcedLog(TestCase):
 
         # Subclass EventSourcedLog.
         class TransactionLog(EventSourcedLog[TransactionLogEvent]):
-            def account_credited(self) -> AggregateEvent[AccountCredited]:
+            def account_credited(self) -> AggregateEvent[DataclassDecision]:
                 return self._trigger_event(logged_cls=AccountCredited)
 
-            def account_debited(self) -> AggregateEvent[AccountDebited]:
+            def account_debited(self) -> AggregateEvent[DataclassDecision]:
                 return self._trigger_event(logged_cls=AccountDebited)
 
         transaction_log = TransactionLog(
             events=event_store,
-            originator_id=uuid5(NAMESPACE_URL, "/aggregates"),
+            originator_id=str(uuid5(NAMESPACE_URL, "/aggregates")),
             event_cls=TransactionLogEvent,
         )
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 from unittest import TestCase
 
 from examples.aggregate1.application import DogSchool
-from examples.aggregate1.domainmodel import Dog
 
 
 class TestDogSchool(TestCase):

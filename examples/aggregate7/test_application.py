@@ -5,7 +5,6 @@ from unittest import TestCase
 
 from eventsourcing.domain_new import put_metadata_in_context
 from examples.aggregate7.application import DogSchool
-from examples.aggregate7.domainmodel import project_dog
 
 
 class TestDogSchool(TestCase):
@@ -32,7 +31,7 @@ class TestDogSchool(TestCase):
 
         # # Take snapshot.
         # with put_metadata_in_context({"user_id": "admin-1"}):
-        #     school.take_snapshot(dog_id, version=3, projector_func=project_dog)
+        #     school.take_snapshot(dog_id, version=3, projector=project_dog)
         # dog = school.get_dog(dog_id)
         # self.assertEqual(dog["name"], "Fido")
         # self.assertEqual(dog["tricks"], ("roll over", "play dead"))

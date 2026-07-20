@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import cast
 from unittest import TestCase
 from uuid import uuid4
 

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from decimal import Decimal  # noqa: TC003
-from typing import Any
-from uuid import UUID  # noqa: TC003
 
 from eventsourcing.domain_new import event
 from eventsourcing.pydantic.immutable import Immutable, PydanticDecision

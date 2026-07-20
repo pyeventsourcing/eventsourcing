@@ -418,7 +418,7 @@ Version 9.2.4 (released 7 April 2022)
 * Changed create_timestamp() to use time.monotonic().
 * Improved docs (docstring in runner, double word in tutorial, and better
   wording in domain module doc, overview in tutorial).
-* Fixed a call to '_reconstruct_aggregate' to use given 'projector_func'
+* Fixed a call to '_reconstruct_aggregate' to use given 'projector'
   arg (was using default 'mutator_func').
 * Adjusted order of looking for 'PERSISTENCE_MODULE', 'INFRASTRUCTURE_FACTORY'
   and 'FACTORY_TOPIC' in environment (so that legacy alternatives are looked

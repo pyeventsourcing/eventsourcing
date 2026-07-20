@@ -4,24 +4,26 @@ from typing import TYPE_CHECKING
 from unittest.case import TestCase
 
 from eventsourcing.application import ProcessingEvent
-from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.domain_new import Aggregate, triggers
+from eventsourcing.domain_new import triggers
 from eventsourcing.persistence import Tracking
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.mutable import PydanticAggregate
 from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 
 if TYPE_CHECKING:
-    from eventsourcing.domain_new import AggregateEvent, TDecision
+    from eventsourcing.domain_new import AggregateEvent
 
 
 def policy(
-    envelope: AggregateEvent[TDecision], processing_event: ProcessingEvent
+    envelope: AggregateEvent[PydanticDecision],
+    processing_event: ProcessingEvent[PydanticDecision],
 ) -> None:
     match envelope.decision:
         case BankAccountWithPydantic.Opened(
             email_address=email_address, full_name=full_name
         ):
             notification = EmailNotification(
-                to=email_address,
+                to=email_address.address,
                 subject="Your New Account",
                 message=f"Dear {full_name}",
             )
@@ -38,7 +40,7 @@ class TestProcessingPolicy(TestCase):
         events = account.collect_events()
         created_event = events[0]
 
-        processing_event = ProcessingEvent(
+        processing_event = ProcessingEvent[PydanticDecision](
             tracking=Tracking(
                 application_name="upstream_app",
                 notification_id=5,
@@ -54,8 +56,8 @@ class TestProcessingPolicy(TestCase):
         )
 
 
-class EmailNotification(Aggregate[DataclassDecision]):
-    class Created(DataclassDecision):
+class EmailNotification(PydanticAggregate):
+    class Created(PydanticDecision):
         to: str
         subject: str
         message: str

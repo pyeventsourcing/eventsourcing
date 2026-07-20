@@ -1,44 +1,43 @@
 from __future__ import annotations
 
+from collections.abc import Hashable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar
-from uuid import uuid4
+from datetime import datetime  # noqa: TC003
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
-from eventsourcing.dispatch import singledispatchmethod
+from eventsourcing.dataclasses.immutable import (
+    DataclassDecision,
+    coerce_value,
+    get_init_types,
+)
 from eventsourcing.domain_new import (
-    AbstractDecision,
+    AggregateEvent,
+    EventEnvelope,
+    WorksWithDecisions,
     datetime_now_with_tzinfo,
-    get_metadata_from_context,
 )
 from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from datetime import datetime
     from typing import Self
-    from uuid import UUID
 
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
-@dataclass(frozen=True, kw_only=True)
-class DomainEvent(AbstractDecision):
+class TimestampedDataclassDecision(DataclassDecision):
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
 
-    def as_dict(self) -> dict[str, Any]:
-        return self.__dict__.copy()
 
-
-@dataclass
-class Aggregate:
-    id: UUID
+@dataclass(eq=False)
+class Aggregate(WorksWithDecisions[DataclassDecision]):
+    id: str
     version: int
     created_on: datetime
     modified_on: datetime
-    _pending_events: list[DomainEvent]
+    _pending_events: list[AggregateEvent[DataclassDecision]] = field(init=False)
 
-    @dataclass(frozen=True)
-    class Snapshot(DomainEvent):
+    class Snapshot(TimestampedDataclassDecision):
         topic: str
         state: dict[str, Any]
 
@@ -50,48 +49,54 @@ class Aggregate:
             aggregate_state = dict(aggregate.__dict__)
             aggregate_state.pop("_pending_events")
             return Aggregate.Snapshot(
-                originator_id=aggregate.id,
-                originator_version=aggregate.version,
                 topic=get_topic(type(aggregate)),
                 state=aggregate_state,
             )
 
     def trigger_event(
         self,
-        event_class: type[DomainEvent],
+        event_class: type[DataclassDecision],
         **kwargs: Any,
     ) -> None:
         kwargs = kwargs.copy()
-        kwargs.update(
+        new_event = AggregateEvent(
+            decision=event_class(**kwargs),
             originator_id=self.id,
             originator_version=self.version + 1,
         )
-        new_event = event_class(**kwargs)
         self.apply_event(new_event)
         self.append_event(new_event)
 
-    def append_event(self, *events: DomainEvent) -> None:
+    def append_event(self, *events: AggregateEvent[DataclassDecision]) -> None:
         self._pending_events.extend(events)
 
-    def collect_events(self) -> list[DomainEvent]:
+    def collect_events(self) -> list[AggregateEvent[DataclassDecision]]:
         events, self._pending_events = self._pending_events, []
         return events
 
-    @singledispatchmethod
-    def apply_event(self, event: DomainEvent) -> None:
-        msg = f"For {type(event).__qualname__}"
-        raise NotImplementedError(msg)
+    def apply_event(self, event: EventEnvelope[DataclassDecision]) -> None:
+        match event.decision:
+            case Aggregate.Snapshot(state=state):
+                validated_state = {}
+                init_types = get_init_types(cast(Hashable, type(self)))
 
-    @apply_event.register(Snapshot)
-    def _(self, event: Snapshot) -> None:
-        self.__dict__.update(event.state)
+                for key, value in state.items():
+                    if key in init_types:
+                        validated_state[key] = coerce_value(init_types[key], value)
+                    else:
+                        validated_state[key] = value
+
+                self.__dict__.update(validated_state)
+            case _:
+                msg = f"For {type(event.decision).__qualname__}"
+                raise NotImplementedError(msg)
 
     @classmethod
     def project_events(
         cls,
         _: Self | None,
-        events: Iterable[DomainEvent],
-    ) -> Self:
+        events: Iterable[EventEnvelope[DataclassDecision]],
+    ) -> Self | None:
         aggregate: Self = Aggregate.__new__(cls)
         for event in events:
             aggregate.apply_event(event)

@@ -12,7 +12,7 @@ from examples.shopvertical.events import (
 from examples.shopvertical.slices.list_products_in_shop.query import ListProductsInShop
 
 if TYPE_CHECKING:
-    from eventsourcing.pydantic.immutable import DomainEvent
+    from examples.shopvertical.common import Events
 
 
 class TestListProductsInShop(unittest.TestCase):
@@ -61,7 +61,7 @@ class TestListProductsInShop(unittest.TestCase):
                     description="",
                     price=Decimal("5.99"),
                 ),
-                originator_id=uuid4(),
+                originator_id=str(uuid4()),
                 originator_version=1,
             ),
             AggregateEvent(

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import sqlite3
 from sqlite3 import Connection
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from unittest import TestCase
 from unittest.mock import Mock
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
 from eventsourcing.errors import (
@@ -202,8 +202,8 @@ class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
 class WithUuidOriginatorID:
     originator_id_type: Literal["uuid", "text"] = "uuid"
 
-    def new_originator_id(self) -> UUID | str:
-        return uuid4()
+    def new_originator_id(self) -> str:
+        return cast(str, uuid4())
 
 
 class TestSQLiteAggregateRecorderWithUuidOriginatorID(
@@ -230,7 +230,7 @@ class TestSQLiteAggregateRecorderErrors(TestCase):
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         # Don't create table.
         with self.assertRaises(OperationalError):
-            recorder.select_events(uuid4())
+            recorder.select_events(str(uuid4()))
 
 
 class TestSQLiteApplicationRecorder(
@@ -282,7 +282,7 @@ class TestSQLiteApplicationRecorderErrors(TestCase):
     def test_insert_raises_operational_error_if_table_not_created(self) -> None:
         recorder = SQLiteApplicationRecorder(SQLiteDatastore(":memory:"))
         stored_event1 = StoredEvent(
-            originator_id=uuid4(),
+            originator_id=str(uuid4()),
             originator_version=1,
             topic="topic1",
             state=b"",
@@ -294,7 +294,7 @@ class TestSQLiteApplicationRecorderErrors(TestCase):
     def test_select_raises_operational_error_if_table_not_created(self) -> None:
         recorder = SQLiteApplicationRecorder(SQLiteDatastore(":memory:"))
         with self.assertRaises(OperationalError):
-            recorder.select_events(uuid4())
+            recorder.select_events(str(uuid4()))
 
         with self.assertRaises(OperationalError):
             recorder.select_notifications(start=1, limit=1)
@@ -433,7 +433,7 @@ class TestSQLiteProcessRecorderErrors(TestCase):
     def test_insert_raises_operational_error_if_table_not_created(self) -> None:
         recorder = SQLiteProcessRecorder(SQLiteDatastore(":memory:"))
         stored_event1 = StoredEvent(
-            originator_id=uuid4(),
+            originator_id=str(uuid4()),
             originator_version=1,
             topic="topic1",
             state=b"",
@@ -444,7 +444,7 @@ class TestSQLiteProcessRecorderErrors(TestCase):
     def test_select_raises_operational_error_if_table_not_created(self) -> None:
         recorder = SQLiteProcessRecorder(SQLiteDatastore(":memory:"))
         with self.assertRaises(OperationalError):
-            recorder.select_events(uuid4())
+            recorder.select_events(str(uuid4()))
 
         with self.assertRaises(OperationalError):
             recorder.max_tracking_id("application name")

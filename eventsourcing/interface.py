@@ -123,7 +123,7 @@ class NotificationLogJSONClient(NotificationLog):
             items=[
                 Notification(
                     id=item["id"],
-                    originator_id=UUID(item["originator_id"]),
+                    originator_id=item["originator_id"],
                     originator_version=item["originator_version"],
                     topic=item["topic"],
                     state=b64decode(item["state"].encode("utf8")),
@@ -148,7 +148,7 @@ class NotificationLogJSONClient(NotificationLog):
         return [
             Notification(
                 id=item["id"],
-                originator_id=UUID(item["originator_id"]),
+                originator_id=item["originator_id"],
                 originator_version=item["originator_version"],
                 topic=item["topic"],
                 state=b64decode(item["state"].encode("utf8")),

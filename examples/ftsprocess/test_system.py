@@ -5,6 +5,7 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.domain_new import put_metadata_in_context
+from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.system import SingleThreadedRunner
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import get_topic
@@ -19,7 +20,7 @@ class ContentManagementSystemTestCase(TestCase):
     env: ClassVar[dict[str, str]] = {}
 
     def test_system(self) -> None:
-        with SingleThreadedRunner(
+        with SingleThreadedRunner[PydanticDecision](
             system=ContentManagementSystem(), env=self.env
         ) as runner:
 

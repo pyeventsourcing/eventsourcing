@@ -11,10 +11,13 @@ import eventsourcing.dataclasses.immutable
 import eventsourcing.domain_old
 import eventsourcing.msgspec.immutable
 import eventsourcing.pydantic.immutable
+from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
 from eventsourcing.domain_new import AggregateEvent
+from eventsourcing.msgspec.immutable import MsgspecDecision
 from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 from eventsourcing.persistence import AggregateEventMapper
+from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.transcoder import PydanticTranscoder
 
 if TYPE_CHECKING:
@@ -31,7 +34,7 @@ def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=uuid4(),
+        originator_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -42,7 +45,7 @@ def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
     )
 
     transcoder = DataclassTranscoder()
-    mapper = AggregateEventMapper(transcoder=transcoder)
+    mapper = AggregateEventMapper[DataclassDecision](transcoder=transcoder)
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -60,7 +63,7 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=uuid4(),
+        originator_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -71,7 +74,7 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
     )
 
     transcoder = DataclassTranscoder()
-    mapper = AggregateEventMapper(transcoder=transcoder)
+    mapper = AggregateEventMapper[DataclassDecision](transcoder=transcoder)
 
     stored_event = mapper.to_stored_event(obj)
 
@@ -90,7 +93,7 @@ def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=uuid4(),
+        originator_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -100,7 +103,7 @@ def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper(transcoder=PydanticTranscoder)
+    mapper = AggregateEventMapper[PydanticDecision](transcoder=PydanticTranscoder())
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -117,7 +120,7 @@ def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=uuid4(),
+        originator_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -127,7 +130,7 @@ def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper(transcoder=PydanticTranscoder)
+    mapper = AggregateEventMapper[PydanticDecision](transcoder=PydanticTranscoder())
 
     stored_event = mapper.to_stored_event(obj)
 
@@ -146,7 +149,7 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=uuid4(),
+        originator_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -156,7 +159,7 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper(transcoder=MsgspecTranscoder)
+    mapper = AggregateEventMapper[MsgspecDecision](transcoder=MsgspecTranscoder())
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -173,7 +176,7 @@ def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=uuid4(),
+        originator_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -183,7 +186,7 @@ def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper(transcoder=MsgspecTranscoder)
+    mapper = AggregateEventMapper[MsgspecDecision](transcoder=MsgspecTranscoder())
 
     stored_event = mapper.to_stored_event(obj)
 

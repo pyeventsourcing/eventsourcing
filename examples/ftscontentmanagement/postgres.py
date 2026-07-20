@@ -14,7 +14,6 @@ from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from uuid import UUID
 
     from psycopg import Cursor
     from psycopg.rows import DictRow

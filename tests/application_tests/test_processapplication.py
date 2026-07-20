@@ -3,19 +3,13 @@ from typing import Any
 from unittest.case import TestCase
 
 from eventsourcing.application import ProcessingEvent
-from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.dataclasses.legacy import (
-    DatetimeAsISO,
-    DecimalAsStr,
-    LegacyJSONTranscoder,
-    UUIDAsHex,
-)
-from eventsourcing.domain_new import AggregateEvent, TDecision
+from eventsourcing.domain_new import AggregateEvent, EventEnvelope, TDecision
 from eventsourcing.persistence import (
     IntegrityError,
     Transcoder,
 )
 from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.transcoder import PydanticTranscoder
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -23,7 +17,7 @@ from eventsourcing.system import (
     RecordingEvent,
     RecordingEventReceiver,
 )
-from eventsourcing.tests.application import BankAccountsWithPydantic, EmailAddressAsStr
+from eventsourcing.tests.application import BankAccountsWithPydantic
 from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 from tests.application_tests.test_processingpolicy import EmailNotification
 
@@ -90,26 +84,23 @@ class TestProcessApplication(TestCase):
         )
 
 
-class EmailProcess(ProcessApplication[DataclassDecision]):
-    def construct_transcoder(self) -> Transcoder:
-        transcoder = LegacyJSONTranscoder()
-        transcoder.register(UUIDAsHex())
-        transcoder.register(DecimalAsStr())
-        transcoder.register(DatetimeAsISO())
-        transcoder.register(EmailAddressAsStr())
-        return transcoder
+class EmailProcess(ProcessApplication[PydanticDecision]):
+    def construct_transcoder(self) -> Transcoder[PydanticDecision]:
+        return PydanticTranscoder()
 
     def policy(
         self,
-        envelope: AggregateEvent[TDecision],
-        processing_event: ProcessingEvent,
+        envelope: EventEnvelope[PydanticDecision],
+        processing_event: ProcessingEvent[PydanticDecision],
     ) -> None:
-        match envelope.decision:
-            case BankAccountWithPydantic.Opened(
-                full_name=full_name, email_address=email_address
+        match envelope:
+            case AggregateEvent(
+                decision=BankAccountWithPydantic.Opened(
+                    full_name=full_name, email_address=email_address
+                )
             ):
                 notification = EmailNotification(
-                    to=email_address,
+                    to=email_address.address,
                     subject="Your New Account",
                     message=f"Dear {full_name}, ...",
                 )

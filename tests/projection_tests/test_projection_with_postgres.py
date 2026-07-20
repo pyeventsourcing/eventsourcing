@@ -5,9 +5,7 @@ from typing import Any, ClassVar
 from psycopg.sql import SQL, Identifier
 
 from eventsourcing.msgspec.application import MsgspecApplication
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     InfrastructureFactory,
     Tracking,
 )
@@ -27,7 +25,7 @@ from eventsourcing.tests.projection import (
     Student,
     StudentEventCountersProjection,
 )
-from eventsourcing.utils import Environment, get_topic
+from eventsourcing.utils import Environment
 
 
 class PostgresEventCounters(PostgresTrackingRecorder, EventCountersView):
@@ -219,9 +217,14 @@ class TestAggregateEventCountersProjectionWithPostgres(
             write_model = MsgspecApplication(self.env)
 
             # Construct separate instance of "read model".
-            read_model = InfrastructureFactory.construct(
-                env=Environment(name=StudentEventCountersProjection.name, env=self.env)
-            ).tracking_recorder(self.view_class)
+            factory: InfrastructureFactory[PostgresEventCounters] = (
+                InfrastructureFactory.construct(
+                    env=Environment(
+                        name=StudentEventCountersProjection.name, env=self.env
+                    )
+                )
+            )
+            read_model = factory.tracking_recorder(self.view_class)
 
             # Still terminates with projection error.
             with self.assertRaises(SpannerThrownError):

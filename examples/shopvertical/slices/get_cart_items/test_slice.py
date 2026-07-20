@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import TYPE_CHECKING
 from unittest import TestCase
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from eventsourcing.domain_new import AggregateEvent
 from examples.shopvertical.events import (

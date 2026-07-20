@@ -4,11 +4,9 @@ from unittest import TestCase
 
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
-    CourseID,
     CourseNotFoundError,
     EnrolmentInterface,
     FullyBookedError,
-    StudentID,
     StudentNotFoundError,
     TooManyCoursesError,
 )
@@ -61,12 +59,12 @@ class EnrolmentTestCase(TestCase):
 
         # Course not found.
         with self.assertRaises(CourseNotFoundError):
-            course_id = CourseID("not-a-course")
+            course_id = "not-a-course"
             app.join_course(grace, course_id)
 
         # Student not found.
         with self.assertRaises(StudentNotFoundError):
-            app.join_course(StudentID("not-a-student"), dcb)
+            app.join_course("not-a-student", dcb)
 
         # List students for "Dynamic Consistency Boundaries" course.
         students = app.list_students_for_course(dcb)

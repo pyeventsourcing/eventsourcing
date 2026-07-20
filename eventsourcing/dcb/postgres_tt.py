@@ -21,7 +21,7 @@ from eventsourcing.dcb.persistence import (
     DCBListenNotifySubscription,
 )
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
-from eventsourcing.domain_new import NIL_UUID, NIL_UUID_STR
+from eventsourcing.domain_new import NIL_UUID
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError, InternalError
 from eventsourcing.postgres import (

@@ -15,7 +15,7 @@ class StudentRegistered(MsgspecDecision):
 
 class TestMapper(TestCase):
     def test_mapper(self) -> None:
-        mapper = TaggedEventMapper(MsgspecTranscoder())
+        mapper = TaggedEventMapper[MsgspecDecision](MsgspecTranscoder())
 
         event = TaggedEvent[StudentRegistered](
             tags=["student-1"],

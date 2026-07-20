@@ -8,7 +8,6 @@ from typing import Any, cast
 from uuid import UUID
 
 from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.domain_new import TDecision
 from eventsourcing.errors import TranscodingNotRegisteredError
 from eventsourcing.persistence import Transcoder
 

@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import traceback
-import warnings
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from threading import Event, get_ident
 from time import sleep
 from typing import TYPE_CHECKING, Any, ClassVar
 from unittest import TestCase
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from eventsourcing.application import AggregateNotFoundError, Application
-from eventsourcing.dataclasses.legacy import LegacyJSONTranscoder, Transcoding
+from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses.legacy import Transcoding
 from eventsourcing.domain_new import Aggregate, triggers
 from eventsourcing.errors import InfrastructureFactoryError
 from eventsourcing.persistence import (
@@ -120,7 +120,7 @@ class EmailAddressAsStr(Transcoding):
         return obj.address
 
     def decode(self, data: str) -> EmailAddress:
-        return EmailAddress(data)
+        return EmailAddress(address=data)
 
 
 class BankAccountsWithPydantic(PydanticApplication):
@@ -166,7 +166,7 @@ class ApplicationTestCase(TestCase):
             pass
 
         @triggers(Created)
-        def __init__(self):
+        def __init__(self) -> None:
             pass
 
         @triggers(Next)
@@ -182,12 +182,12 @@ class ApplicationTestCase(TestCase):
     def test_name(self) -> None:
         self.assertEqual(Application.name, "Application")
 
-        class MyApplication1(Application):
+        class MyApplication1(Application[DataclassDecision]):
             pass
 
         self.assertEqual(MyApplication1.name, "MyApplication1")
 
-        class MyApplication2(Application):
+        class MyApplication2(Application[DataclassDecision]):
             name = "MyBoundedContext"
 
         self.assertEqual(MyApplication2.name, "MyBoundedContext")
@@ -254,7 +254,7 @@ class ApplicationTestCase(TestCase):
     ) -> None:
         app = PydanticApplication(self.env)
         with self.assertRaises(AssertionError) as cm:
-            app.take_snapshot(uuid4())
+            app.take_snapshot(str(uuid4()))
         self.assertEqual(
             cm.exception.args[0],
             "Can't take snapshot without snapshots store. Please "
@@ -434,14 +434,14 @@ class ApplicationTestCase(TestCase):
         self.assertEqual(aggregate1, app.repository.cache.get(aggregate_id))
 
         aggregate2 = self.MyAggregate()
-        aggregate2._id = aggregate_id
+        aggregate2.id = aggregate_id
         aggregate2.trigger_event(self.MyAggregate.Next)
 
         # This will replace object in cache.
         app.save(aggregate2)
 
         self.assertEqual(aggregate2.version, aggregate1.version + 1)
-        aggregate3: Aggregate = app.repository.get(aggregate_id, self.MyAggregate)
+        aggregate3 = app.repository.get(aggregate_id, self.MyAggregate)
         self.assertEqual(aggregate3.version, aggregate3.version)
         self.assertEqual(id(aggregate3.version), id(aggregate3.version))
 
@@ -450,7 +450,7 @@ class ApplicationTestCase(TestCase):
         app.events.put(aggregate3.collect_events())
 
         # And so using the aggregate to record new events will cause an IntegrityError.
-        aggregate4: Aggregate = app.repository.get(aggregate_id, self.MyAggregate)
+        aggregate4 = app.repository.get(aggregate_id, self.MyAggregate)
         aggregate4.trigger_event(self.MyAggregate.Next)
         with self.assertRaises(IntegrityError):
             app.save(aggregate4)
@@ -464,7 +464,7 @@ class ApplicationTestCase(TestCase):
         aggregate = self.MyAggregate()
         app.save(aggregate)
         self.assertEqual(aggregate.version, 1)
-        reconstructed: Aggregate = app.repository.get(aggregate.id, self.MyAggregate)
+        reconstructed = app.repository.get(aggregate.id, self.MyAggregate)
         reconstructed.version = 101
         assert app.repository.cache is not None  # for mypy
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 1)
@@ -481,12 +481,12 @@ class ApplicationTestCase(TestCase):
         aggregate = self.MyAggregate()
         app.save(aggregate)
         self.assertEqual(aggregate.version, 1)
-        reconstructed: Aggregate = app.repository.get(aggregate.id, self.MyAggregate)
+        reconstructed = app.repository.get(aggregate.id, self.MyAggregate)
         reconstructed.version = 101
         assert app.repository.cache is not None  # for mypy
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 1)
         app.repository.deepcopy_from_cache = False
-        cached: Aggregate = app.repository.get(aggregate.id, self.MyAggregate)
+        cached = app.repository.get(aggregate.id, self.MyAggregate)
         cached.version = 101
         self.assertEqual(app.repository.cache.get(aggregate.id).version, 101)
 

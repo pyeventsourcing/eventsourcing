@@ -18,7 +18,7 @@ class TestEventMetadata(TestCase):
             put_metadata_in_context({"correlation_id": "cor-1"}),
         ):
             event = AggregateEvent(
-                originator_id=uuid4(),
+                originator_id=str(uuid4()),
                 originator_version=1,
                 decision=DataclassDecision(),
             )
@@ -32,7 +32,7 @@ class TestEventMetadata(TestCase):
             null_metadata_in_context(),
         ):
             event = AggregateEvent(
-                originator_id=uuid4(),
+                originator_id=str(uuid4()),
                 originator_version=1,
                 metadata={"user_id": "user-2"},
                 decision=DataclassDecision(),
@@ -45,7 +45,7 @@ class TestEventMetadata(TestCase):
             null_metadata_in_context(),
         ):
             event = AggregateEvent(
-                originator_id=uuid4(),
+                originator_id=str(uuid4()),
                 originator_version=1,
                 decision=DataclassDecision(),
             )

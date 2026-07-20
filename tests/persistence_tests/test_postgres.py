@@ -3,10 +3,10 @@ from __future__ import annotations
 from concurrent.futures.thread import ThreadPoolExecutor
 from threading import Event, Thread
 from time import sleep
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 from unittest import TestCase
 from unittest.mock import Mock
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import psycopg
 from psycopg import Connection
@@ -459,8 +459,9 @@ class WithSchema(SetupPostgresDatastore):
 class WithUuidOriginatorID(SetupPostgresDatastore):
     originator_id_type = "uuid"
 
-    def new_originator_id(self) -> UUID | str:
-        return uuid4()
+    def new_originator_id(self) -> str:
+        # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
+        return cast(str, uuid4())
 
     def test_datastore_has_originator_id_type(self) -> None:
         self.assertEqual(self.datastore.originator_id_type, self.originator_id_type)
@@ -512,7 +513,7 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
 
         # Write a stored event.
         stored_event1 = StoredEvent(
-            originator_id=uuid4(),
+            originator_id=str(uuid4()),
             originator_version=0,
             topic="topic1",
             state=b"state1",
@@ -628,7 +629,7 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
         # Write a stored event without creating the table.
         # This should firstly fail because the composite type isn't registered.
         stored_event1 = StoredEvent(
-            originator_id=uuid4(),
+            originator_id=str(uuid4()),
             originator_version=0,
             topic="topic1",
             state=b"state1",
@@ -668,7 +669,7 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
         # Write a stored event with broken statement.
         recorder.insert_events_statement = SQL("BLAH").format()
         stored_event1 = StoredEvent(
-            originator_id=uuid4(),
+            originator_id=str(uuid4()),
             originator_version=0,
             topic="topic1",
             state=b"state1",
@@ -1001,13 +1002,13 @@ class TestPostgresApplicationRecorder(
         recorder = self.create_recorder()
 
         stored_event1 = StoredEvent(
-            originator_id=uuid4(),
+            originator_id=str(uuid4()),
             originator_version=1,
             topic="topic1",
             state=b"state1",
         )
         stored_event2 = StoredEvent(
-            originator_id=uuid4(),
+            originator_id=str(uuid4()),
             originator_version=1,
             topic="topic1",
             state=b"state1",
@@ -1120,7 +1121,7 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
         def make_events() -> Sequence[StoredEvent]:
             return [
                 StoredEvent(
-                    originator_id=uuid4(),
+                    originator_id=str(uuid4()),
                     originator_version=1,
                     state=b"",
                     topic="",
@@ -1317,7 +1318,7 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
         self.assertFalse(self.datastore.pool._pool[0].closed)
 
         # Write a tracking record.
-        originator_id = uuid4()
+        originator_id = str(uuid4())
         stored_event1 = StoredEvent(
             originator_id=originator_id,
             originator_version=0,
@@ -1391,13 +1392,13 @@ class TestPostgresFactory(InfrastructureFactoryTestCase[PostgresFactory]):
     class PostgresProcessRecorderSubclass(PostgresProcessRecorder):
         pass
 
-    def application_recorder_subclass(self) -> type[TrackingRecorder]:
+    def application_recorder_subclass(self) -> type[ApplicationRecorder]:
         return self.PostgresApplicationRecorderSubclass
 
     def tracking_recorder_subclass(self) -> type[TrackingRecorder]:
         return self.PostgresTrackingRecorderSubclass
 
-    def process_recorder_subclass(self) -> type[TrackingRecorder]:
+    def process_recorder_subclass(self) -> type[ProcessRecorder]:
         return self.PostgresProcessRecorderSubclass
 
     def test_create_tracking_recorder(self) -> None:

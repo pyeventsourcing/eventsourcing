@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from unittest.case import TestCase
 
 import eventsourcing.popo
@@ -9,13 +10,19 @@ from eventsourcing.persistence import (
     EventStore,
     InfrastructureFactory,
     Mapper,
+    TrackingRecorder,
 )
 from eventsourcing.utils import Environment, get_topic
+
+if TYPE_CHECKING:
+    from eventsourcing.dataclasses.immutable import DataclassDecision
 
 
 class TestInfrastructureFactory(TestCase):
     def test_constructs_popo_factory_by_default(self) -> None:
-        factory = InfrastructureFactory.construct()
+        factory: InfrastructureFactory[TrackingRecorder] = (
+            InfrastructureFactory.construct()
+        )
         self.assertIsInstance(factory, InfrastructureFactory)
         self.assertIsInstance(factory, eventsourcing.popo.POPOFactory)
 
@@ -38,7 +45,9 @@ class TestInfrastructureFactory(TestCase):
 
     def test_construct_mapper(self) -> None:
         # No environment variables.
-        factory: InfrastructureFactory = InfrastructureFactory.construct()
+        factory: InfrastructureFactory[TrackingRecorder] = (
+            InfrastructureFactory.construct()
+        )
         with self.assertRaises(ProgrammingError) as cm:
             factory.mapper()
         self.assertIn("Please set TRANSCODER_TOPIC", str(cm.exception))
@@ -48,7 +57,7 @@ class TestInfrastructureFactory(TestCase):
         }
 
         factory = InfrastructureFactory.construct(env)
-        mapper = factory.mapper()
+        mapper: Mapper[DataclassDecision] = factory.mapper()
 
         self.assertIsInstance(mapper, AggregateEventMapper)
         self.assertIsInstance(mapper.transcoder, LegacyJSONTranscoder)
@@ -66,18 +75,20 @@ class TestInfrastructureFactory(TestCase):
         self.assertIsInstance(mapper.transcoder, LegacyJSONTranscoder)
 
     def test_construct_event_store(self) -> None:
-        factory: InfrastructureFactory = InfrastructureFactory.construct(
-            env={
-                "MAPPER_TOPIC": get_topic(AggregateEventMapper),
-                "TRANSCODER_TOPIC": get_topic(LegacyJSONTranscoder),
-            }
+        factory: InfrastructureFactory[TrackingRecorder] = (
+            InfrastructureFactory.construct(
+                env={
+                    "MAPPER_TOPIC": get_topic(AggregateEventMapper),
+                    "TRANSCODER_TOPIC": get_topic(LegacyJSONTranscoder),
+                }
+            )
         )
-        event_store: EventStore = factory.event_store()
+        event_store: EventStore[DataclassDecision] = factory.event_store()
         self.assertIsInstance(event_store, EventStore)
         self.assertIsInstance(event_store.mapper, AggregateEventMapper)
         self.assertIsInstance(event_store.recorder, ApplicationRecorder)
 
-        my_mapper: Mapper = factory.mapper()
+        my_mapper: Mapper[DataclassDecision] = factory.mapper()
         event_store = factory.event_store(mapper=my_mapper)
         self.assertEqual(id(event_store.mapper), id(my_mapper))
 

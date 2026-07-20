@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 from unittest import TestCase
 
 from eventsourcing.dataclasses.application import DataclassApplication
@@ -23,7 +23,7 @@ class TestWorksWithDecisions(TestCase):
     def test_works_with_decision_type(self) -> None:
         self.assertIsNone(WorksWithDecisions.works_with_decision_type)
 
-        class GenericSubclassMissingTypeArg(WorksWithDecisions):
+        class GenericSubclassMissingTypeArg(WorksWithDecisions):  # type: ignore[type-arg]
             pass
 
         self.assertIsNone(GenericSubclassMissingTypeArg.works_with_decision_type)
@@ -66,9 +66,9 @@ class TestAggregate(TestCase):
 
         with self.assertRaises(TypeError) as cm:
 
-            class BadAggregate(Aggregate):
+            class BadAggregate(Aggregate):  # type: ignore[type-arg]
                 @event(Initial)
-                def __init__(self):
+                def __init__(self) -> None:
                     pass
 
         self.assertIn("has no decision type argument", str(cm.exception))
@@ -76,7 +76,7 @@ class TestAggregate(TestCase):
         # This is okay
         class GoodAggregate(Aggregate[DataclassDecision]):
             @event(Initial)
-            def __init__(self):
+            def __init__(self) -> None:
                 pass
 
         GoodAggregate()
@@ -89,7 +89,7 @@ class TestAggregate(TestCase):
 
             class BadAggregate(Aggregate[PydanticDecision]):
                 @event(Initial)
-                def __init__(self):
+                def __init__(self) -> None:
                     pass
 
         self.assertIn("mismatches", str(cm.exception))
@@ -97,7 +97,7 @@ class TestAggregate(TestCase):
         # This is okay
         class GoodAggregate(Aggregate[DataclassDecision]):
             @event(Initial)
-            def __init__(self):
+            def __init__(self) -> None:
                 pass
 
         GoodAggregate()
@@ -111,7 +111,7 @@ class TestAggregate(TestCase):
 
         class GoodAggregate(Aggregate[DataclassDecision]):
             @event(Initial)
-            def __init__(self):
+            def __init__(self) -> None:
                 self.a = ""
 
             @property
@@ -177,7 +177,7 @@ class TestAggregate(TestCase):
         a = MyAggregate(a=1)
         app = PydanticApplication()
         with self.assertRaises(TypeError) as cm:
-            app.save(a)
+            app.save(a)  # type: ignore[arg-type]
 
         self.assertIn("mismatches", str(cm.exception))
 
@@ -212,13 +212,13 @@ class TestDataclassAggregate(TestCase):
         self.assertEqual(collected[0].originator_id, a.id)
         self.assertEqual(collected[0].originator_version, 1)
         self.assertIsInstance(collected[0].decision, Initial)
-        self.assertEqual(collected[0].decision.a, 1)
+        self.assertEqual(cast(Initial, collected[0].decision).a, 1)
         self.assertEqual(collected[1].originator_id, a.id)
         self.assertEqual(collected[1].originator_version, 2)
         self.assertIsInstance(collected[1].decision, Next)
-        self.assertEqual(collected[1].decision.b, 2)
+        self.assertEqual(cast(Next, collected[1].decision).b, 2)
 
-        copy = MyAggregate.__new__(MyAggregate)
+        copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
             copy = c.mutate(copy)
 
@@ -246,14 +246,14 @@ class TestDataclassAggregate(TestCase):
         self.assertEqual(len(collected), 2)
         self.assertEqual(collected[0].originator_id, a.id)
         self.assertEqual(collected[0].originator_version, 1)
-        self.assertIsInstance(collected[0].decision, MyAggregate.Initial)
-        self.assertEqual(collected[0].decision.a, 1)
+        self.assertIsInstance(collected[0].decision, MyAggregate.Initial)  # type: ignore[attr-defined]
+        self.assertEqual(collected[0].decision.a, 1)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].originator_id, a.id)
         self.assertEqual(collected[1].originator_version, 2)
-        self.assertIsInstance(collected[1].decision, MyAggregate.Next)
-        self.assertEqual(collected[1].decision.b, 2)
+        self.assertIsInstance(collected[1].decision, MyAggregate.Next)  # type: ignore[attr-defined]
+        self.assertEqual(collected[1].decision.b, 2)  # type: ignore[attr-defined]
 
-        copy = MyAggregate.__new__(MyAggregate)
+        copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
             copy = c.mutate(copy)
 
@@ -290,13 +290,13 @@ class TestPydanticAggregate(TestCase):
         self.assertEqual(collected[0].originator_id, a.id)
         self.assertEqual(collected[0].originator_version, 1)
         self.assertIsInstance(collected[0].decision, Initial)
-        self.assertEqual(collected[0].decision.a, 1)
+        self.assertEqual(collected[0].decision.a, 1)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].originator_id, a.id)
         self.assertEqual(collected[1].originator_version, 2)
         self.assertIsInstance(collected[1].decision, Next)
-        self.assertEqual(collected[1].decision.b, 2)
+        self.assertEqual(collected[1].decision.b, 2)  # type: ignore[attr-defined]
 
-        copy = MyAggregate.__new__(MyAggregate)
+        copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
             copy = c.mutate(copy)
 
@@ -324,14 +324,14 @@ class TestPydanticAggregate(TestCase):
         self.assertEqual(len(collected), 2)
         self.assertEqual(collected[0].originator_id, a.id)
         self.assertEqual(collected[0].originator_version, 1)
-        self.assertIsInstance(collected[0].decision, MyAggregate.Initial)
-        self.assertEqual(collected[0].decision.a, 1)
+        self.assertIsInstance(collected[0].decision, MyAggregate.Initial)  # type: ignore[attr-defined]
+        self.assertEqual(collected[0].decision.a, 1)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].originator_id, a.id)
         self.assertEqual(collected[1].originator_version, 2)
-        self.assertIsInstance(collected[1].decision, MyAggregate.Next)
-        self.assertEqual(collected[1].decision.b, 2)
+        self.assertIsInstance(collected[1].decision, MyAggregate.Next)  # type: ignore[attr-defined]
+        self.assertEqual(collected[1].decision.b, 2)  # type: ignore[attr-defined]
 
-        copy = MyAggregate.__new__(MyAggregate)
+        copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
             copy = c.mutate(copy)
 
@@ -368,13 +368,13 @@ class TestMsgspecAggregate(TestCase):
         self.assertEqual(collected[0].originator_id, a.id)
         self.assertEqual(collected[0].originator_version, 1)
         self.assertIsInstance(collected[0].decision, Initial)
-        self.assertEqual(collected[0].decision.a, 1)
+        self.assertEqual(cast(Initial, collected[0].decision).a, 1)
         self.assertEqual(collected[1].originator_id, a.id)
         self.assertEqual(collected[1].originator_version, 2)
         self.assertIsInstance(collected[1].decision, Next)
-        self.assertEqual(collected[1].decision.b, 2)
+        self.assertEqual(cast(Next, collected[1].decision).b, 2)
 
-        copy = MyAggregate.__new__(MyAggregate)
+        copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
             copy = c.mutate(copy)
 
@@ -402,14 +402,14 @@ class TestMsgspecAggregate(TestCase):
         self.assertEqual(len(collected), 2)
         self.assertEqual(collected[0].originator_id, a.id)
         self.assertEqual(collected[0].originator_version, 1)
-        self.assertIsInstance(collected[0].decision, MyAggregate.Initial)
-        self.assertEqual(collected[0].decision.a, 1)
+        self.assertIsInstance(collected[0].decision, MyAggregate.Initial)  # type: ignore[attr-defined]
+        self.assertEqual(collected[0].decision.a, 1)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].originator_id, a.id)
         self.assertEqual(collected[1].originator_version, 2)
-        self.assertIsInstance(collected[1].decision, MyAggregate.Next)
-        self.assertEqual(collected[1].decision.b, 2)
+        self.assertIsInstance(collected[1].decision, MyAggregate.Next)  # type: ignore[attr-defined]
+        self.assertEqual(collected[1].decision.b, 2)  # type: ignore[attr-defined]
 
-        copy = MyAggregate.__new__(MyAggregate)
+        copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
             copy = c.mutate(copy)
 

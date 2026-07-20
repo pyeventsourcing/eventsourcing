@@ -5,7 +5,6 @@ import sys
 from unittest import TestCase, skipIf
 
 from examples.aggregate11.application import DogSchool
-from examples.aggregate11.domainmodel import Dog
 
 with contextlib.suppress(ImportError):
     import eventsourcing_kurrentdb  # noqa: F401  # pyright: ignore[reportMissingImports]

@@ -19,10 +19,9 @@ from eventsourcing.domain_new import (
     TGroup,
     TPerspective,
     TSlice,
-    set_metadata_in_context,
 )
 from eventsourcing.persistence import TaggedEventMapper, TrackingRecorder
-from eventsourcing.utils import Environment, EnvType, resolve_topic
+from eventsourcing.utils import Environment, EnvType
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -49,7 +48,7 @@ class DCBApplication(Generic[TDecision]):
         if "TRANSCODER_TOPIC" in self.env:
             # Only need a mapper, event store, and repository
             # if we are using the higher-level abstractions.
-            self.mapper = TaggedEventMapper(
+            self.mapper = TaggedEventMapper[TDecision](
                 transcoder=self.factory.transcoder(),
                 compressor=self.factory.compressor(),
                 cipher=self.factory.cipher(),
@@ -93,7 +92,7 @@ class DCBApplication(Generic[TDecision]):
         self.factory.__exit__(exc_type, exc_val, exc_tb)
 
 
-TEnduringObject = TypeVar("TEnduringObject", bound=EnduringObject[Any, Any])
+TEnduringObject = TypeVar("TEnduringObject", bound=EnduringObject[Any])
 
 
 class DCBRepository(Generic[TDecision]):
@@ -126,14 +125,14 @@ class DCBRepository(Generic[TDecision]):
         self,
         ids: Sequence[str],
         *,
-        classes: Sequence[type[EnduringObject[TDecision, Any]]] = (),
-        cls: type[EnduringObject[TDecision, Any]] | None = None,
+        classes: Sequence[type[EnduringObject[TDecision]]] = (),
+        cls: type[EnduringObject[TDecision]] | None = None,
     ) -> list[EnduringObject[TDecision] | None]:
         if len(classes) == 0:
             assert cls is not None
             classes = [cls] * len(ids)
         cb = [Selector[TDecision](tags=[id_]) for id_ in ids]
-        objs: dict[str, EnduringObject[TDecision, Any] | None] = {
+        objs: dict[str, EnduringObject[TDecision] | None] = {
             id_: cls.__new__(cls) for (id_, cls) in zip(ids, classes, strict=True)
         }
         event_counts: dict[str, int] = defaultdict(int)

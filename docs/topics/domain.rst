@@ -1409,7 +1409,7 @@ But then any common aspects which are nicely factored by the :func:`~eventsourci
 to be repeated on each part of the projection that handles a particular type of event.
 However, this more extreme style is supported by the library. A function can be
 passed into the :func:`~eventsourcing.application.Repository.get` method of an
-:ref:`application repository <Repository>` using the ``projector_func`` argument
+:ref:`application repository <Repository>` using the ``projector`` argument
 of that method, and then it will be called successively with each aggregate event
 in the sequence of recorded events, so that the aggregate events can be projected
 into the aggregate state in whichever way is desired.

@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 from unittest.case import TestCase
-from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from eventsourcing.application import Application, ProcessingEvent
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.mutable import DataclassAggregate
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
 from eventsourcing.dispatch import singledispatchmethod
-from eventsourcing.domain_new import Aggregate, AggregateEvent, triggers
+from eventsourcing.domain_new import AggregateEvent, EventEnvelope, triggers
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError, Notification, Tracking
+from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic.mutable import PydanticAggregate
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -183,12 +185,12 @@ class TestSystem(TestCase):
 class TestLeader(TestCase):
     def test(self) -> None:
         # Define fixture that receives prompts.
-        class FollowerFixture(RecordingEventReceiver):
+        class FollowerFixture(RecordingEventReceiver[DataclassDecision]):
             def __init__(self) -> None:
                 self.num_received = 0
 
             def receive_recording_event(
-                self, new_recording_event: RecordingEvent
+                self, new_recording_event: RecordingEvent[DataclassDecision]
             ) -> None:
                 self.num_received += 1
 
@@ -202,7 +204,7 @@ class TestLeader(TestCase):
                 pass
 
             @triggers(Created)
-            def __init__(self):
+            def __init__(self) -> None:
                 pass
 
         env = {"TRANSCODER_TOPIC": get_topic(DataclassTranscoder)}
@@ -230,8 +232,8 @@ class TestLeader(TestCase):
 
 class TestFollower(TestCase):
     def test_process_event(self) -> None:
-        class UUID5EmailNotification(Aggregate[DataclassDecision]):
-            class Created(DataclassDecision):
+        class UUID5EmailNotification(PydanticAggregate):
+            class Created(PydanticDecision):
                 to: str
                 subject: str
                 message: str
@@ -243,22 +245,24 @@ class TestFollower(TestCase):
                 self.message = message
 
             @staticmethod
-            def create_id(to: str) -> UUID:
-                return uuid5(NAMESPACE_URL, f"/emails/{to}")
+            def create_id(to: str) -> str:
+                return str(uuid5(NAMESPACE_URL, f"/emails/{to}"))
 
         class UUID5EmailProcess(EmailProcess):
             def policy(
                 self,
-                envelope: AggregateEvent[DataclassDecision],
-                processing_event: ProcessingEvent,
+                envelope: EventEnvelope[PydanticDecision],
+                processing_event: ProcessingEvent[PydanticDecision],
             ) -> None:
-                match envelope.decision:
-                    case BankAccountWithPydantic.Opened(
-                        full_name=full_name, email_address=email_address
+                match envelope:
+                    case AggregateEvent(
+                        decision=BankAccountWithPydantic.Opened(
+                            full_name=full_name, email_address=email_address
+                        )
                     ):
                         processing_event.collect_events(
                             UUID5EmailNotification(
-                                to=email_address,
+                                to=email_address.address,
                                 subject="Your New Account",
                                 message=f"Dear {full_name}, ...",
                             )
@@ -328,7 +332,7 @@ class TestFollower(TestCase):
         notifications = [
             Notification(
                 id=1,
-                originator_id=uuid4(),
+                originator_id=str(uuid4()),
                 originator_version=1,
                 state=b"",
                 topic="topic1",

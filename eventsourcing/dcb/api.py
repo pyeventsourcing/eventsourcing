@@ -4,13 +4,13 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
-from uuid import UUID
 
 from eventsourcing.errors import ProgrammingError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from typing import Self
+    from uuid import UUID
 
 
 @dataclass

@@ -13,7 +13,6 @@ from examples.cargoshipping.domainmodel import (
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from uuid import UUID
 
 
 class BookingApplication(PydanticApplication):
@@ -22,17 +21,17 @@ class BookingApplication(PydanticApplication):
         origin: Location,
         destination: Location,
         arrival_deadline: datetime,
-    ) -> UUID:
+    ) -> str:
         cargo = Cargo.new_booking(origin, destination, arrival_deadline)
         self.save(cargo)
         return cargo.id
 
-    def change_destination(self, tracking_id: UUID, destination: Location) -> None:
+    def change_destination(self, tracking_id: str, destination: Location) -> None:
         cargo = self.get_cargo(tracking_id)
         cargo.change_destination(destination)
         self.save(cargo)
 
-    def request_possible_routes_for_cargo(self, tracking_id: UUID) -> list[Itinerary]:
+    def request_possible_routes_for_cargo(self, tracking_id: str) -> list[Itinerary]:
         cargo = self.get_cargo(tracking_id)
         from_location = (cargo.last_known_location or cargo.origin).value
         to_location = cargo.destination.value
@@ -44,14 +43,14 @@ class BookingApplication(PydanticApplication):
 
         return possible_routes
 
-    def assign_route(self, tracking_id: UUID, itinerary: Itinerary) -> None:
+    def assign_route(self, tracking_id: str, itinerary: Itinerary) -> None:
         cargo = self.get_cargo(tracking_id)
         cargo.assign_route(itinerary)
         self.save(cargo)
 
     def register_handling_event(
         self,
-        tracking_id: UUID,
+        tracking_id: str,
         voyage_number: str | None,
         location: Location,
         handing_activity: HandlingActivity,
@@ -65,5 +64,5 @@ class BookingApplication(PydanticApplication):
         )
         self.save(cargo)
 
-    def get_cargo(self, tracking_id: UUID) -> Cargo:
+    def get_cargo(self, tracking_id: str) -> Cargo:
         return self.repository.get(tracking_id, Cargo)

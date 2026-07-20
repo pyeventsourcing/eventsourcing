@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import typing
-from dataclasses import dataclass
 from typing import Any, Self, TypeVar
 
 from eventsourcing.dataclasses.immutable import (
@@ -9,7 +8,6 @@ from eventsourcing.dataclasses.immutable import (
     Immutable,
 )
 from eventsourcing.domain_new import Aggregate
-from eventsourcing.utils import get_topic
 
 
 class DataclassAggregate(Aggregate[DataclassDecision]):

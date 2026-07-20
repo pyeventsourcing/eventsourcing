@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any
 from uuid import UUID, uuid4
 
 import eventsourcing.dcb.persistence
@@ -25,13 +24,12 @@ class CustomType:
     g: tuple[int] | None
 
 
-@dataclass
 class MyDataclassDecision(DataclassDecision):
     x: CustomType
 
 
 class TestDataclassTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase):
-    transcoder_class = DataclassTranscoder[Any]
+    transcoder_class = DataclassTranscoder
 
     def test_tagged_event_mapper(self) -> None:
         super()._test_tagged_event_mapper()
@@ -51,7 +49,7 @@ class TestDataclassTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase):
 
 
 class TestDataclassTranscoderWithAggregateEventMapper(AggregateEventMapperTestCase):
-    transcoder_class = DataclassTranscoder[Any]
+    transcoder_class = DataclassTranscoder
 
     def test_aggregate_event_mapper(self) -> None:
         super()._test_aggregate_event_mapper()

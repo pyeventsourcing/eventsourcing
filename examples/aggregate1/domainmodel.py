@@ -13,7 +13,7 @@ class Dog(PydanticAggregate):
     @triggers("Registered")
     def __init__(self, name: str) -> None:
         self.name = name
-        self.tricks: list[str] = []
+        self.tricks: list[Trick] = []
 
     @triggers("TrickAdded")
     def add_trick(self, trick: Trick) -> None:

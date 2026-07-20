@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple, TypedDict
-from uuid import UUID
 
 from psycopg.sql import SQL, Identifier
 from psycopg.types.json import Jsonb
@@ -20,7 +19,7 @@ from eventsourcing.dcb.persistence import (
     DCBInfrastructureFactory,
 )
 from eventsourcing.dcb.popo import SimpleDCBReadResponse
-from eventsourcing.domain_new import NIL_UUID, NIL_UUID_STR
+from eventsourcing.domain_new import NIL_UUID
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError
 from eventsourcing.postgres import (
@@ -33,6 +32,7 @@ from eventsourcing.postgres import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from typing import Self
+    from uuid import UUID
 
 
 PG_TYPE_NAME_DCB_EVENT_TS = "dcb_event"
