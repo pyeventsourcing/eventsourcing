@@ -2,55 +2,57 @@
 Installation
 ============
 
-This version of the library is compatible with Python versions 3.11,
-3.11, 3.12, 3.13, and 3.14.
+This version of the library is compatible with Python 3.11, 3.12, 3.13, and 3.14.
 
-This package depends only on modules from the Python Standard Library,
-except for ``typing_extensions`` and the optional extra install options
-described below.
+The package depends only on modules from the Python Standard Library,
+with the exception of ``typing_extensions`` and any optional extras described below.
 
+Installing the Package
+======================
 
-Pip install
-===========
+You can install ``eventsourcing`` from the `Python Package Index (PyPI) <https://pypi.org/project/eventsourcing/>`_
+using your preferred package manager.
 
-You can use pip to install the library from the
-`Python Package Index <https://pypi.org/project/eventsourcing/>`_.
+With uv:
 
-::
+.. code-block:: bash
 
-    $ pip install eventsourcing
+    uv add "eventsourcing"
 
-It is recommended to install the library into a Python virtual environment.
+With Poetry:
 
-::
+.. code-block:: bash
 
-    $ python3 -m venv my_venv
-    $ source my_venv/bin/activate
-    (my_venv) $ pip install eventsourcing
+    poetry add "eventsourcing"
 
+With pipenv:
 
-Assuming you are developing a true application (and not a library), when including this library
-in your list of project dependencies, in order to avoid installing future incompatible releases,
-it is recommended to specify the major and minor version numbers, use dependency locking, and walk
-the dependency forward in a controlled way. Please note, it is recommended to test all updates in
-your CI.
+.. code-block:: bash
 
-As an example, the expression ``eventsourcing~=10.0.0`` would install the latest version of
-the 10.0 series, allowing future bug fixes released with point version increments, whilst avoiding
-any changes introduced by major and minor version increments that might break your code. You can use
-this expression in a ``pip install`` command.
+    pipenv add "eventsourcing"
 
-::
+With pip (via virtual environment):
 
-    $ pip install "eventsourcing~=10.0.0"
+.. code-block:: bash
 
-You can use the same expression in ``requirements.txt`` files, in ``setup.py`` files, and
-in ``pyproject.toml`` files.
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install "eventsourcing"
 
-For example, if you are specifying the dependencies of your project in a ``pyproject.toml``
-file, you can specify the dependency on this library in the following way.
+Dependency Management
+=====================
 
-::
+How you declare this library as a dependency depends on the type of project you are building.
+
+For Applications
+----------------
+If you are developing an application, we recommend pinning the major and minor version numbers. This allows you to receive backwards-compatible bug fixes while protecting your codebase from potentially breaking changes introduced in major or minor releases.
+
+You can achieve this using the compatible release operator (``~=``). For example, ``eventsourcing~=10.0.0`` installs the latest point release in the 10.0 series.
+
+Example ``pyproject.toml`` configuration:
+
+.. code-block:: toml
 
     [project]
     requires-python = ">=3.11"
@@ -58,18 +60,17 @@ file, you can specify the dependency on this library in the following way.
         "eventsourcing~=10.0.0",
     ]
 
+For Libraries
+-------------
+If you are developing a library that depends on ``eventsourcing``, it is generally best practice to avoid strict upper version bounds. Leave the responsibility of version pinning and dependency locking to the downstream application developers.
 
-Requiring a specific major and minor version number in this way will avoid any
-potentially destabilising additional features with minor version increments, and
-also avoid potentially backward incompatible changes introduced with major version
-number increments.
+Best Practices
+--------------
+Regardless of your project type, we strongly encourage you to:
 
-Upgrading to new versions is encouraged, but it is recommended to do this carefully
-so that you can be sure your project isn't inadvertently broken by changes in the library.
-
-Please note, if you are developing a library that depends on this library, then it is
-generally recommended not to have upper limit caps on the versions of your dependencies,
-and to leave the responsibility for ensuring application integrity to application developers.
+* Use dependency locking (e.g., ``uv.lock``, ``poetry.lock``, ``Pipfile.lock``, or locked ``requirements.txt`` files).
+* Update dependencies systematically.
+* Test all updates thoroughly in your Continuous Integration (CI) pipeline.
 
 Install options
 ===============
@@ -151,24 +152,6 @@ then install with the ``cryptography``, ``pydantic`` and ``postgres`` options.
 
 
 .. _Template:
-
-Project template
-================
-
-To start a new project with modern tooling, you can use the
-`template for Python eventsourcing projects <https://github.com/pyeventsourcing/cookiecutter-eventsourcing#readme>`_.
-
-The project template uses Cookiecutter to generate project files.
-It uses the build tool Poetry to create Python virtual environments
-for your project, to manage project dependencies, and to create distributions.
-It uses popular development dependencies such as pytest, coverage, Black,
-isort, and mypy to help you develop and maintain your code. It has a GitHub
-Actions workflow, and has an initial README and LICENCE files that you
-can adjust.
-
-The project template also includes the "dog school" example. The tests
-should pass. You can adjust the tests, rename the classes, and change the
-methods. Or just delete the included example code for a fresh start.
 
 
 Developers
