@@ -35,7 +35,7 @@ class TestWorksWithDecisions(TestCase):
 
         class MyDecision(AbstractDecision):
             def as_dict(self) -> dict[str, Any]:
-                return self.__dict__
+                return dict(self.__dict__)
 
         with self.assertRaises(TypeError) as cm:
             GenericSubclass._check_decision_type(int)

@@ -2,33 +2,33 @@ from __future__ import annotations
 
 from decimal import Decimal  # noqa: TC003
 
-from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic import Decision
 
 
-class AddedProductToShop(PydanticDecision):
+class AddedProductToShop(Decision):
     name: str
     description: str
     price: Decimal
 
 
-class AdjustedProductInventory(PydanticDecision):
+class AdjustedProductInventory(Decision):
     adjustment: int
 
 
-class AddedItemToCart(PydanticDecision):
+class AddedItemToCart(Decision):
     product_id: str
     name: str
     description: str
     price: Decimal
 
 
-class RemovedItemFromCart(PydanticDecision):
+class RemovedItemFromCart(Decision):
     product_id: str
 
 
-class ClearedCart(PydanticDecision):
+class ClearedCart(Decision):
     pass
 
 
-class SubmittedCart(PydanticDecision):
+class SubmittedCart(Decision):
     pass

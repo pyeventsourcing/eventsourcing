@@ -6,8 +6,7 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 from eventsourcing.domain import datetime_now_with_tzinfo, triggers
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic import Aggregate, Decision
 
 
 class Location(Enum):
@@ -96,7 +95,7 @@ REGISTERED_ROUTES = {
 }
 
 
-class CargoEvent(PydanticDecision):
+class CargoEvent(Decision):
     timestamp: datetime = Field(default_factory=datetime_now_with_tzinfo)
 
 
@@ -121,7 +120,7 @@ class HandlingEventRegistered(CargoEvent):
     handling_activity: HandlingActivity
 
 
-class Cargo(PydanticAggregate):
+class Cargo(Aggregate):
     """The Cargo aggregate is an event-sourced domain model aggregate that
     specifies the routing from origin to destination, and can track what
     happens to the cargo after it has been booked.

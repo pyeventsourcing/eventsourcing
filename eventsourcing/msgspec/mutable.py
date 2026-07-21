@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Self, TypeVar
 
-from eventsourcing.domain import Aggregate, EnduringObject, Slice
+from eventsourcing.domain import Aggregate, EnduringObject, Group, Slice
 from eventsourcing.msgspec.immutable import (
     Immutable,
     MsgspecDecision,
@@ -22,6 +22,10 @@ class MsgspecEnduringObject(EnduringObject[MsgspecDecision]):
     pass
 
 
+class MsgspecGroup(Group[MsgspecDecision]):
+    pass
+
+
 class SnapshotState(Immutable):
     pass
 
@@ -29,7 +33,7 @@ class SnapshotState(Immutable):
 _T = TypeVar("_T")
 
 
-class MsgspecSnapshot(MsgspecDecision):
+class MsgspecAggregateSnapshot(MsgspecDecision):
     state: Any
 
     @classmethod
@@ -44,9 +48,9 @@ class MsgspecSnapshot(MsgspecDecision):
             state=snapshot_state,
         )
 
-    def mutate(self, aggregate: _T | None) -> _T | None:
+    def mutate(self, obj: _T | None) -> _T | None:
         """Reconstructs the snapshotted :class:`Aggregate` object."""
-        assert aggregate is not None
+        assert obj is not None
         for key in type(self.state).__struct_fields__:
-            object.__setattr__(aggregate, key, getattr(self.state, key))
-        return aggregate
+            object.__setattr__(obj, key, getattr(self.state, key))
+        return obj

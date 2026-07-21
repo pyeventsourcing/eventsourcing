@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
     from eventsourcing.application import ProcessingEvent
     from eventsourcing.persistence import Recording
-    from eventsourcing.pydantic.immutable import PydanticDecision
+    from eventsourcing.pydantic import Decision
 
 
 class CargoNotFoundError(AggregateNotFoundError):
@@ -22,8 +22,8 @@ class CargoNotFoundError(AggregateNotFoundError):
 
 class SearchableTimestampsApplication(BookingApplication):
     def _record(
-        self, processing_event: ProcessingEvent[PydanticDecision]
-    ) -> list[Recording[PydanticDecision]]:
+        self, processing_event: ProcessingEvent[Decision]
+    ) -> list[Recording[Decision]]:
         event_timestamps_data = [
             (e.originator_id, e.decision.timestamp, e.originator_version)
             for e in processing_event.events

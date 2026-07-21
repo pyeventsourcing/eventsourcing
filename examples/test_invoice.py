@@ -8,8 +8,7 @@ from typing import Any
 from unittest import TestCase
 
 from eventsourcing.domain import triggers
-from eventsourcing.pydantic.application import PydanticAggregatesApplication
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic import Aggregate, AggregatesApplication
 
 
 class Status(Enum):
@@ -29,7 +28,7 @@ class Person:
     address: str
 
 
-class Invoice(PydanticAggregate):
+class Invoice(Aggregate):
     @triggers("Initiated")
     def __init__(
         self,
@@ -77,7 +76,7 @@ class Invoice(PydanticAggregate):
         self.status = Status.SENT
 
 
-class InvoicingApplication(PydanticAggregatesApplication):
+class InvoicingApplication(AggregatesApplication):
     pass
 
 

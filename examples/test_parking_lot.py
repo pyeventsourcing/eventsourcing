@@ -14,9 +14,7 @@ from eventsourcing.domain import (
     datetime_now_with_tzinfo,
     triggers,
 )
-from eventsourcing.pydantic.application import PydanticAggregatesApplication
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic import Aggregate, AggregatesApplication, Decision
 from eventsourcing.system import NotificationLogReader
 
 
@@ -52,15 +50,15 @@ class EndOfWeek(Product):
     delta = timedelta(days=7, seconds=-1)
 
 
-class Vehicle(PydanticAggregate):
-    class Registered(PydanticDecision):
+class Vehicle(Aggregate):
+    class Registered(Decision):
         licence_plate_number: str
 
-    class Booked(PydanticDecision):
+    class Booked(Decision):
         start: datetime
         finish: datetime
 
-    class Unbooked(PydanticDecision):
+    class Unbooked(Decision):
         when: datetime
 
     @triggers(Registered)
@@ -95,7 +93,7 @@ class Vehicle(PydanticAggregate):
         )
 
 
-class ParkingLot(PydanticAggregatesApplication):
+class ParkingLot(AggregatesApplication):
     def book(self, licence_plate: LicencePlate, product: type[Product]) -> None:
         try:
             vehicle = self.get_vehicle(licence_plate)

@@ -3,15 +3,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, TypeAlias
 
-from eventsourcing.pydantic.application import PydanticAggregatesApplication
-from eventsourcing.pydantic.immutable import Immutable, PydanticDecision
+from eventsourcing.pydantic import AggregatesApplication, Decision, Immutable
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from eventsourcing.domain import AggregateEvent
 
-    Events: TypeAlias = Sequence[AggregateEvent[PydanticDecision]]
+    Events: TypeAlias = Sequence[AggregateEvent[Decision]]
 
 
 class Command(Immutable, ABC):
@@ -31,11 +30,11 @@ class Query(Immutable, ABC):
 
 
 class _Globals:
-    app = PydanticAggregatesApplication()
+    app = AggregatesApplication()
 
 
 def reset_application() -> None:
-    _Globals.app = PydanticAggregatesApplication()
+    _Globals.app = AggregatesApplication()
 
 
 def get_events(originator_id: str) -> Events:

@@ -6,11 +6,11 @@ from typing import Self
 from pydantic import BaseModel
 
 from eventsourcing.domain import triggers
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.mutable import (
-    PydanticAggregate,
-    PydanticAggregateSnapshot,
-    PydanticAggregateState,
+from eventsourcing.pydantic import (
+    Aggregate,
+    AggregateSnapshot,
+    AggregateState,
+    Decision,
 )
 
 
@@ -18,7 +18,7 @@ class EmailAddress(BaseModel):
     address: str
 
 
-class BankAccountState(PydanticAggregateState):
+class BankAccountState(AggregateState):
     full_name: str
     email_address: EmailAddress
     balance: Decimal
@@ -26,23 +26,23 @@ class BankAccountState(PydanticAggregateState):
     is_closed: bool
 
 
-class BankAccountWithPydantic(PydanticAggregate):
+class BankAccountWithPydantic(Aggregate):
     """Aggregate root for bank accounts."""
 
-    class Opened(PydanticDecision):
+    class Opened(Decision):
         full_name: str
         email_address: EmailAddress
 
-    class TransactionAppended(PydanticDecision):
+    class TransactionAppended(Decision):
         amount: Decimal
 
-    class OverdraftLimitSet(PydanticDecision):
+    class OverdraftLimitSet(Decision):
         overdraft_limit: Decimal
 
-    class Closed(PydanticDecision):
+    class Closed(Decision):
         pass
 
-    class Snapshot(PydanticAggregateSnapshot):
+    class Snapshot(AggregateSnapshot):
         state: BankAccountState
 
     @triggers(Opened)

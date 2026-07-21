@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from eventsourcing.domain import AggregateEvent, EventEnvelope
-from examples.aggregate4.baseclasses import Aggregate, TimestampedDataclassDecision
+from examples.aggregate4.baseclasses import Aggregate, TimestampedDecision
 
 if TYPE_CHECKING:
-    from eventsourcing.dataclasses.immutable import DataclassDecision
+    from eventsourcing.dataclasses import Decision
 
 
 @dataclass
@@ -16,10 +16,10 @@ class Dog(Aggregate):
     name: str
     tricks: list[str]
 
-    class Registered(TimestampedDataclassDecision):
+    class Registered(TimestampedDecision):
         name: str
 
-    class TrickAdded(TimestampedDataclassDecision):
+    class TrickAdded(TimestampedDecision):
         trick: str
 
     @classmethod
@@ -39,7 +39,7 @@ class Dog(Aggregate):
     def add_trick(self, trick: str) -> None:
         self.trigger_event(self.TrickAdded, trick=trick)
 
-    def apply_event(self, event: EventEnvelope[DataclassDecision]) -> None:
+    def apply_event(self, event: EventEnvelope[Decision]) -> None:
         match event:
             case AggregateEvent(
                 decision=Dog.Registered(timestamp=timestamp, name=name)

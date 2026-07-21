@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from eventsourcing.dataclasses.immutable import DataclassDecision, Immutable
+from eventsourcing.dataclasses import Decision, Immutable
 from eventsourcing.domain import AggregateEvent, EventEnvelope, projector
 
 
@@ -13,15 +13,15 @@ class Dog(Immutable):
     tricks: tuple[str, ...]
 
 
-class DogRegistered(DataclassDecision):
+class DogRegistered(Decision):
     name: str
 
 
-class TrickAdded(DataclassDecision):
+class TrickAdded(Decision):
     trick: str
 
 
-def register_dog(name: str) -> AggregateEvent[DataclassDecision]:
+def register_dog(name: str) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=DogRegistered(
             name=name,
@@ -31,7 +31,7 @@ def register_dog(name: str) -> AggregateEvent[DataclassDecision]:
     )
 
 
-def add_trick(dog: Dog, trick: str) -> AggregateEvent[DataclassDecision]:
+def add_trick(dog: Dog, trick: str) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=TrickAdded(
             trick=trick,
@@ -42,7 +42,7 @@ def add_trick(dog: Dog, trick: str) -> AggregateEvent[DataclassDecision]:
 
 
 @projector
-def mutate_dog(event: EventEnvelope[DataclassDecision], dog: Dog | None) -> Dog | None:
+def mutate_dog(event: EventEnvelope[Decision], dog: Dog | None) -> Dog | None:
     assert isinstance(event, AggregateEvent)
     match event.decision:
         case DogRegistered(name=name):

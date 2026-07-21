@@ -4,18 +4,17 @@ from dataclasses import field
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from eventsourcing.domain import event, get_metadata_from_context
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic import Aggregate, Decision
 from examples.contentmanagement.utils import apply_diff, create_diff
 
 
-class Page(PydanticAggregate):
-    class Event(PydanticDecision):
-        def apply(self, aggregate: Page) -> None:
-            """Sets the aggregate's `modified_by` attribute to the
+class Page(Aggregate):
+    class Event(Decision):
+        def apply(self, obj: Page) -> None:
+            """Sets the obj's `modified_by` attribute to the
             value of the event's metadata `user_id` value.
             """
-            aggregate.modified_by = self.get_user_id()
+            obj.modified_by = self.get_user_id()
 
         def get_user_id(self) -> UUID:
             return UUID(get_metadata_from_context()["user_id"])
@@ -55,7 +54,7 @@ class Page(PydanticAggregate):
         self.title = title
 
 
-class Slug(PydanticAggregate):
+class Slug(Aggregate):
     @event("Created")
     def __init__(self, name: str, page_id: str | None):
         self.name = name
@@ -70,5 +69,5 @@ class Slug(PydanticAggregate):
         self.page_id = page_id
 
 
-class PageLogged(PydanticDecision):
+class PageLogged(Decision):
     page_id: str

@@ -140,7 +140,7 @@ class DCBRepository(Generic[TDecision]):
         cb = [Selector[TDecision](tags=[id_]) for id_ in ids]
         objs: dict[str, EnduringObject[TDecision] | None] = {}
         for obj_id, obj_cls in zip(ids, classes, strict=True):
-            new_obj = cls.__new__(obj_cls)
+            new_obj = obj_cls.__new__(obj_cls)
             new_obj.id = obj_id
             objs[obj_id] = new_obj
         event_counts: dict[str, int] = defaultdict(int)

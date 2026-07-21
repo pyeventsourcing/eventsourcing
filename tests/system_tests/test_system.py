@@ -8,7 +8,6 @@ from eventsourcing.application import AggregatesApplication, ProcessingEvent
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.mutable import DataclassAggregate
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
-from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import AggregateEvent, EventEnvelope, triggers
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError, Notification, Tracking
@@ -315,7 +314,6 @@ class TestFollower(TestCase):
         class MyFollower(Follower[DataclassDecision]):
             topics: Sequence[str] = ()
 
-            @singledispatchmethod
             def policy(self, *args: Any, **kwargs: Any) -> None:
                 pass
 

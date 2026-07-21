@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from eventsourcing.application import AggregateNotFoundError
-from eventsourcing.msgspec.application import MsgspecAggregatesApplication
+from eventsourcing.msgspec import AggregatesApplication
 from examples.dcb_enrolment.domainmodel import Course, Student
 from examples.dcb_enrolment.interface import (
     CourseNotFoundError,
@@ -10,7 +10,7 @@ from examples.dcb_enrolment.interface import (
 )
 
 
-class EnrolmentWithAggregates(MsgspecAggregatesApplication, EnrolmentInterface):
+class EnrolmentWithAggregates(AggregatesApplication, EnrolmentInterface):
 
     def register_student(self, name: str, max_courses: int) -> str:
         student = Student(name, max_courses=max_courses)

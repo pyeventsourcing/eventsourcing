@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from eventsourcing.application import AggregateNotFoundError
-from eventsourcing.pydantic.application import PydanticAggregatesApplication
+from eventsourcing.pydantic import AggregatesApplication
 from examples.bankaccounts.domainmodel import BankAccount
 
 if TYPE_CHECKING:
     from decimal import Decimal
 
 
-class BankAccounts(PydanticAggregatesApplication):
+class BankAccounts(AggregatesApplication):
     def open_account(self, full_name: str, email_address: str) -> str:
         account = BankAccount(
             full_name=full_name,

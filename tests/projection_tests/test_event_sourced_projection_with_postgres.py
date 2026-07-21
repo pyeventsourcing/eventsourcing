@@ -7,7 +7,7 @@ from threading import Thread
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from eventsourcing.errors import OperationalError
-from eventsourcing.msgspec.application import MsgspecAggregatesApplication
+from eventsourcing.msgspec import AggregatesApplication
 from eventsourcing.projection import EventSourcedProjectionRunner
 from eventsourcing.tests.postgres_utils import drop_tables, pg_close_all_connections
 from eventsourcing.tests.projection import (
@@ -41,7 +41,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
 
     def test_server_closes_connections_before_run_forever(self) -> None:
         with EventSourcedProjectionRunner(
-            application_class=MsgspecAggregatesApplication,
+            application_class=AggregatesApplication,
             projection_class=Counters,
             env=self.env,
         ) as runner:
@@ -59,7 +59,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
 
     def test_server_closes_connections_with_run_forever_in_thread(self) -> None:
         with EventSourcedProjectionRunner(
-            application_class=MsgspecAggregatesApplication,
+            application_class=AggregatesApplication,
             projection_class=Counters,
             env=self.env,
         ) as runner:
@@ -88,14 +88,14 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
             self.assertIn("server closed the connection", str(errors[0]))
 
     def test_server_closes_connections_with_projection_in_thread(self) -> None:
-        app = MsgspecAggregatesApplication(env=self.env)
+        app = AggregatesApplication(env=self.env)
         projection = Counters(env=self.env)
 
         errors = []
 
         def thread_target() -> None:
             with EventSourcedProjectionRunner(
-                application_class=MsgspecAggregatesApplication,
+                application_class=AggregatesApplication,
                 projection_class=Counters,
                 env=self.env,
             ) as runner:
@@ -128,7 +128,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
     ) -> None:
         try:
             with EventSourcedProjectionRunner(
-                application_class=MsgspecAggregatesApplication,
+                application_class=AggregatesApplication,
                 projection_class=Counters,
                 env=TestEventSourcedProjectionWithPostgres.env,
             ) as runner:
@@ -175,7 +175,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
         projection_stopped = multiprocessing.Event()
 
         with (
-            MsgspecAggregatesApplication(env=self.env) as app,
+            AggregatesApplication(env=self.env) as app,
             Counters(env=self.env) as projection,
         ):
 

@@ -5,7 +5,7 @@ from typing import Any, Self, TypeVar
 
 from pydantic import ConfigDict
 
-from eventsourcing.domain import Aggregate, EnduringObject, Slice
+from eventsourcing.domain import Aggregate, EnduringObject, Group, Slice
 from eventsourcing.pydantic.immutable import Immutable, PydanticDecision
 
 
@@ -18,6 +18,10 @@ class PydanticSlice(Slice[PydanticDecision]):
 
 
 class PydanticEnduringObject(EnduringObject[PydanticDecision]):
+    pass
+
+
+class PydanticGroup(Group[PydanticDecision]):
     pass
 
 
@@ -37,12 +41,12 @@ class PydanticAggregateSnapshot(PydanticDecision):
         snapshot_state = type_of_snapshot_state(**aggregate_state)
         return cls(state=snapshot_state)
 
-    def mutate(self, aggregate: _T | None) -> _T | None:
+    def mutate(self, obj: _T | None) -> _T | None:
         """Reconstructs the snapshotted :class:`Aggregate` object."""
-        assert aggregate is not None
+        assert obj is not None
         for key in self.state.__dict__:
-            object.__setattr__(aggregate, key, getattr(self.state, key))
-        return aggregate
+            object.__setattr__(obj, key, getattr(self.state, key))
+        return obj
 
 
 class PydanticAggregateState(Immutable):

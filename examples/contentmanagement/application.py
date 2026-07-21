@@ -7,7 +7,7 @@ from eventsourcing.application import (
     AggregateNotFoundError,
     EventSourcedLog,
 )
-from eventsourcing.pydantic.application import PydanticAggregatesApplication
+from eventsourcing.pydantic import AggregatesApplication
 from examples.contentmanagement.domainmodel import Page, PageLogged, Slug
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 PageDetailsType = dict[str, str | Any]
 
 
-class ContentManagement(PydanticAggregatesApplication):
+class ContentManagement(AggregatesApplication):
     env: ClassVar[dict[str, str]] = {"CONTENTMANAGEMENT_COMPRESSOR_TOPIC": "gzip"}
     # snapshotting_intervals: ClassVar[dict[type[MutableOrImmutableAggregate], int]] = {
     #     Page: 5

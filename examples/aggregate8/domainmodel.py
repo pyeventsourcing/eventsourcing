@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from eventsourcing.domain import event
-from eventsourcing.pydantic.immutable import Immutable
-from eventsourcing.pydantic.mutable import (
-    PydanticAggregate,
-    PydanticAggregateSnapshot,
-    PydanticAggregateState,
+from eventsourcing.pydantic import (
+    Aggregate,
+    AggregateSnapshot,
+    AggregateState,
+    Immutable,
 )
 
 
@@ -13,13 +13,13 @@ class Trick(Immutable):
     name: str
 
 
-class DogSnapshotState(PydanticAggregateState):
+class DogSnapshotState(AggregateState):
     name: str
     tricks: list[Trick]
 
 
-class Dog(PydanticAggregate):
-    class Snapshot(PydanticAggregateSnapshot):
+class Dog(Aggregate):
+    class Snapshot(AggregateSnapshot):
         state: DogSnapshotState
 
     @event("Registered")

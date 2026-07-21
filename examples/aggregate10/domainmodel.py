@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from eventsourcing.domain import event
-from eventsourcing.msgspec.immutable import Immutable, MsgspecDecision
-from eventsourcing.msgspec.mutable import (
-    MsgspecAggregate,
-    MsgspecSnapshot,
+from eventsourcing.msgspec import (
+    Aggregate,
+    AggregateSnapshot,
+    Decision,
+    Immutable,
     SnapshotState,
 )
 
@@ -18,14 +19,14 @@ class DogSnapshotState(SnapshotState):
     tricks: list[Trick]
 
 
-class Dog(MsgspecAggregate):
-    class Registered(MsgspecDecision):
+class Dog(Aggregate):
+    class Registered(Decision):
         name: str
 
-    class TrickAdded(MsgspecDecision):
+    class TrickAdded(Decision):
         trick: Trick
 
-    class Snapshot(MsgspecSnapshot):
+    class Snapshot(AggregateSnapshot):
         state: DogSnapshotState
 
     @event(Registered)

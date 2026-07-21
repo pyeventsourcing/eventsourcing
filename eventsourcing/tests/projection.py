@@ -11,8 +11,6 @@ from eventsourcing.application import (
     AggregateNotFoundError,
     ProcessingEvent,
 )
-from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.dispatch import singledispatchmethod
 from eventsourcing.domain import (
     AggregateEvent,
     EnduringObject,
@@ -21,9 +19,12 @@ from eventsourcing.domain import (
     put_metadata_in_context,
     triggers,
 )
-from eventsourcing.msgspec.application import MsgspecAggregatesApplication
-from eventsourcing.msgspec.immutable import MsgspecDecision
-from eventsourcing.msgspec.mutable import MsgspecAggregate
+from eventsourcing.msgspec import (
+    Aggregate,
+    AggregatesApplication,
+    DCBApplication,
+    Decision,
+)
 from eventsourcing.persistence import (
     IntegrityError,
     Tracking,
@@ -38,11 +39,11 @@ from eventsourcing.projection import (
 from eventsourcing.utils import get_topic
 
 
-class Student(MsgspecAggregate):
-    class Registered(MsgspecDecision):
+class Student(Aggregate):
+    class Registered(Decision):
         pass
 
-    class NameChanged(MsgspecDecision):
+    class NameChanged(Decision):
         pass
 
     @triggers(Registered)
@@ -54,11 +55,11 @@ class Student(MsgspecAggregate):
         pass
 
 
-class Counter(MsgspecAggregate):
-    class Created(MsgspecDecision):
+class Counter(Aggregate):
+    class Created(Decision):
         name: str
 
-    class Incremented(MsgspecDecision):
+    class Incremented(Decision):
         pass
 
     @triggers(Created)
@@ -98,11 +99,11 @@ class EventCountersInterface(EventCountersView, ABC):
     pass
 
 
-class Counters(EventSourcedProjection[MsgspecDecision], MsgspecAggregatesApplication):
+class Counters(EventSourcedProjection[Decision], AggregatesApplication):
     def policy(
         self,
-        envelope: EventEnvelope[MsgspecDecision],
-        processing_event: ProcessingEvent[MsgspecDecision],
+        envelope: EventEnvelope[Decision],
+        processing_event: ProcessingEvent[Decision],
     ) -> None:
         topic = get_topic(type(envelope.decision))
         try:
@@ -188,7 +189,7 @@ class EventCountersViewTestCase(TestCase):
             view.wait("upstream", 4, timeout=0.5)
 
 
-class SpannerThrown(MsgspecDecision):
+class SpannerThrown(Decision):
     pass
 
 
@@ -196,15 +197,15 @@ class SpannerThrownError(Exception):
     pass
 
 
-class DCBSpannerThrown(MsgspecDecision):
+class DCBSpannerThrown(Decision):
     # Avoid segmentation violation with Python 3.13
     # and MsgStruct instances with zero attributes.
     a: str
 
 
 # Define a perspective.
-class Thing(EnduringObject[MsgspecDecision]):
-    class Created(MsgspecDecision):
+class Thing(EnduringObject[Decision]):
+    class Created(Decision):
         thing_id: str
 
     @triggers(Created)
@@ -216,31 +217,23 @@ class DecisionCountersProjection(Projection[EventCountersView]):
     name = "eventcounters"
     topics: tuple[str, ...] = (
         get_topic(Thing.Created),
-        get_topic(MsgspecDecision),
+        get_topic(Decision),
         get_topic(DCBSpannerThrown),
     )
 
     def process_event(
-        self, envelope: TaggedEvent[MsgspecDecision], tracking: Tracking
+        self, envelope: TaggedEvent[Decision], tracking: Tracking
     ) -> None:
-        self.process_decision(envelope.decision, tracking)
-
-    @singledispatchmethod
-    def process_decision(self, _: MsgspecDecision, tracking: Tracking) -> None:
-        self.view.insert_tracking(tracking)
-
-    @process_decision.register
-    def _(self, _: Thing.Created, tracking: Tracking) -> None:
-        self.view.incr_student_registered_counter(tracking)
-
-    @process_decision.register
-    def _(self, _: MsgspecDecision, tracking: Tracking) -> None:
-        self.view.incr_student_name_changed_counter(tracking)
-
-    @process_decision.register
-    def _(self, _: DCBSpannerThrown, __: Tracking) -> None:
-        msg = "This is a deliberate bug"
-        raise SpannerThrownError(msg)
+        match envelope.decision:
+            case Thing.Created():
+                self.view.incr_student_registered_counter(tracking)
+            case DCBSpannerThrown():
+                msg = "This is a deliberate bug"
+                raise SpannerThrownError(msg)
+            case Decision():
+                self.view.incr_student_name_changed_counter(tracking)
+            case _:
+                self.view.insert_tracking(tracking)
 
 
 class StudentEventCountersProjection(Projection[EventCountersView]):
@@ -271,7 +264,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
     def test_event_counters_projection(self) -> None:
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
-            application_class=MsgspecAggregatesApplication,
+            application_class=AggregatesApplication,
             projection_class=StudentEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
@@ -318,7 +311,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
     def test_run_forever_raises_projection_error(self) -> None:
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
-            application_class=MsgspecAggregatesApplication,
+            application_class=AggregatesApplication,
             projection_class=StudentEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
@@ -363,8 +356,8 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
 
             # Write some events.
             perspective = Thing(thing_id=str("thing-" + str(uuid4())))
-            perspective.trigger_event(MsgspecDecision)
-            perspective.trigger_event(MsgspecDecision)
+            perspective.trigger_event(Decision)
+            perspective.trigger_event(Decision)
             self.assertEqual(3, len(perspective.new_decisions))
             position = write_model.repository.save(perspective)
 
@@ -380,8 +373,8 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
 
             # Write some more events.
             perspective = Thing(thing_id=str("thing-" + str(uuid4())))
-            perspective.trigger_event(MsgspecDecision)
-            perspective.trigger_event(MsgspecDecision)
+            perspective.trigger_event(Decision)
+            perspective.trigger_event(Decision)
             position = write_model.repository.save(perspective)
 
             # Wait for the events to be processed.
@@ -427,7 +420,7 @@ class EventSourcedProjectionTestCase(TestCase):
 
     def test_event_sourced_projection(self) -> None:
         with EventSourcedProjectionRunner(
-            application_class=MsgspecAggregatesApplication,
+            application_class=AggregatesApplication,
             projection_class=Counters,
             env=self.env,
         ) as runner:
@@ -468,7 +461,7 @@ class EventSourcedProjectionTestCase(TestCase):
             self.assertEqual(1, runner.projection.get_count(Student.NameChanged))
 
             # Check the correlation and causation IDs.
-            original_events: dict[str, AggregateEvent[MsgspecDecision]] = {}
+            original_events: dict[str, AggregateEvent[Decision]] = {}
             for notification in runner.app.notification_log.select(
                 start=app_max_id,
                 limit=10,

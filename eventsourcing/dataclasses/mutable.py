@@ -7,7 +7,7 @@ from eventsourcing.dataclasses.immutable import (
     DataclassDecision,
     Immutable,
 )
-from eventsourcing.domain import Aggregate, EnduringObject, Slice
+from eventsourcing.domain import Aggregate, EnduringObject, Group, Slice
 
 
 class DataclassAggregate(Aggregate[DataclassDecision]):
@@ -22,6 +22,10 @@ class DataclassEnduringObject(EnduringObject[DataclassDecision]):
     pass
 
 
+class DataclassGroup(Group[DataclassDecision]):
+    pass
+
+
 class SnapshotState(Immutable):
     pass
 
@@ -29,7 +33,7 @@ class SnapshotState(Immutable):
 _T = TypeVar("_T")
 
 
-class AggregateSnapshot(DataclassDecision):
+class DataclassAggregateSnapshot(DataclassDecision):
     state: Any
 
     @classmethod
@@ -42,9 +46,9 @@ class AggregateSnapshot(DataclassDecision):
         snapshot_state = type_of_snapshot_state(**aggregate_state)
         return cls(state=snapshot_state)
 
-    def mutate(self, aggregate: _T | None) -> _T | None:
+    def mutate(self, obj: _T | None) -> _T | None:
         """Reconstructs the snapshotted :class:`Aggregate` object."""
-        assert aggregate is not None
+        assert obj is not None
         for key in type(self.state).__struct_fields__:
-            object.__setattr__(aggregate, key, getattr(self.state, key))
-        return aggregate
+            object.__setattr__(obj, key, getattr(self.state, key))
+        return obj

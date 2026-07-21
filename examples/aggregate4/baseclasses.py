@@ -5,8 +5,10 @@ from dataclasses import dataclass, field
 from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
+from eventsourcing.dataclasses import (
+    Decision,
+)
 from eventsourcing.dataclasses.immutable import (
-    DataclassDecision,
     coerce_value,
     get_init_types,
 )
@@ -25,19 +27,19 @@ if TYPE_CHECKING:
 TAggregate = TypeVar("TAggregate", bound="Aggregate")
 
 
-class TimestampedDataclassDecision(DataclassDecision):
+class TimestampedDecision(Decision):
     timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
 
 
 @dataclass(eq=False)
-class Aggregate(WorksWithDecisions[DataclassDecision]):
+class Aggregate(WorksWithDecisions[Decision]):
     id: str
     version: int
     created_on: datetime
     modified_on: datetime
-    _pending_events: list[AggregateEvent[DataclassDecision]] = field(init=False)
+    _pending_events: list[AggregateEvent[Decision]] = field(init=False)
 
-    class Snapshot(TimestampedDataclassDecision):
+    class Snapshot(TimestampedDecision):
         topic: str
         state: dict[str, Any]
 
@@ -55,7 +57,7 @@ class Aggregate(WorksWithDecisions[DataclassDecision]):
 
     def trigger_event(
         self,
-        event_class: type[DataclassDecision],
+        event_class: type[Decision],
         **kwargs: Any,
     ) -> None:
         kwargs = kwargs.copy()
@@ -67,14 +69,14 @@ class Aggregate(WorksWithDecisions[DataclassDecision]):
         self.apply_event(new_event)
         self.append_event(new_event)
 
-    def append_event(self, *events: AggregateEvent[DataclassDecision]) -> None:
+    def append_event(self, *events: AggregateEvent[Decision]) -> None:
         self._pending_events.extend(events)
 
-    def collect_events(self) -> list[AggregateEvent[DataclassDecision]]:
+    def collect_events(self) -> list[AggregateEvent[Decision]]:
         events, self._pending_events = self._pending_events, []
         return events
 
-    def apply_event(self, event: EventEnvelope[DataclassDecision]) -> None:
+    def apply_event(self, event: EventEnvelope[Decision]) -> None:
         match event.decision:
             case Aggregate.Snapshot(state=state):
                 validated_state = {}
@@ -95,7 +97,7 @@ class Aggregate(WorksWithDecisions[DataclassDecision]):
     def project_events(
         cls,
         _: Self | None,
-        events: Iterable[EventEnvelope[DataclassDecision]],
+        events: Iterable[EventEnvelope[Decision]],
     ) -> Self | None:
         aggregate: Self = Aggregate.__new__(cls)
         for event in events:

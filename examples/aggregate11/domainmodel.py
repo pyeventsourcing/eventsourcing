@@ -3,10 +3,10 @@ from __future__ import annotations
 import uuid
 
 from eventsourcing.domain import triggers
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic import Aggregate
 
 
-class Dog(PydanticAggregate):
+class Dog(Aggregate):
     INITIAL_VERSION = 0
 
     @staticmethod

@@ -12,10 +12,10 @@ from eventsourcing.domain import (
     projector,
 )
 from eventsourcing.errors import ProgrammingError
-from eventsourcing.pydantic.immutable import (
+from eventsourcing.pydantic import (
+    Decision,
     Immutable,
-    ImmutablePydanticAggregate,
-    PydanticDecision,
+    ImmutableAggregate,
 )
 
 
@@ -23,7 +23,7 @@ class Trick(Immutable):
     name: str
 
 
-class TimestampedAggregate(ImmutablePydanticAggregate):
+class TimestampedAggregate(ImmutableAggregate):
     created_on: datetime
     modified_on: datetime
 
@@ -33,7 +33,7 @@ class Dog(TimestampedAggregate):
     tricks: tuple[Trick, ...]
 
 
-class TimestampedDecision(PydanticDecision):
+class TimestampedDecision(Decision):
     timestamp: datetime = Field(default_factory=datetime_now_with_tzinfo)
 
 
@@ -45,7 +45,7 @@ class TrickAdded(TimestampedDecision):
     trick: Trick
 
 
-def register_dog(name: str) -> AggregateEvent[PydanticDecision]:
+def register_dog(name: str) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=DogRegistered(
             name=name,
@@ -55,7 +55,7 @@ def register_dog(name: str) -> AggregateEvent[PydanticDecision]:
     )
 
 
-def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[PydanticDecision]:
+def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=TrickAdded(
             trick=trick,
@@ -66,9 +66,7 @@ def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[PydanticDecision]:
 
 
 @projector
-def evolve_dog(
-    envelope: EventEnvelope[PydanticDecision], dog: Dog | None
-) -> Dog | None:
+def evolve_dog(envelope: EventEnvelope[Decision], dog: Dog | None) -> Dog | None:
     """Mutates aggregate with event."""
     assert isinstance(envelope, AggregateEvent)
     match envelope.decision:

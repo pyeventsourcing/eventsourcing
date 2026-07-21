@@ -10,6 +10,7 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.application import AggregateNotFoundError, AggregatesApplication
+from eventsourcing.dataclasses.application import DataclassAggregatesApplication
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.legacy import Transcoding
 from eventsourcing.domain import Aggregate, triggers
@@ -182,10 +183,10 @@ class ApplicationTestCase(TestCase):
     def test_name(self) -> None:
         self.assertEqual(AggregatesApplication.name, "Application")
 
-        class MyAggregatesApplication1(AggregatesApplication[DataclassDecision]):
+        class MyAggregatesApplication1(DataclassAggregatesApplication):
             pass
 
-        self.assertEqual(MyAggregatesApplication1.name, "MyApplication1")
+        self.assertEqual(MyAggregatesApplication1.name, "MyAggregatesApplication1")
 
         class MyAggregatesApplication2(AggregatesApplication[DataclassDecision]):
             name = "MyBoundedContext"
@@ -223,9 +224,9 @@ class ApplicationTestCase(TestCase):
                 env={"PERSISTENCE_MODULE": "eventsourcing.application:Application"}
             )
         self.assertEqual(
-            "Topic 'eventsourcing.application:Application' didn't "
-            "resolve to a persistence module or infrastructure factory class: "
-            "<class 'eventsourcing.application.Application'>",
+            "Failed to resolve persistence module topic: "
+            "'eventsourcing.application:Application' from "
+            "environment variable 'PERSISTENCE_MODULE'",
             cm.exception.args[0],
         )
 

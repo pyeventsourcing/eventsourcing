@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from eventsourcing.dataclasses.immutable import DataclassDecision, Immutable
+from eventsourcing.dataclasses import Decision, Immutable
 from eventsourcing.domain import AggregateEvent, EventEnvelope
 from eventsourcing.errors import ProgrammingError
 
@@ -17,15 +17,15 @@ class Dog(Immutable):
     name: str
     tricks: tuple[str, ...]
 
-    class Registered(DataclassDecision):
+    class Registered(Decision):
         name: str
 
-    class TrickAdded(DataclassDecision):
+    class TrickAdded(Decision):
         trick: str
 
     def trigger_event(
-        self, cls: type[DataclassDecision], **kwargs: Any
-    ) -> AggregateEvent[DataclassDecision]:
+        self, cls: type[Decision], **kwargs: Any
+    ) -> AggregateEvent[Decision]:
         return AggregateEvent(
             decision=cls(**kwargs),
             originator_id=self.id,
@@ -33,7 +33,7 @@ class Dog(Immutable):
         )
 
     @staticmethod
-    def register(name: str) -> tuple[Dog, AggregateEvent[DataclassDecision]]:
+    def register(name: str) -> tuple[Dog, AggregateEvent[Decision]]:
         event = AggregateEvent(
             decision=Dog.Registered(
                 name=name,
@@ -44,13 +44,13 @@ class Dog(Immutable):
         dog = Dog.mutate(event, None)
         return dog, event
 
-    def add_trick(self, trick: str) -> tuple[Dog, AggregateEvent[DataclassDecision]]:
+    def add_trick(self, trick: str) -> tuple[Dog, AggregateEvent[Decision]]:
         event = self.trigger_event(Dog.TrickAdded, trick=trick)
         dog = Dog.mutate(event, self)
         return dog, event
 
     @staticmethod
-    def mutate(event: EventEnvelope[DataclassDecision], dog: Dog | None) -> Dog:
+    def mutate(event: EventEnvelope[Decision], dog: Dog | None) -> Dog:
         """Mutates aggregate with event."""
         assert isinstance(event, AggregateEvent)
         match event.decision:
@@ -77,7 +77,7 @@ class Dog(Immutable):
 
     @staticmethod
     def projector(
-        dog: Dog | None, events: Iterable[EventEnvelope[DataclassDecision]]
+        dog: Dog | None, events: Iterable[EventEnvelope[Decision]]
     ) -> Dog | None:
         for event in events:
             dog = Dog.mutate(event, dog)

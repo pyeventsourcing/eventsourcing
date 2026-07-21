@@ -595,6 +595,9 @@ class ProcessingEvent(Generic[TDecision]):
         self.saved_kwargs.update(kwargs)
 
 
+_TA = TypeVar("_TA", bound=Aggregate[Any])
+
+
 class AggregatesApplication(WorksWithDecisions[TDecision]):
     """Base class for event-sourced applications."""
 
@@ -852,7 +855,7 @@ class AggregatesApplication(WorksWithDecisions[TDecision]):
     def take_snapshot(
         self,
         aggregate_id: str,
-        aggregate_cls: type[_T] | None = None,
+        aggregate_cls: type[_TA] | None = None,
         *,
         version: int | None = None,
         projector: ProjectorFunction[Any, Any] = evolve_aggregate,

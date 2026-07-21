@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
-from eventsourcing.dcb.application import (
-    DCBApplication,
-)
 from eventsourcing.domain import (
-    EnduringObject,
-    Group,
     event,
 )
-from eventsourcing.msgspec.immutable import MsgspecDecision
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+from eventsourcing.msgspec import (
+    DCBApplication,
+    Decision,
+    EnduringObject,
+    Group,
+    Transcoder,
+)
 from eventsourcing.utils import get_topic
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
@@ -29,26 +28,26 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
-class StudentJoinedCourse(MsgspecDecision):
+class StudentJoinedCourse(Decision):
     student_id: str
     course_id: str
 
 
-class StudentLeftCourse(MsgspecDecision):
+class StudentLeftCourse(Decision):
     student_id: str
     course_id: str
 
 
-class Student(EnduringObject[MsgspecDecision]):
-    class Registered(MsgspecDecision):
+class Student(EnduringObject):
+    class Registered(Decision):
         student_id: str
         name: str
         max_courses: int
 
-    class NameUpdated(MsgspecDecision):
+    class NameUpdated(Decision):
         name: str
 
-    class MaxCoursesUpdated(MsgspecDecision):
+    class MaxCoursesUpdated(Decision):
         max_courses: int
 
     @event(Registered)
@@ -77,16 +76,16 @@ class Student(EnduringObject[MsgspecDecision]):
         self.course_ids.remove(course_id)
 
 
-class Course(EnduringObject[MsgspecDecision]):
-    class Registered(MsgspecDecision):
+class Course(EnduringObject):
+    class Registered(Decision):
         course_id: str
         name: str
         places: int
 
-    class NameUpdated(MsgspecDecision):
+    class NameUpdated(Decision):
         name: str
 
-    class PlacesUpdated(MsgspecDecision):
+    class PlacesUpdated(Decision):
         places: int
 
     @event(Registered)
@@ -119,7 +118,7 @@ class Course(EnduringObject[MsgspecDecision]):
         self.student_ids.remove(student_id)
 
 
-class StudentAndCourse(Group[MsgspecDecision]):
+class StudentAndCourse(Group):
     def __init__(
         self,
         student: Student | None,
@@ -149,9 +148,9 @@ class StudentAndCourse(Group[MsgspecDecision]):
         )
 
 
-class EnrolmentWithEnduringObjects(DCBApplication[MsgspecDecision], EnrolmentInterface):
+class EnrolmentWithEnduringObjects(DCBApplication, EnrolmentInterface):
     env: Mapping[str, str] = {
-        "TRANSCODER_TOPIC": get_topic(MsgspecTranscoder),
+        "TRANSCODER_TOPIC": get_topic(Transcoder),
         **DCBApplication.env,
     }
 
@@ -212,6 +211,3 @@ class EnrolmentWithEnduringObjects(DCBApplication[MsgspecDecision], EnrolmentInt
 
     def get_course(self, course_id: str) -> Course:
         return self.repository.get(course_id, Course)
-
-
-DecisionTypes = Sequence[type[MsgspecDecision]]

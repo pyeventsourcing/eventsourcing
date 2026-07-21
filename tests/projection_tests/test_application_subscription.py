@@ -1,19 +1,17 @@
 from unittest import TestCase
 
-from eventsourcing.dataclasses.application import DataclassAggregatesApplication
-from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.dataclasses.mutable import DataclassAggregate
+from eventsourcing.dataclasses import Aggregate, AggregatesApplication, Decision
 from eventsourcing.domain import triggers
 from eventsourcing.persistence import Tracking
 from eventsourcing.projection import ApplicationSubscription
 from eventsourcing.utils import get_topic
 
 
-class SubscriptionFixture(DataclassAggregate):
-    class Created(DataclassDecision):
+class SubscriptionFixture(Aggregate):
+    class Created(Decision):
         pass
 
-    class Next(DataclassDecision):
+    class Next(Decision):
         pass
 
     @triggers(Created)
@@ -27,7 +25,7 @@ class SubscriptionFixture(DataclassAggregate):
 
 class TestApplicationSubscription(TestCase):
     def test(self) -> None:
-        app = DataclassAggregatesApplication()
+        app = AggregatesApplication()
 
         max_notification_id = app.recorder.max_notification_id()
 
@@ -74,7 +72,7 @@ class TestApplicationSubscription(TestCase):
                 break
 
         # Check 'topics' are effective.
-        class FilteredEvent(DataclassDecision):
+        class FilteredEvent(Decision):
             pass
 
         aggregate.trigger_event(FilteredEvent)

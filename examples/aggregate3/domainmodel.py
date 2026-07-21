@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic import Aggregate, Decision
 
 
-class Dog(PydanticAggregate):
-    class Event(PydanticDecision):
-        def apply(self, aggregate: Dog) -> None:
-            aggregate.apply(self)
+class Dog(Aggregate):
+    class Event(Decision):
+        def apply(self, obj: Dog) -> None:
+            obj.apply(self)
 
     class Registered(Event):
         name: str

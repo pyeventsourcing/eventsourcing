@@ -3,8 +3,7 @@ from __future__ import annotations
 from decimal import Decimal  # noqa: TC003
 
 from eventsourcing.domain import event
-from eventsourcing.pydantic.immutable import Immutable, PydanticDecision
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic import Aggregate, Decision, Immutable
 from examples.shopstandard.exceptions import (
     CartAlreadySubmittedError,
     CartFullError,
@@ -20,18 +19,18 @@ class ProductDetails(Immutable):
     inventory: int
 
 
-class ProductAdded(PydanticDecision):
+class ProductAdded(Decision):
     product_id: str
     name: str
     description: str
     price: Decimal
 
 
-class InventoryAdjusted(PydanticDecision):
+class InventoryAdjusted(Decision):
     adjustment: int
 
 
-class Product(PydanticAggregate):
+class Product(Aggregate):
     @event(ProductAdded)
     def __init__(self, product_id: str, name: str, description: str, price: Decimal):
         self.product_id = product_id
@@ -56,30 +55,30 @@ class CartItem(Immutable):
     price: Decimal
 
 
-class CartCreated(PydanticDecision):
+class CartCreated(Decision):
     cart_id: str
 
 
-class CartItemAdded(PydanticDecision):
+class CartItemAdded(Decision):
     product_id: str
     name: str
     description: str
     price: Decimal
 
 
-class CartItemRemoved(PydanticDecision):
+class CartItemRemoved(Decision):
     product_id: str
 
 
-class CartCleared(PydanticDecision):
+class CartCleared(Decision):
     pass
 
 
-class CartSubmitted(PydanticDecision):
+class CartSubmitted(Decision):
     pass
 
 
-class Cart(PydanticAggregate):
+class Cart(Aggregate):
     @event(CartCreated)
     def __init__(self, cart_id: str):
         self.cart_id = cart_id

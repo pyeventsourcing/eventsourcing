@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Self
 
-from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.dataclasses.mutable import DataclassAggregate
+from eventsourcing.dataclasses import Aggregate, Decision
 from eventsourcing.domain import triggers
 
 
@@ -14,20 +13,20 @@ class EmailAddress:
     address: str
 
 
-class BankAccountWithDataclasses(DataclassAggregate):
+class BankAccountWithDataclasses(Aggregate):
     """Aggregate root for bank accounts."""
 
-    class Opened(DataclassDecision):
+    class Opened(Decision):
         full_name: str
         email_address: EmailAddress
 
-    class TransactionAppended(DataclassDecision):
+    class TransactionAppended(Decision):
         amount: Decimal
 
-    class OverdraftLimitSet(DataclassDecision):
+    class OverdraftLimitSet(Decision):
         overdraft_limit: Decimal
 
-    class Closed(DataclassDecision):
+    class Closed(Decision):
         pass
 
     @triggers(Opened)

@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from eventsourcing.dcb.application import (
-    DCBApplication,
-)
 from eventsourcing.domain import (
     Selector,
     Slice,
     event,
 )
-from eventsourcing.msgspec.immutable import MsgspecDecision
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
-from eventsourcing.utils import get_topic
+from eventsourcing.msgspec import DCBApplication, Decision
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseNotFoundError,
@@ -25,59 +18,56 @@ from examples.dcb_enrolment.interface import (
     TooManyCoursesError,
 )
 
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
-
-class StudentJoinedCourse(MsgspecDecision):
+class StudentJoinedCourse(Decision):
     student_id: str
     course_id: str
 
 
-class StudentLeftCourse(MsgspecDecision):
+class StudentLeftCourse(Decision):
     student_id: str
     course_id: str
 
 
-class StudentRegistered(MsgspecDecision):
+class StudentRegistered(Decision):
     student_id: str
     name: str
     max_courses: int
 
 
-class StudentNameUpdated(MsgspecDecision):
+class StudentNameUpdated(Decision):
     student_id: str
     name: str
 
 
-class StudentMaxCoursesUpdated(MsgspecDecision):
+class StudentMaxCoursesUpdated(Decision):
     student_id: str
     max_courses: int
 
 
-class CourseRegistered(MsgspecDecision):
+class CourseRegistered(Decision):
     course_id: str
     name: str
     places: int
 
 
-class CourseNameUpdated(MsgspecDecision):
+class CourseNameUpdated(Decision):
     course_id: str
     name: str
 
 
-class CoursePlacesUpdated(MsgspecDecision):
+class CoursePlacesUpdated(Decision):
     course_id: str
     places: int
 
 
-class RegisterStudent(Slice[MsgspecDecision]):
+class RegisterStudent(Slice[Decision]):
     def __init__(self, name: str, max_courses: int):
         self.student_id = f"student-{uuid4()}"
         self.name = name
         self.max_courses = max_courses
 
-    def consistency_boundary(self) -> Selector[MsgspecDecision]:
+    def consistency_boundary(self) -> Selector[Decision]:
         return Selector(types=[StudentRegistered], tags=[self.student_id])
 
     def execute(self) -> None:
@@ -90,13 +80,13 @@ class RegisterStudent(Slice[MsgspecDecision]):
         )
 
 
-class UpdateStudentName(Slice[MsgspecDecision]):
+class UpdateStudentName(Slice[Decision]):
     def __init__(self, student_id: str, name: str) -> None:
         self.student_id = student_id
         self.name = name
         self.student_was_registered: bool = False
 
-    def consistency_boundary(self) -> Selector[MsgspecDecision]:
+    def consistency_boundary(self) -> Selector[Decision]:
         return Selector(
             types=[StudentRegistered, StudentNameUpdated], tags=[self.student_id]
         )
@@ -115,13 +105,13 @@ class UpdateStudentName(Slice[MsgspecDecision]):
         )
 
 
-class UpdateMaxCourses(Slice[MsgspecDecision]):
+class UpdateMaxCourses(Slice[Decision]):
     def __init__(self, student_id: str, max_courses: int) -> None:
         self.student_id = student_id
         self.max_courses = max_courses
         self.student_was_registered: bool = False
 
-    def consistency_boundary(self) -> Selector[MsgspecDecision]:
+    def consistency_boundary(self) -> Selector[Decision]:
         return Selector(
             types=[StudentRegistered, StudentMaxCoursesUpdated],
             tags=[self.student_id],
@@ -141,13 +131,13 @@ class UpdateMaxCourses(Slice[MsgspecDecision]):
         )
 
 
-class RegisterCourse(Slice[MsgspecDecision]):
+class RegisterCourse(Slice[Decision]):
     def __init__(self, name: str, places: int):
         self.name = name
         self.places = places
         self.course_id = f"course-{uuid4()}"
 
-    def consistency_boundary(self) -> Selector[MsgspecDecision]:
+    def consistency_boundary(self) -> Selector[Decision]:
         return Selector(types=[CourseRegistered], tags=[self.course_id])
 
     def execute(self) -> None:
@@ -160,13 +150,13 @@ class RegisterCourse(Slice[MsgspecDecision]):
         )
 
 
-class UpdateCourseName(Slice[MsgspecDecision]):
+class UpdateCourseName(Slice[Decision]):
     def __init__(self, course_id: str, name: str) -> None:
         self.course_id = course_id
         self.name = name
         self.course_was_registered: bool = False
 
-    def consistency_boundary(self) -> Selector[MsgspecDecision]:
+    def consistency_boundary(self) -> Selector[Decision]:
         return Selector(
             types=[CourseRegistered, CourseNameUpdated], tags=[self.course_id]
         )
@@ -185,13 +175,13 @@ class UpdateCourseName(Slice[MsgspecDecision]):
         )
 
 
-class UpdatePlaces(Slice[MsgspecDecision]):
+class UpdatePlaces(Slice[Decision]):
     def __init__(self, course_id: str, places: int) -> None:
         self.course_id = course_id
         self.places = places
         self.course_was_registered: bool = False
 
-    def consistency_boundary(self) -> Selector[MsgspecDecision]:
+    def consistency_boundary(self) -> Selector[Decision]:
         return Selector(
             types=[CourseRegistered, CoursePlacesUpdated], tags=[self.course_id]
         )
@@ -210,7 +200,7 @@ class UpdatePlaces(Slice[MsgspecDecision]):
         )
 
 
-class StudentJoinsCourse(Slice[MsgspecDecision]):
+class StudentJoinsCourse(Slice[Decision]):
     def __init__(self, student_id: str, course_id: str) -> None:
         self.student_id = student_id
         self.course_id = course_id
@@ -221,7 +211,7 @@ class StudentJoinsCourse(Slice[MsgspecDecision]):
         self.students_on_course: list[str] = []
         self.courses_for_student: list[str] = []
 
-    def consistency_boundary(self) -> list[Selector[MsgspecDecision]]:
+    def consistency_boundary(self) -> list[Selector[Decision]]:
         return [
             Selector(
                 types=[
@@ -294,7 +284,7 @@ class StudentJoinsCourse(Slice[MsgspecDecision]):
         )
 
 
-class StudentLeavesCourse(Slice[MsgspecDecision]):
+class StudentLeavesCourse(Slice[Decision]):
     def __init__(self, student_id: str, course_id: str) -> None:
         self.student_id = student_id
         self.course_id = course_id
@@ -303,7 +293,7 @@ class StudentLeavesCourse(Slice[MsgspecDecision]):
         self.students_on_course: list[str] = []
         self.courses_for_student: list[str] = []
 
-    def consistency_boundary(self) -> list[Selector[MsgspecDecision]]:
+    def consistency_boundary(self) -> list[Selector[Decision]]:
         return [
             Selector(
                 types=[StudentRegistered, StudentJoinedCourse, StudentLeftCourse],
@@ -352,12 +342,12 @@ class StudentLeavesCourse(Slice[MsgspecDecision]):
         )
 
 
-class StudentsIDs(Slice[MsgspecDecision]):
+class StudentsIDs(Slice[Decision]):
     def __init__(self, course_id: str) -> None:
         self.course_id = course_id
         self.student_ids: list[str] = []
 
-    def consistency_boundary(self) -> Selector[MsgspecDecision]:
+    def consistency_boundary(self) -> Selector[Decision]:
         return Selector(
             types=[StudentJoinedCourse, StudentLeftCourse], tags=[self.course_id]
         )
@@ -371,11 +361,11 @@ class StudentsIDs(Slice[MsgspecDecision]):
         self.student_ids.remove(student_id)
 
 
-class StudentNames(Slice[MsgspecDecision]):
+class StudentNames(Slice[Decision]):
     def __init__(self, student_ids: list[str]) -> None:
         self.student_id_names: dict[str, str | None] = dict.fromkeys(student_ids, None)
 
-    def consistency_boundary(self) -> list[Selector[MsgspecDecision]]:
+    def consistency_boundary(self) -> list[Selector[Decision]]:
         return [
             Selector(types=[StudentRegistered, StudentNameUpdated], tags=[student_id])
             for student_id in self.student_id_names
@@ -394,12 +384,12 @@ class StudentNames(Slice[MsgspecDecision]):
         return [n for n in self.student_id_names.values() if n]
 
 
-class CourseIDs(Slice[MsgspecDecision]):
+class CourseIDs(Slice[Decision]):
     def __init__(self, student_id: str) -> None:
         self.student_id = student_id
         self.course_ids: list[str] = []
 
-    def consistency_boundary(self) -> Selector[MsgspecDecision]:
+    def consistency_boundary(self) -> Selector[Decision]:
         return Selector(
             types=[StudentJoinedCourse, StudentLeftCourse], tags=[self.student_id]
         )
@@ -413,11 +403,11 @@ class CourseIDs(Slice[MsgspecDecision]):
         self.course_ids.remove(course_id)
 
 
-class CourseNames(Slice[MsgspecDecision]):
+class CourseNames(Slice[Decision]):
     def __init__(self, course_ids: list[str]) -> None:
         self.course_id_names: dict[str, str | None] = dict.fromkeys(course_ids, None)
 
-    def consistency_boundary(self) -> list[Selector[MsgspecDecision]]:
+    def consistency_boundary(self) -> list[Selector[Decision]]:
         return [
             Selector(types=[CourseRegistered, CourseNameUpdated], tags=[student_id])
             for student_id in self.course_id_names
@@ -436,7 +426,7 @@ class CourseNames(Slice[MsgspecDecision]):
         return [n for n in self.course_id_names.values() if n]
 
 
-class Student(Slice[MsgspecDecision]):
+class Student(Slice[Decision]):
     def __init__(self, student_id: str) -> None:
         self.student_id = student_id
         self.student_was_registered: bool = False
@@ -444,7 +434,7 @@ class Student(Slice[MsgspecDecision]):
         self.max_courses: int = 0
         self.course_ids: list[str] = []
 
-    def consistency_boundary(self) -> Selector[MsgspecDecision]:
+    def consistency_boundary(self) -> Selector[Decision]:
         return Selector(tags=[self.student_id])
 
     @event(StudentRegistered)
@@ -470,7 +460,7 @@ class Student(Slice[MsgspecDecision]):
         self.course_ids.remove(course_id)
 
 
-class Course(Slice[MsgspecDecision]):
+class Course(Slice[Decision]):
     def __init__(self, course_id: str) -> None:
         self.course_id = course_id
         self.course_was_registered: bool = False
@@ -478,7 +468,7 @@ class Course(Slice[MsgspecDecision]):
         self.places = 0
         self.student_ids: list[str] = []
 
-    def consistency_boundary(self) -> Selector[MsgspecDecision]:
+    def consistency_boundary(self) -> Selector[Decision]:
         return Selector(tags=[self.course_id])
 
     @event(CourseRegistered)
@@ -504,12 +494,7 @@ class Course(Slice[MsgspecDecision]):
         self.student_ids.remove(student_id)
 
 
-class EnrolmentWithVerticalSlices(DCBApplication[MsgspecDecision], EnrolmentInterface):
-    env: Mapping[str, str] = {
-        "TRANSCODER_TOPIC": get_topic(MsgspecTranscoder),
-        **DCBApplication.env,
-    }
-
+class EnrolmentWithVerticalSlices(DCBApplication, EnrolmentInterface):
     def register_student(self, name: str, max_courses: int) -> str:
         return self.do(RegisterStudent(name, max_courses)).student_id
 
@@ -545,6 +530,3 @@ class EnrolmentWithVerticalSlices(DCBApplication[MsgspecDecision], EnrolmentInte
 
     def get_course(self, course_id: str) -> Course:
         return self.do(Course(course_id=course_id))
-
-
-DecisionTypes = Sequence[type[MsgspecDecision]]

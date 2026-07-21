@@ -4,10 +4,10 @@ from uuid import uuid4
 
 from eventsourcing.domain import AggregateEvent, EventEnvelope, projector
 from eventsourcing.errors import ProgrammingError
-from eventsourcing.msgspec.immutable import (
+from eventsourcing.msgspec import (
+    Decision,
     Immutable,
-    ImmutableMsgspecAggregate,
-    MsgspecDecision,
+    ImmutableAggregate,
 )
 
 
@@ -15,20 +15,20 @@ class Trick(Immutable):
     name: str
 
 
-class Dog(ImmutableMsgspecAggregate):
+class Dog(ImmutableAggregate):
     name: str
     tricks: tuple[Trick, ...]
 
 
-class DogRegistered(MsgspecDecision):
+class DogRegistered(Decision):
     name: str
 
 
-class TrickAdded(MsgspecDecision):
+class TrickAdded(Decision):
     trick: Trick
 
 
-def register_dog(name: str) -> AggregateEvent[MsgspecDecision]:
+def register_dog(name: str) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=DogRegistered(name=name),
         originator_id=str(uuid4()),
@@ -36,7 +36,7 @@ def register_dog(name: str) -> AggregateEvent[MsgspecDecision]:
     )
 
 
-def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[MsgspecDecision]:
+def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=TrickAdded(trick=trick),
         originator_id=dog.id,
@@ -45,7 +45,7 @@ def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[MsgspecDecision]:
 
 
 @projector
-def evolve_dog(envelope: EventEnvelope[MsgspecDecision], dog: Dog | None) -> Dog | None:
+def evolve_dog(envelope: EventEnvelope[Decision], dog: Dog | None) -> Dog | None:
     """Mutates aggregate with event."""
     assert isinstance(envelope, AggregateEvent)
     match envelope.decision:
