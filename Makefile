@@ -51,13 +51,8 @@ fmt-ruff-unsafe:
 fmt-black:
 	$(POETRY) run black eventsourcing tests examples
 
-.PHONY: fmt-isort
-fmt-isort:
-	$(POETRY) run isort eventsourcing tests examples
-
-
 .PHONY: lint
-lint: lint-black lint-ruff lint-isort lint-mypy lint-pyright #lint-dockerfile
+lint: lint-black lint-ruff lint-mypy lint-pyright #lint-dockerfile
 
 .PHONY: lint-black
 lint-black:
@@ -66,10 +61,6 @@ lint-black:
 .PHONY: lint-ruff
 lint-ruff:
 	$(POETRY) run ruff check eventsourcing tests examples
-
-.PHONY: lint-isort
-lint-isort:
-	$(POETRY) run isort --check-only --diff eventsourcing tests examples
 
 .PHONY: lint-pyright
 lint-pyright:

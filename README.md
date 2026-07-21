@@ -23,9 +23,11 @@ experience. Please [read the docs](https://eventsourcing.readthedocs.io/). See a
 
 ## Installation
 
-Add the Python `eventsourcing` package to your project, or install into a Python virtual
-environment from the [Python Package Index](https://pypi.org/project/eventsourcing/). We recommended installing with the
-`pydantic` option to enable the library's support for Pydantic.
+Add the Python `eventsourcing` package to your project. Alternatively, install
+into directly into a Python virtual environment from the [Python Package Index](https://pypi.org/project/eventsourcing/).
+
+We recommended installing version 10 with the `pydantic` option to enable support for modeling
+events with Pydantic.
 
     $ pip install eventsourcing[pydantic]~=10.0.0
 
@@ -41,62 +43,88 @@ official support for modeling and serialising events with Pydantic.
 Version 10 of this library introduces a new design for modeling events. Pure business attributes
 are modeled as "decision" objects. Decision objects are carried within "envelopes" that hold context attributes.
 
-The `PydanticDecision` class works with the library's Pydantic transcoder, and
+The `eventsourcing.pydantic.Decision` class works with the library's Pydantic transcoder, and
 provides strong type safety, complex model validation, and fast serialisation. Pydantic is very popular and
 widely used, and is a great choice for modeling events in Python.
 
-Continuing the "dog school" example from previous versions, the example below defines two "decision" classes, one for registering a dog's name, and one for adding new tricks.
+Continuing the "dog school" example from previous versions of this library, the example below defines two "decision" classes,
+one for registering a dog's name, and one for adding new tricks.
 
 ```python
-from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic import Decision
 
-class DogRegistered(PydanticDecision):
+class DogRegistered(Decision):
     dog_id: str
     name: str
 
-class TrickAdded(PydanticDecision):
+class TrickAdded(Decision):
+    dog_id: str
     trick: str
-
 ```
 
 
 ### Enduring objects
 
-With dynamic consistency boundaries, you can write aggregate-like entities, which are called "enduring objects" in
-this library. You can refactor the enduring object into vertical slices. Similarly, you can define your domain model
-with vertical slices, and then refactor into enduring objects. You can also mix and match, according to what feels
-best in your situation.
+The `eventsourcing.pydantic.EnduringObject` class works with the `Decision` class
+and provides an aggregate-like developer experience. With the support provided by
+this library for dynamic consistency boundaries, you can write aggregate-like enduring
+objects, and because they use an independent event model, you can refactor your domain
+model from being implemented with enduring objects to being implemented with vertical
+slices.
+
+Similarly, you can implement your domain model with vertical slices, and then refactor
+into enduring objects. You can also mix and match, according to what feels best in your
+situation. The underlying event model doesn't need to change.
+
+Let's start by writing an enduring object that supports registering a dog with a dog school,
+adding tricks, and reconstructing current state from the history of events.
 
 ```python
-from eventsourcing.pydantic.mutable import PydanticEnduringObject
+from eventsourcing.pydantic import EnduringObject
 from eventsourcing.domain import event
 
 
-class Dog(PydanticEnduringObject):
+class Dog(EnduringObject):
     @event(DogRegistered)
     def __init__(self, dog_id: str, name: str) -> None:
         self.dog_id = dog_id
         self.name = name
         self.tricks: list[str] = []
 
-    @event(TrickAdded)
     def add_trick(self, trick: str) -> None:
+        self._add_trick(dog_id=self.dog_id, trick=trick)
+
+    @event(TrickAdded)
+    def _add_trick(self, dog_id: str, trick: str) -> None:
         self.tricks.append(trick)
 ```
 
-Let's also define an application class that encapsulates the `Dog` object and persistence infrastructure so
-that our enduring object is actually durable.
+### Applications
 
-The application methods `register_dog()`, `add_trick()`, and `get_dog()` can be easily used by interfaces and tests.
+Let's also define an application class that encapsulates the `Dog` object and introduces some
+persistence infrastructure so that our enduring object can be durable.
+
+The `eventsourcing.pydantic.DCBApplication` class works with the Pydantic `EnduringObject` and
+`Decision` classes. The `save()` and `get()` methods of the application's repository are
+designed to work with enduring objects. One collects and stores new events, the other
+reconstructs an enduring object from stored events.
+
+In this example, the application methods `register_dog()`, `add_trick()`, and `get_dog()` can be easily
+used by interfaces and integration tests.
 
 ```python
-from typing import Any
+from typing import TypedDict
 from uuid import uuid4
 
-from eventsourcing.pydantic.application import PydanticDCBApplication
+from eventsourcing.pydantic import DCBApplication
 
 
-class DogSchoolWithEnduringObjects(PydanticDCBApplication):
+class DogSummary(TypedDict):
+    name: str
+    tricks: tuple[str, ...]
+
+
+class DogSchool(DCBApplication):
     def register_dog(self, name: str) -> str:
         dog = Dog(dog_id=str(uuid4()), name=name)
         self.repository.save(dog)
@@ -107,40 +135,60 @@ class DogSchoolWithEnduringObjects(PydanticDCBApplication):
         dog.add_trick(trick)
         self.repository.save(dog)
 
-    def get_dog(self, dog_id: str) -> dict[str, Any]:
+    def get_dog(self, dog_id: str) -> DogSummary:
         dog = self.repository.get(dog_id, Dog)
         return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 ```
 
 ### Vertical slices
 
-The `Dog` object above really combines support for three separate use cases: registering a new dog, adding a trick,
-and reconstructing the current state of the dog from the history of events.
+We can see the `Dog` enduring object class supports three separate use cases.
+Registering a new dog, adding a trick, and reconstructing current
+state, are all supported by the same highly coherent aggregate-like object class.
 
-We can split these three concerns into separate "slices" that are purely focussed on only the needs of each use case.
-For each use case we can define its parameters, a consistency boundary, a projection, and an `execute()` method that
-will trigger a new event.
+Whilst it's nice to keep everything together in one place like this, in some cases
+the accumulation of support for many different use cases can be overwhelming. An
+alternative style, and your escape hatch, is vertical slices.
+
+In this example, we can separate support for the three use cases into separate "slices". Each
+slice can be purely focussed on the needs of the use case it supports. For each use case,
+we can define its parameters, a consistency boundary, a projection, and an `execute()`
+method or "decider" that triggers a new event.
+
+The `eventsourcing.pydantic.Slice` class makes it easy to express these aspects in a
+standard and coherent way, and also works with the `Decision` class.
+
+1. Parameters are expressed as constructor params.
+2. Consistency boundary expressed as a function of the params.
+3. Projection defined using the @event decorator.
+4. Decider implemented with command-pattern execute() method.
+
+In this example, the three use cases are implemented as `RegisterDog`, `AddTrick` and `DogView`.
 
 ```python
-from eventsourcing.pydantic.mutable import PydanticEnduringObject, PydanticSlice
+from eventsourcing.pydantic import Slice
 from eventsourcing.domain import event, Selector
 
 
-class RegisterDog(PydanticSlice):
+class RegisterDog(Slice):
+    # 1. Parameters are expressed as constructor params.
     def __init__(self, dog_id: str, name: str) -> None:
         self.dog_id = dog_id
         self.name = name
         self.was_registered = False
 
+    # 2. Consistency boundary expressed as a function of the params.
     def consistency_boundary(
         self,
-    ) -> Selector[PydanticDecision]:
+    ) -> Selector[Decision]:
         return Selector(types=[DogRegistered], tags=[self.dog_id])
 
+    # 3. Projection defined using the @event decorator.
     @event(DogRegistered)
     def _(self) -> None:
         self.was_registered = True
 
+    # 4. Decider implemented with command-pattern execute() method.
     def execute(self) -> None:
         assert not self.was_registered
         self.trigger_event(
@@ -151,47 +199,49 @@ class RegisterDog(PydanticSlice):
         )
 
 
-class AddTrick(PydanticSlice):
+class AddTrick(Slice):
+    # 1. Parameters are expressed as constructor params.
     def __init__(self, dog_id: str, trick: str) -> None:
         self.dog_id = dog_id
         self.new_trick = trick
         self.was_registered = False
-        self.tricks: list[str] = []
 
+    # 2. Consistency boundary expressed as a function of the params.
     def consistency_boundary(
         self,
-    ) -> Selector[PydanticDecision]:
-        return Selector(types=[DogRegistered, TrickAdded], tags=[self.dog_id])
+    ) -> Selector[Decision]:
+        return Selector(types=[DogRegistered], tags=[self.dog_id])
 
+    # 3. Projection defined using the @event decorator.
     @event(DogRegistered)
     def _(self, dog_id: str) -> None:
         assert dog_id == self.dog_id
         self.was_registered = True
 
-    @event(TrickAdded)
-    def _(self, trick: str) -> None:
-        self.tricks.append(trick)
-
+    # 4. Decider implemented with command-pattern execute() method.
     def execute(self) -> None:
         assert self.was_registered
-        assert self.new_trick not in self.tricks
         self.trigger_event(
             TrickAdded,
             tags=[self.dog_id],
+            dog_id=self.dog_id,
             trick=self.new_trick,
         )
 
-class DogView(PydanticSlice):
+class DogView(Slice):
+    # 1. Parameters are expressed as constructor params.
     def __init__(self, dog_id: str) -> None:
         self.dog_id = dog_id
         self.name = ""
         self.tricks: list[str] = []
 
+    # 2. Consistency boundary expressed as a function of the params.
     def consistency_boundary(
         self,
-    ) -> Selector[PydanticDecision]:
+    ) -> Selector[Decision]:
         return Selector(types=self.projected_types, tags=[self.dog_id])
 
+    # 3. Projection defined using the @event decorator.
     @event(DogRegistered)
     def _(self, dog_id: str, name: str) -> None:
         assert dog_id == self.dog_id
@@ -201,22 +251,18 @@ class DogView(PydanticSlice):
     @event(TrickAdded)
     def _(self, trick: str) -> None:
         self.tricks.append(trick)
+
+    # 4. No execute() method - views don't need to trigger events.
 ```
 
-Let's also define an application class that encapsulates the slices and persistence infrastructure so
-that our enduring object is actually durable.
+As we did for the `Dog` object above, let's also define an application class that encapsulates the
+slices and persistence infrastructure, presenting an API that can be used from tests and interfaces.
 
-The application methods `register_dog()`, `add_trick()`, and `get_dog()` can be easily used by interfaces and tests.
-
+The `eventsourcing.pydantic.DCBApplication` class also works with the `Slice` class
+and provides a `do()` method especially for vertical slices.
 
 ```python
-from typing import Any
-from uuid import uuid4
-
-from eventsourcing.pydantic.application import PydanticDCBApplication
-
-
-class DogSchoolWithSlices(PydanticDCBApplication):
+class DogSchoolWithSlices(DCBApplication):
     def register_dog(self, name: str) -> str:
         dog_id = str(uuid4())
         self.do(RegisterDog(dog_id=dog_id, name=name))
@@ -225,26 +271,43 @@ class DogSchoolWithSlices(PydanticDCBApplication):
     def add_trick(self, dog_id: str, trick: str) -> None:
         self.do(AddTrick(dog_id=dog_id, trick=trick))
 
-    def get_dog(self, dog_id: str) -> dict[str, Any]:
+    def get_dog(self, dog_id: str) -> DogSummary:
         dog = self.do(DogView(dog_id))
         return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 ```
 
-Write a test that covers your application's command and query methods.
+### Tests and interfaces
+
+Here we have written an integration test exercises the command and query methods
+defined on the DCB applications. Since both present the same API, they can be
+exercised in the same way. You can see the enduring object and the slices
+generated exactly the same recorded events. This means an application can
+be refactored from using enduring objects to being implemented with vertical
+slices, and vice versa.
 
 ```python
+from datetime import datetime
+
 from eventsourcing.domain import put_metadata_in_context
 
 
-def test_dog_school_with_dcb(app: DogSchoolWithEnduringObjects | DogSchoolWithSlices) -> None:
+def test_dog_school(
+    cls: type[DogSchool | DogSchoolWithSlices],
+    env: dict[str, str] | None,
+    label: str,
+) -> None:
+    started = datetime.now()
+
+    app = cls(env)
+
     # Get current max sequence position.
     head = app.events.recorder.head()
 
-    # Evolve application state.
-    context = {
-        "user_id": "user-123",
-    }
-    with put_metadata_in_context(context):
+    # Context attributes become event metadata.
+    context_attributes = {"user_id": "user-123"}
+    with put_metadata_in_context(context_attributes):
+
+        # Evolve application state.
         dog_id = app.register_dog('Fido')
         app.add_trick(dog_id, 'roll over')
         app.add_trick(dog_id, 'play dead')
@@ -269,21 +332,37 @@ def test_dog_school_with_dcb(app: DogSchoolWithEnduringObjects | DogSchoolWithSl
     assert events[0].decision.name, 'Fido'
     assert events[1].decision.trick, 'roll over'
     assert events[2].decision.trick, 'play deead'
-    assert events[0].metadata == context
-    assert events[1].metadata == context
-    assert events[2].metadata == context
+    assert events[0].metadata == context_attributes
+    assert events[1].metadata == context_attributes
+    assert events[2].metadata == context_attributes
 
+    # Print duration.
+    duration = (datetime.now() - started).total_seconds()
+    print(f"{label}: {(duration*1000):.2f}ms")
 ```
 
-Run the tests in memory.
+Because the application class is defined independently of persistence infrastructure,
+we can run the test in memory, with Postgres, and with UmaDB.
+
+Let's run the applications in memory.
 
 ```python
-test_dog_school_with_dcb(DogSchoolWithEnduringObjects())
+test_dog_school(
+    cls=DogSchool,
+    env=None,
+    label="enduring object in memory"
+)
 
-test_dog_school_with_dcb(DogSchoolWithSlices())
+test_dog_school(
+    cls=DogSchoolWithSlices,
+    env=None,
+    label="slices in memory"
+)
 ```
 
-Run the tests with Postgres.
+Now, let's run the applications with Postgres. To run with Postgres,
+you need to install and start Postgres, create a database and a user,
+and configure the application environment in the following way.
 
 ```python
 postgres_env: dict[str, str] = {
@@ -295,16 +374,23 @@ postgres_env: dict[str, str] = {
     "POSTGRES_PASSWORD": "eventsourcing",
 }
 
-test_dog_school_with_dcb(
-    DogSchoolWithEnduringObjects(env=postgres_env)
+test_dog_school(
+    cls=DogSchool,
+    env=postgres_env,
+    label="enduring object with Postgres"
 )
 
-test_dog_school_with_dcb(
-    DogSchoolWithSlices(env=postgres_env)
+test_dog_school(
+    cls=DogSchoolWithSlices,
+    env=postgres_env,
+    label="slice with Postgres"
 )
 ```
 
-Run the tests with UmaDB.
+Finally, let's run the applications with UmaDB. To run with UmaDB,
+you need to install the Python package `eventsourcing_umadb`, run
+the installed `umadb` server binary, and configure the application
+environment in the following way.
 
 ```python
 umadb_env: dict[str, str] = {
@@ -312,17 +398,39 @@ umadb_env: dict[str, str] = {
     "UMADB_URI": 'http://localhost:50051',
 }
 
-test_dog_school_with_dcb(
-    DogSchoolWithEnduringObjects(env=umadb_env)
+test_dog_school(
+    cls=DogSchool,
+    env=umadb_env,
+    label="enduring object with UmaDB"
 )
 
-test_dog_school_with_dcb(
-    DogSchoolWithSlices(env=umadb_env)
+test_dog_school(
+    cls=DogSchoolWithSlices,
+    env=umadb_env,
+    label="slices with UmaDB"
 )
 ```
 
+### Performance results
 
-See the [documentation](https://eventsourcing.readthedocs.io/) for more information.
+By matching the consistency boundary to the needs of the use case,
+application commands can performance faster. Needless conflicts
+can also be avoided. The table below shows duration times for
+the tests above.
+
+| test                            | duration |
+|---------------------------------|----------|
+| Enduring Object - In memory     |  0.68ms  |
+| Vertical Slices - In memory     |  0.38ms  |
+| Enduring Object - With Postgres |  44.65ms |
+| Vertical Slices - With Postgres |  28.25ms |
+| Enduring Object - With UmaDB    |  6.22ms  |
+| Vertical Slices - With UmaDB    |  2.62ms  |
+
+
+### Read the docs
+
+Please read the [documentation](https://eventsourcing.readthedocs.io/) for more information.
 
 
 ## Features
