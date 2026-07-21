@@ -1,7 +1,7 @@
 from typing import Any, cast
 from unittest import TestCase
 
-from eventsourcing.dataclasses.application import DataclassApplication
+from eventsourcing.dataclasses.application import DataclassAggregatesApplication
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.mutable import DataclassAggregate
 from eventsourcing.domain import (
@@ -14,7 +14,7 @@ from eventsourcing.domain import (
 )
 from eventsourcing.msgspec.immutable import MsgspecDecision
 from eventsourcing.msgspec.mutable import MsgspecAggregate
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticAggregatesApplication
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import PydanticAggregate
 
@@ -150,7 +150,7 @@ class TestAggregate(TestCase):
                 self.b = b
 
         a = MyAggregate(a=1)
-        app = DataclassApplication()
+        app = DataclassAggregatesApplication()
         app.save(a)
 
         copy = app.repository.get(a.id, MyAggregate)
@@ -175,7 +175,7 @@ class TestAggregate(TestCase):
                 self.b = b
 
         a = MyAggregate(a=1)
-        app = PydanticApplication()
+        app = PydanticAggregatesApplication()
         with self.assertRaises(TypeError) as cm:
             app.save(a)  # type: ignore[arg-type]
 

@@ -32,6 +32,10 @@ class InMemoryDCBRecorder(DCBRecorder, POPORecorder):
         self.position_sequence = self._position_sequence_generator()
         self._listeners: set[Event] = set()
 
+    def head(self) -> int | None:
+        with self._database_lock:
+            return self.events[-1].position if self.events else None
+
     def read(
         self,
         query: DCBQuery | None = None,

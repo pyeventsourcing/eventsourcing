@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.application import AggregateNotFoundError, Application
+from eventsourcing.application import AggregateNotFoundError, AggregatesApplication
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.legacy import Transcoding
 from eventsourcing.domain import Aggregate, triggers
@@ -19,7 +19,7 @@ from eventsourcing.persistence import (
     InfrastructureFactory,
     IntegrityError,
 )
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticAggregatesApplication
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import PydanticAggregate
 from eventsourcing.pydantic.transcoder import PydanticTranscoder
@@ -123,7 +123,7 @@ class EmailAddressAsStr(Transcoding):
         return EmailAddress(address=data)
 
 
-class BankAccountsWithPydantic(PydanticApplication):
+class BankAccountsWithPydantic(PydanticAggregatesApplication):
     is_snapshotting_enabled = True
 
     def open_account(self, full_name: str, email_address: str) -> str:
@@ -180,36 +180,38 @@ class ApplicationTestCase(TestCase):
         }
 
     def test_name(self) -> None:
-        self.assertEqual(Application.name, "Application")
+        self.assertEqual(AggregatesApplication.name, "Application")
 
-        class MyApplication1(Application[DataclassDecision]):
+        class MyAggregatesApplication1(AggregatesApplication[DataclassDecision]):
             pass
 
-        self.assertEqual(MyApplication1.name, "MyApplication1")
+        self.assertEqual(MyAggregatesApplication1.name, "MyApplication1")
 
-        class MyApplication2(Application[DataclassDecision]):
+        class MyAggregatesApplication2(AggregatesApplication[DataclassDecision]):
             name = "MyBoundedContext"
 
-        self.assertEqual(MyApplication2.name, "MyBoundedContext")
+        self.assertEqual(MyAggregatesApplication2.name, "MyBoundedContext")
 
     def test_as_context_manager(self) -> None:
-        with PydanticApplication(self.env):
+        with PydanticAggregatesApplication(self.env):
             pass
 
     def test_resolve_persistence_topics(self) -> None:
         # None specified.
-        app = PydanticApplication(self.env)
+        app = PydanticAggregatesApplication(self.env)
         self.assertIsInstance(app.factory, InfrastructureFactory)
 
         # Check 'PERSISTENCE_MODULE' resolves to a class.
         env = {"PERSISTENCE_MODULE": "eventsourcing.popo"}
         env.update(self.env)
-        app = PydanticApplication(env)
+        app = PydanticAggregatesApplication(env)
         self.assertIsInstance(app.factory, InfrastructureFactory)
 
         # Check exceptions.
         with self.assertRaises(InfrastructureFactoryError) as cm:
-            Application(env={"PERSISTENCE_MODULE": "eventsourcing.application"})
+            AggregatesApplication(
+                env={"PERSISTENCE_MODULE": "eventsourcing.application"}
+            )
         self.assertEqual(
             cm.exception.args[0],
             "Found 0 infrastructure factory classes in "
@@ -217,7 +219,7 @@ class ApplicationTestCase(TestCase):
         )
 
         with self.assertRaises(InfrastructureFactoryError) as cm:
-            Application(
+            AggregatesApplication(
                 env={"PERSISTENCE_MODULE": "eventsourcing.application:Application"}
             )
         self.assertEqual(
@@ -228,7 +230,7 @@ class ApplicationTestCase(TestCase):
         )
 
     def test_save_returns_recording_event(self) -> None:
-        app = PydanticApplication(self.env)
+        app = PydanticAggregatesApplication(self.env)
 
         recordings = app.save()
         self.assertEqual(recordings, [])
@@ -252,7 +254,7 @@ class ApplicationTestCase(TestCase):
     def test_take_snapshot_raises_assertion_error_if_snapshotting_not_enabled(
         self,
     ) -> None:
-        app = PydanticApplication(self.env)
+        app = PydanticAggregatesApplication(self.env)
         with self.assertRaises(AssertionError) as cm:
             app.take_snapshot(str(uuid4()))
         self.assertEqual(
@@ -266,7 +268,7 @@ class ApplicationTestCase(TestCase):
 
     def test_application_with_cached_aggregates_and_fastforward(self) -> None:
         self.env["AGGREGATE_CACHE_MAXSIZE"] = "10"
-        app = PydanticApplication(env=self.env)
+        app = PydanticAggregatesApplication(env=self.env)
 
         aggregate = self.MyAggregate()
         app.save(aggregate)
@@ -305,7 +307,7 @@ class ApplicationTestCase(TestCase):
         self._check_aggregate_fastforwarding_during_contention(env)
 
     def _check_aggregate_fastforwarding_during_contention(self, env: EnvType) -> None:
-        app = PydanticApplication(env=env)
+        app = PydanticAggregatesApplication(env=env)
 
         self.assertEqual(len(app.repository._fastforward_locks_inuse), 0)
 
@@ -422,7 +424,7 @@ class ApplicationTestCase(TestCase):
             "AGGREGATE_CACHE_FASTFORWARD": "f",
         }
         env.update(self.env)
-        app = PydanticApplication(env)
+        app = PydanticAggregatesApplication(env)
         aggregate1 = self.MyAggregate()
         app.save(aggregate1)
         aggregate_id = aggregate1.id
@@ -460,7 +462,7 @@ class ApplicationTestCase(TestCase):
             "AGGREGATE_CACHE_MAXSIZE": "10",
         }
         env.update(self.env)
-        app = PydanticApplication(env)
+        app = PydanticAggregatesApplication(env)
         aggregate = self.MyAggregate()
         app.save(aggregate)
         self.assertEqual(aggregate.version, 1)
@@ -477,7 +479,7 @@ class ApplicationTestCase(TestCase):
             "AGGREGATE_CACHE_MAXSIZE": "10",
         }
         env.update(self.env)
-        app = PydanticApplication(env)
+        app = PydanticAggregatesApplication(env)
         aggregate = self.MyAggregate()
         app.save(aggregate)
         self.assertEqual(aggregate.version, 1)

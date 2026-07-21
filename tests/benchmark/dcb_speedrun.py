@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 from eventsourcing_umadb.recorders import UmaDbDCBRecorder
 from psycopg.sql import SQL, Identifier
 
-from eventsourcing.application import Application
+from eventsourcing.application import AggregatesApplication
 from eventsourcing.dcb.application import DCBApplication
 from eventsourcing.dcb.popo import InMemoryDCBRecorder
 from eventsourcing.dcb.postgres_tt import (
@@ -367,7 +367,7 @@ if __name__ == "__main__":
     # print(f"Reporting interval: every {reporting_interval} iterations...")
     # print()
 
-    assert issubclass(cls, Application | DCBApplication)
+    assert issubclass(cls, AggregatesApplication | DCBApplication)
     with cls(env=env) as app:
 
         started_event_count = count_events(app)

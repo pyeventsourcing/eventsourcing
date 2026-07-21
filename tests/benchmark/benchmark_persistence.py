@@ -8,7 +8,7 @@ import pytest
 from eventsourcing.domain import event, triggers
 from eventsourcing.persistence import InfrastructureFactory, StoredEvent
 from eventsourcing.postgres import PostgresApplicationRecorder
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticAggregatesApplication
 from eventsourcing.pydantic.mutable import PydanticAggregate
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import Environment, clear_topic_cache
@@ -273,7 +273,7 @@ def test_app_save(env: str, num_events: int, benchmark: BenchmarkFixture) -> Non
     if "text" in env:
         pytest.skip("Skipping test (text IDs not supported by test)")
 
-    app = PydanticApplication(env=envs[env])
+    app = PydanticAggregatesApplication(env=envs[env])
 
     clear_topic_cache()
 
@@ -292,7 +292,7 @@ def test_app_save(env: str, num_events: int, benchmark: BenchmarkFixture) -> Non
             agg.subsequent(a=i + 1)
         return (app, agg), {}
 
-    def func(app: PydanticApplication, agg: PydanticAggregate) -> None:
+    def func(app: PydanticAggregatesApplication, agg: PydanticAggregate) -> None:
         app.save(agg)
 
     try:
@@ -318,7 +318,7 @@ def test_app_command(env: str, num_events: int, benchmark: BenchmarkFixture) -> 
         def subsequent(self, a: int) -> None:
             self.a = a
 
-    class MyApplication(PydanticApplication):
+    class MyApplication(PydanticAggregatesApplication):
         def command(self) -> None:
             agg = A(a=0)
             for i in range(num_events - 1):
@@ -354,7 +354,7 @@ def test_repository_get(env: str, num_events: int, benchmark: BenchmarkFixture) 
         def subsequent(self, a: int) -> None:
             self.a = a
 
-    app = PydanticApplication(env=envs[env])
+    app = PydanticAggregatesApplication(env=envs[env])
     agg = A(a=0)
     for i in range(num_events - 1):
         agg.subsequent(a=i + 1)

@@ -76,6 +76,8 @@ class RecorderTestCase(TestCase, ABC):
 
 
 class AggregateRecorderTestCase(RecorderTestCase, ABC):
+    recorder_supports_idempotent_appends: ClassVar[bool] = False
+
     @abstractmethod
     def create_recorder(self) -> AggregateRecorder:
         """"""
@@ -111,8 +113,9 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
         self.assert_events_eq(recorder.select_events(originator_id1), [event1])
 
         # Check get record conflict error if attempt to store it again.
-        with self.assertRaises(IntegrityError):
-            recorder.insert_events([event1])
+        if not self.recorder_supports_idempotent_appends:
+            with self.assertRaises(IntegrityError):
+                recorder.insert_events([event1])
 
         # Check writing of events is atomic.
         event2 = StoredEvent(
@@ -223,6 +226,7 @@ class ApplicationRecorderTestCase(
     RecorderTestCase, ABC, Generic[_TApplicationRecorder]
 ):
     EXPECT_CONTIGUOUS_NOTIFICATION_IDS = True
+    recorder_supports_idempotent_appends: ClassVar[bool] = False
 
     @abstractmethod
     def create_recorder(self) -> _TApplicationRecorder:

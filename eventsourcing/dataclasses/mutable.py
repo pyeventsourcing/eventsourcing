@@ -7,10 +7,18 @@ from eventsourcing.dataclasses.immutable import (
     DataclassDecision,
     Immutable,
 )
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, EnduringObject, Slice
 
 
 class DataclassAggregate(Aggregate[DataclassDecision]):
+    pass
+
+
+class DataclassSlice(Slice[DataclassDecision]):
+    pass
+
+
+class DataclassEnduringObject(EnduringObject[DataclassDecision]):
     pass
 
 

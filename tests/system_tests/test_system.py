@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.case import TestCase
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from eventsourcing.application import Application, ProcessingEvent
+from eventsourcing.application import AggregatesApplication, ProcessingEvent
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.mutable import DataclassAggregate
 from eventsourcing.dataclasses.transcoder import DataclassTranscoder
@@ -37,7 +37,7 @@ system_defined_as_global = System(
             BankAccountsWithPydantic,
             EmailProcess,
         ],
-        [Application],
+        [AggregatesApplication],
     ]
 )
 
@@ -50,7 +50,7 @@ class TestSystem(TestCase):
                     BankAccountsWithPydantic,
                     EmailProcess,
                 ],
-                [Application],
+                [AggregatesApplication],
             ]
         )
         self.assertEqual(len(system.nodes), 3)
@@ -59,7 +59,7 @@ class TestSystem(TestCase):
             get_topic(BankAccountsWithPydantic),
         )
         self.assertEqual(system.nodes["EmailProcess"], get_topic(EmailProcess))
-        self.assertEqual(system.nodes["Application"], get_topic(Application))
+        self.assertEqual(system.nodes["Application"], get_topic(AggregatesApplication))
 
         self.assertEqual(system.leaders, ["BankAccountsWithPydantic"])
         self.assertEqual(system.followers, ["EmailProcess"])
@@ -87,7 +87,7 @@ class TestSystem(TestCase):
                     BankAccountsWithPydantic,
                     EmailProcess,
                 ],
-                [Application],
+                [AggregatesApplication],
             ]
         )
         self.assertEqual(len(system.nodes), 3)
@@ -96,7 +96,7 @@ class TestSystem(TestCase):
             get_topic(BankAccountsWithPydantic),
         )
         self.assertEqual(system.nodes["EmailProcess"], get_topic(EmailProcess))
-        self.assertEqual(system.nodes["Application"], get_topic(Application))
+        self.assertEqual(system.nodes["Application"], get_topic(AggregatesApplication))
 
         self.assertEqual(system.leaders, ["BankAccountsWithPydantic"])
         self.assertEqual(system.followers, ["EmailProcess"])
@@ -162,7 +162,7 @@ class TestSystem(TestCase):
         system = System(
             pipes=[
                 [
-                    Application,
+                    AggregatesApplication,
                     ProcessApplication,
                     ProcessApplication,
                 ],

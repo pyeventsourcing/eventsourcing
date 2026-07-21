@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from eventsourcing.application import Application
+from eventsourcing.application import AggregatesApplication
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
@@ -12,4 +12,4 @@ if TYPE_CHECKING:
 
 @pytest.mark.benchmark(group="construct-application")
 def test_construct_application(benchmark: BenchmarkFixture) -> None:
-    benchmark(Application)
+    benchmark(AggregatesApplication)

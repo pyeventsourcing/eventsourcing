@@ -5,7 +5,7 @@ from unittest import TestCase
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from eventsourcing.application import EventSourcedLog
-from eventsourcing.dataclasses.application import DataclassApplication
+from eventsourcing.dataclasses.application import DataclassAggregatesApplication
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.legacy import (
     DatetimeAsISO,
@@ -101,7 +101,7 @@ class TestEventSourcedLog(TestCase):
             def __init__(self) -> None:
                 pass
 
-        class MyApplication(DataclassApplication):
+        class MyApplication(DataclassAggregatesApplication):
             def __init__(self, env: EnvType | None = None) -> None:
                 super().__init__(env=env)
                 self.aggregate_log = EventSourcedLog(

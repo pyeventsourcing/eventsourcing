@@ -14,7 +14,7 @@ from eventsourcing.domain import (
     datetime_now_with_tzinfo,
     triggers,
 )
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticAggregatesApplication
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import PydanticAggregate
 from eventsourcing.system import NotificationLogReader
@@ -95,7 +95,7 @@ class Vehicle(PydanticAggregate):
         )
 
 
-class ParkingLot(PydanticApplication):
+class ParkingLot(PydanticAggregatesApplication):
     def book(self, licence_plate: LicencePlate, product: type[Product]) -> None:
         try:
             vehicle = self.get_vehicle(licence_plate)

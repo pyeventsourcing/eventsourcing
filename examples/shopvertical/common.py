@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, TypeAlias
 
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticAggregatesApplication
 from eventsourcing.pydantic.immutable import Immutable, PydanticDecision
 
 if TYPE_CHECKING:
@@ -31,11 +31,11 @@ class Query(Immutable, ABC):
 
 
 class _Globals:
-    app = PydanticApplication()
+    app = PydanticAggregatesApplication()
 
 
 def reset_application() -> None:
-    _Globals.app = PydanticApplication()
+    _Globals.app = PydanticAggregatesApplication()
 
 
 def get_events(originator_id: str) -> Events:

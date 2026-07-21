@@ -133,6 +133,9 @@ class TestDCBSubscription(TestCase):
             ) -> DCBReadResponse:
                 raise NotImplementedError
 
+            def head(self) -> int | None:
+                raise NotImplementedError
+
         class MySubscription(DCBSubscription[MyRecorder]):
             def __next__(self) -> DCBSequencedEvent:
                 raise NotImplementedError

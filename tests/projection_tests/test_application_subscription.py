@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from eventsourcing.dataclasses.application import DataclassApplication
+from eventsourcing.dataclasses.application import DataclassAggregatesApplication
 from eventsourcing.dataclasses.immutable import DataclassDecision
 from eventsourcing.dataclasses.mutable import DataclassAggregate
 from eventsourcing.domain import triggers
@@ -27,7 +27,7 @@ class SubscriptionFixture(DataclassAggregate):
 
 class TestApplicationSubscription(TestCase):
     def test(self) -> None:
-        app = DataclassApplication()
+        app = DataclassAggregatesApplication()
 
         max_notification_id = app.recorder.max_notification_id()
 

@@ -73,6 +73,10 @@ ON {schema}.{table} USING GIN (text_vector)
 
 PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS = "dcb_select_events"
 
+SQL_MAX_SEQUENCE_POSITION = SQL("""
+SELECT MAX(sequence_position) FROM {schema}.{table}
+""")
+
 SQL_STATEMENT_DCB_SELECT_EVENTS = SQL("""
 SELECT * FROM {schema}.{select_events}((%s), (%s), (%s))
 """)
@@ -266,6 +270,10 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
         self.datastore.db_type_names.add(PG_TYPE_NAME_DCB_EVENT_TS)
         self.datastore.register_type_adapters()
 
+        self.sql_statement_max_sequence_position = SQL_MAX_SEQUENCE_POSITION.format(
+            schema=Identifier(self.datastore.schema),
+            table=Identifier(self.events_table_name),
+        )
         self.sql_statement_select_events = SQL_STATEMENT_DCB_SELECT_EVENTS.format(
             schema=Identifier(self.datastore.schema),
             select_events=Identifier(PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS),
@@ -320,6 +328,11 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
                 ),
             ]
         )
+
+    def head(self) -> int | None:
+        with self.datastore.get_connection() as conn:
+            row = conn.execute(self.sql_statement_max_sequence_position).fetchone()
+            return row["max"] if row is not None else None
 
     def read(
         self,

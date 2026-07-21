@@ -11,7 +11,7 @@ from types import FrameType, ModuleType
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
 
 from eventsourcing.application import (
-    Application,
+    AggregatesApplication,
     NotificationLog,
     Section,
     TApplication,
@@ -172,7 +172,7 @@ class RecordingEventReceiver(ABC, Generic[TDecision]):
         """Receives a recording event."""
 
 
-class Leader(Application[TDecision]):
+class Leader(AggregatesApplication[TDecision]):
     """Extends the :class:`~eventsourcing.application.Application`
     class by also being responsible for keeping track of
     followers, and prompting followers when there are new
@@ -230,7 +230,7 @@ class System:
 
     def __init__(
         self,
-        pipes: Iterable[Iterable[type[Application[Any]]]],
+        pipes: Iterable[Iterable[type[AggregatesApplication[Any]]]],
     ):
         # Remember the caller frame's module, so that we might identify a topic.
         caller_frame = cast(FrameType, inspect.currentframe()).f_back
@@ -239,7 +239,7 @@ class System:
 
         # Build nodes and edges.
         self.edges: list[tuple[str, str]] = []
-        classes: dict[str, type[Application[Any]]] = {}
+        classes: dict[str, type[AggregatesApplication[Any]]] = {}
         for pipe in pipes:
             follower_cls = None
             for cls in pipe:
@@ -298,9 +298,9 @@ class System:
     def processors(self) -> list[str]:
         return [name for name in self.leads if name in self.follows]
 
-    def get_app_cls(self, name: str) -> type[Application[Any]]:
+    def get_app_cls(self, name: str) -> type[AggregatesApplication[Any]]:
         cls = resolve_topic(self.nodes[name])
-        assert issubclass(cls, Application)
+        assert issubclass(cls, AggregatesApplication)
         return cls
 
     def leader_cls(self, name: str) -> type[Leader[Any]]:
@@ -386,7 +386,7 @@ class SingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision])
     def __init__(self, system: System, env: EnvType | None = None):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, Application[TDecision]] = {}
+        self.apps: dict[str, AggregatesApplication[TDecision]] = {}
         self._recording_events_received: list[RecordingEvent[TDecision]] = []
         self._prompted_names_lock = threading.Lock()
         self._prompted_names: set[str] = set()
@@ -482,7 +482,7 @@ class NewSingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecisio
     def __init__(self, system: System, env: EnvType | None = None):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, Application[Any]] = {}
+        self.apps: dict[str, AggregatesApplication[Any]] = {}
         self._recording_events_received: list[RecordingEvent[TDecision]] = []
         self._recording_events_received_lock = threading.Lock()
         self._processing_lock = threading.Lock()
@@ -626,7 +626,7 @@ class MultiThreadedRunner(Runner[TDecision]):
     def __init__(self, system: System, env: EnvType | None = None):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, Application[Any]] = {}
+        self.apps: dict[str, AggregatesApplication[Any]] = {}
         self.threads: dict[str, MultiThreadedRunnerThread[TDecision]] = {}
         self.has_errored = threading.Event()
 
@@ -785,7 +785,7 @@ class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision
     ):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, Application[TDecision]] = {}
+        self.apps: dict[str, AggregatesApplication[TDecision]] = {}
         self.pulling_threads: dict[str, list[PullingThread[TDecision]]] = {}
         self.processing_queues: dict[
             str, Queue[list[ProcessingJob[TDecision]] | None]

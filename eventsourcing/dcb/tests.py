@@ -29,6 +29,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(initial_position, len(list(result)))
         self.assertEqual(initial_position, read_response.head or 0)
 
+        self.assertEqual(read_response.head, recorder.head())
+
         # Append one event.
         event1 = DCBEvent(
             type="type1",
@@ -50,6 +52,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(event1.data, result[0].event.data)
         self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(1 + initial_position, read_response.head)
+
+        self.assertEqual(read_response.head, recorder.head())
 
         # Read all after 1, expect no events.
         read_response = recorder.read(after=1 + initial_position)

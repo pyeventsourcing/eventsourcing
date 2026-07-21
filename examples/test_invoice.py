@@ -8,7 +8,7 @@ from typing import Any
 from unittest import TestCase
 
 from eventsourcing.domain import triggers
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticAggregatesApplication
 from eventsourcing.pydantic.mutable import PydanticAggregate
 
 
@@ -77,7 +77,7 @@ class Invoice(PydanticAggregate):
         self.status = Status.SENT
 
 
-class InvoicingApplication(PydanticApplication):
+class InvoicingApplication(PydanticAggregatesApplication):
     pass
 
 

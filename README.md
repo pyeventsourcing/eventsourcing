@@ -1,4 +1,3 @@
-[![Build Status](https://github.com/pyeventsourcing/eventsourcing/actions/workflows/runtests.yaml/badge.svg?branch=9.5)](https://github.com/pyeventsourcing/eventsourcing)
 [![Coverage Status](https://coveralls.io/repos/github/pyeventsourcing/eventsourcing/badge.svg?branch=main)](https://coveralls.io/github/pyeventsourcing/eventsourcing?branch=main)
 [![Documentation Status](https://readthedocs.org/projects/eventsourcing/badge/?version=stable)](https://eventsourcing.readthedocs.io/en/stable/)
 [![Latest Release](https://badge.fury.io/py/eventsourcing.svg)](https://pypi.org/project/eventsourcing/)
@@ -24,106 +23,304 @@ experience. Please [read the docs](https://eventsourcing.readthedocs.io/). See a
 
 ## Installation
 
-Use pip to install the [stable distribution](https://pypi.org/project/eventsourcing/)
-from the Python Package Index.
+Add the Python `eventsourcing` package to your project, or install into a Python virtual
+environment from the [Python Package Index](https://pypi.org/project/eventsourcing/). We recommended installing with the
+`pydantic` option to enable the library's support for Pydantic.
 
-    $ pip install eventsourcing
-
-Please note, it is recommended to install Python
-packages into a Python virtual environment.
+    $ pip install eventsourcing[pydantic]~=10.0.0
 
 
 ## Synopsis
 
-Define aggregates with an "aggregate" class and the `@triggers` decorator.
+Version 10 of this library still supports traditional event-sourced aggregates. However,
+we have chosen to foreground the library's support for DCB, and to showcase the new
+official support for modeling and serialising events with Pydantic.
 
-The `PydanticAggregate` class works with Pydantic "decision" classes.
+### Modeling events
+
+Version 10 of this library introduces a new design for modeling events. Pure business attributes
+are modeled as "decision" objects. Decision objects are carried within "envelopes" that hold context attributes.
+
+The `PydanticDecision` class works with the library's Pydantic transcoder, and
+provides strong type safety, complex model validation, and fast serialisation. Pydantic is very popular and
+widely used, and is a great choice for modeling events in Python.
+
+Continuing the "dog school" example from previous versions, the example below defines two "decision" classes, one for registering a dog's name, and one for adding new tricks.
 
 ```python
-from eventsourcing.pydantic.mutable import PydanticAggregate
-from eventsourcing.domain import triggers
+from eventsourcing.pydantic.immutable import PydanticDecision
+
+class DogRegistered(PydanticDecision):
+    dog_id: str
+    name: str
+
+class TrickAdded(PydanticDecision):
+    trick: str
+
+```
 
 
-class Dog(PydanticAggregate):
-    @triggers('Registered')
-    def __init__(self, name: str) -> None:
+### Enduring objects
+
+With dynamic consistency boundaries, you can write aggregate-like entities, which are called "enduring objects" in
+this library. You can refactor the enduring object into vertical slices. Similarly, you can define your domain model
+with vertical slices, and then refactor into enduring objects. You can also mix and match, according to what feels
+best in your situation.
+
+```python
+from eventsourcing.pydantic.mutable import PydanticEnduringObject
+from eventsourcing.domain import event
+
+
+class Dog(PydanticEnduringObject):
+    @event(DogRegistered)
+    def __init__(self, dog_id: str, name: str) -> None:
+        self.dog_id = dog_id
         self.name = name
         self.tricks: list[str] = []
 
-    @triggers('TrickAdded')
+    @event(TrickAdded)
     def add_trick(self, trick: str) -> None:
         self.tricks.append(trick)
 ```
 
-Define an application class that works with your aggregate classes.
+Let's also define an application class that encapsulates the `Dog` object and persistence infrastructure so
+that our enduring object is actually durable.
 
-The `PydanticApplication` class works with Pydantic aggregates.
+The application methods `register_dog()`, `add_trick()`, and `get_dog()` can be easily used by interfaces and tests.
 
 ```python
 from typing import Any
+from uuid import uuid4
 
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticDCBApplication
 
 
-class DogSchool(PydanticApplication):
+class DogSchoolWithEnduringObjects(PydanticDCBApplication):
     def register_dog(self, name: str) -> str:
-        dog = Dog(name)
-        self.save(dog)
-        return dog.id
+        dog = Dog(dog_id=str(uuid4()), name=name)
+        self.repository.save(dog)
+        return dog.dog_id
 
     def add_trick(self, dog_id: str, trick: str) -> None:
         dog = self.repository.get(dog_id, Dog)
         dog.add_trick(trick)
-        self.save(dog)
+        self.repository.save(dog)
 
     def get_dog(self, dog_id: str) -> dict[str, Any]:
         dog = self.repository.get(dog_id, Dog)
         return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 ```
 
-Write a test.
+### Vertical slices
+
+The `Dog` object above really combines support for three separate use cases: registering a new dog, adding a trick,
+and reconstructing the current state of the dog from the history of events.
+
+We can split these three concerns into separate "slices" that are purely focussed on only the needs of each use case.
+For each use case we can define its parameters, a consistency boundary, a projection, and an `execute()` method that
+will trigger a new event.
 
 ```python
-def test_dog_school() -> None:
-    # Construct application object.
-    school = DogSchool()
+from eventsourcing.pydantic.mutable import PydanticEnduringObject, PydanticSlice
+from eventsourcing.domain import event, Selector
+
+
+class RegisterDog(PydanticSlice):
+    def __init__(self, dog_id: str, name: str) -> None:
+        self.dog_id = dog_id
+        self.name = name
+        self.was_registered = False
+
+    def consistency_boundary(
+        self,
+    ) -> Selector[PydanticDecision]:
+        return Selector(types=[DogRegistered], tags=[self.dog_id])
+
+    @event(DogRegistered)
+    def _(self) -> None:
+        self.was_registered = True
+
+    def execute(self) -> None:
+        assert not self.was_registered
+        self.trigger_event(
+            DogRegistered,
+            tags=[self.dog_id],
+            dog_id=self.dog_id,
+            name=self.name,
+        )
+
+
+class AddTrick(PydanticSlice):
+    def __init__(self, dog_id: str, trick: str) -> None:
+        self.dog_id = dog_id
+        self.new_trick = trick
+        self.was_registered = False
+        self.tricks: list[str] = []
+
+    def consistency_boundary(
+        self,
+    ) -> Selector[PydanticDecision]:
+        return Selector(types=[DogRegistered, TrickAdded], tags=[self.dog_id])
+
+    @event(DogRegistered)
+    def _(self, dog_id: str) -> None:
+        assert dog_id == self.dog_id
+        self.was_registered = True
+
+    @event(TrickAdded)
+    def _(self, trick: str) -> None:
+        self.tricks.append(trick)
+
+    def execute(self) -> None:
+        assert self.was_registered
+        assert self.new_trick not in self.tricks
+        self.trigger_event(
+            TrickAdded,
+            tags=[self.dog_id],
+            trick=self.new_trick,
+        )
+
+class DogView(PydanticSlice):
+    def __init__(self, dog_id: str) -> None:
+        self.dog_id = dog_id
+        self.name = ""
+        self.tricks: list[str] = []
+
+    def consistency_boundary(
+        self,
+    ) -> Selector[PydanticDecision]:
+        return Selector(types=self.projected_types, tags=[self.dog_id])
+
+    @event(DogRegistered)
+    def _(self, dog_id: str, name: str) -> None:
+        assert dog_id == self.dog_id
+        self.was_registered = True
+        self.name = name
+
+    @event(TrickAdded)
+    def _(self, trick: str) -> None:
+        self.tricks.append(trick)
+```
+
+Let's also define an application class that encapsulates the slices and persistence infrastructure so
+that our enduring object is actually durable.
+
+The application methods `register_dog()`, `add_trick()`, and `get_dog()` can be easily used by interfaces and tests.
+
+
+```python
+from typing import Any
+from uuid import uuid4
+
+from eventsourcing.pydantic.application import PydanticDCBApplication
+
+
+class DogSchoolWithSlices(PydanticDCBApplication):
+    def register_dog(self, name: str) -> str:
+        dog_id = str(uuid4())
+        self.do(RegisterDog(dog_id=dog_id, name=name))
+        return dog_id
+
+    def add_trick(self, dog_id: str, trick: str) -> None:
+        self.do(AddTrick(dog_id=dog_id, trick=trick))
+
+    def get_dog(self, dog_id: str) -> dict[str, Any]:
+        dog = self.do(DogView(dog_id))
+        return {'name': dog.name, 'tricks': tuple(dog.tricks)}
+```
+
+Write a test that covers your application's command and query methods.
+
+```python
+from eventsourcing.domain import put_metadata_in_context
+
+
+def test_dog_school_with_dcb(app: DogSchoolWithEnduringObjects | DogSchoolWithSlices) -> None:
+    # Get current max sequence position.
+    head = app.events.recorder.head()
 
     # Evolve application state.
-    dog_id = school.register_dog('Fido')
-    school.add_trick(dog_id, 'roll over')
-    school.add_trick(dog_id, 'play dead')
+    context = {
+        "user_id": "user-123",
+    }
+    with put_metadata_in_context(context):
+        dog_id = app.register_dog('Fido')
+        app.add_trick(dog_id, 'roll over')
+        app.add_trick(dog_id, 'play dead')
 
     # Query application state.
-    dog = school.get_dog(dog_id)
+    dog = app.get_dog(dog_id)
     assert dog['name'] == 'Fido'
     assert dog['tricks'] == ('roll over', 'play dead')
 
-    # Select notifications.
-    notifications = school.notification_log.select(start=1, limit=10)
-    assert len(notifications) == 3
+    # Read all events.
+    events = list(app.events.read(after=head))
+    assert len(events) == 3
+
+    # Check the events.
+    assert events[0].tags == [dog_id]
+    assert events[1].tags == [dog_id]
+    assert events[2].tags == [dog_id]
+    assert isinstance(events[0].decision, DogRegistered)
+    assert isinstance(events[1].decision, TrickAdded)
+    assert isinstance(events[2].decision, TrickAdded)
+    assert events[0].decision.dog_id, dog_id
+    assert events[0].decision.name, 'Fido'
+    assert events[1].decision.trick, 'roll over'
+    assert events[2].decision.trick, 'play deead'
+    assert events[0].metadata == context
+    assert events[1].metadata == context
+    assert events[2].metadata == context
+
 ```
 
-Run the test with the default persistence module. Events are stored
-in memory using Python objects.
+Run the tests in memory.
 
 ```python
-test_dog_school()
+test_dog_school_with_dcb(DogSchoolWithEnduringObjects())
+
+test_dog_school_with_dcb(DogSchoolWithSlices())
 ```
 
-Configure the application to run with an SQLite database. Other persistence modules are available.
+Run the tests with Postgres.
 
 ```python
-import os
+postgres_env: dict[str, str] = {
+    "PERSISTENCE_MODULE": 'eventsourcing.dcb.postgres_tt',
+    "POSTGRES_DBNAME": "eventsourcing",
+    "POSTGRES_HOST": "127.0.0.1",
+    "POSTGRES_PORT": "5432",
+    "POSTGRES_USER": "eventsourcing",
+    "POSTGRES_PASSWORD": "eventsourcing",
+}
 
-os.environ["PERSISTENCE_MODULE"] = 'eventsourcing.sqlite'
-os.environ["SQLITE_DBNAME"] = ':memory:'
+test_dog_school_with_dcb(
+    DogSchoolWithEnduringObjects(env=postgres_env)
+)
+
+test_dog_school_with_dcb(
+    DogSchoolWithSlices(env=postgres_env)
+)
 ```
 
-Run the test with SQLite.
+Run the tests with UmaDB.
 
 ```python
-test_dog_school()
+umadb_env: dict[str, str] = {
+    "PERSISTENCE_MODULE": 'eventsourcing_umadb',
+    "UMADB_URI": 'http://localhost:50051',
+}
+
+test_dog_school_with_dcb(
+    DogSchoolWithEnduringObjects(env=umadb_env)
+)
+
+test_dog_school_with_dcb(
+    DogSchoolWithSlices(env=umadb_env)
+)
 ```
+
 
 See the [documentation](https://eventsourcing.readthedocs.io/) for more information.
 

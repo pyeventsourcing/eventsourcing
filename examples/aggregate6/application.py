@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eventsourcing.dataclasses.application import DataclassApplication
+from eventsourcing.dataclasses.application import DataclassAggregatesApplication
 from examples.aggregate6.domainmodel import (
     add_trick,
     mutate_dog,
@@ -10,7 +10,7 @@ from examples.aggregate6.domainmodel import (
 )
 
 
-class DogSchool(DataclassApplication):
+class DogSchool(DataclassAggregatesApplication):
     is_snapshotting_enabled = True
 
     def register_dog(self, name: str) -> str:

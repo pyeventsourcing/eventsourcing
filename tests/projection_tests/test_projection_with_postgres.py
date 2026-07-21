@@ -4,7 +4,7 @@ from typing import Any, ClassVar
 
 from psycopg.sql import SQL, Identifier
 
-from eventsourcing.msgspec.application import MsgspecApplication
+from eventsourcing.msgspec.application import MsgspecAggregatesApplication
 from eventsourcing.persistence import (
     InfrastructureFactory,
     Tracking,
@@ -151,14 +151,14 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
         # Resume....
         with ProjectionRunner(
-            application_class=MsgspecApplication,
+            application_class=MsgspecAggregatesApplication,
             projection_class=StudentEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ):
 
             # Construct separate instance of "write model".
-            write_model = MsgspecApplication(self.env)
+            write_model = MsgspecAggregatesApplication(self.env)
 
             # Construct separate instance of "read model".
             factory: InfrastructureFactory[EventCountersView] = (
@@ -207,14 +207,14 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
         # Resume...
         with ProjectionRunner(
-            application_class=MsgspecApplication,
+            application_class=MsgspecAggregatesApplication,
             projection_class=StudentEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
 
             # Construct separate instance of "write model".
-            write_model = MsgspecApplication(self.env)
+            write_model = MsgspecAggregatesApplication(self.env)
 
             # Construct separate instance of "read model".
             factory: InfrastructureFactory[PostgresEventCounters] = (

@@ -5,11 +5,19 @@ from typing import Any, Self, TypeVar
 
 from pydantic import ConfigDict
 
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, EnduringObject, Slice
 from eventsourcing.pydantic.immutable import Immutable, PydanticDecision
 
 
 class PydanticAggregate(Aggregate[PydanticDecision]):
+    pass
+
+
+class PydanticSlice(Slice[PydanticDecision]):
+    pass
+
+
+class PydanticEnduringObject(EnduringObject[PydanticDecision]):
     pass
 
 

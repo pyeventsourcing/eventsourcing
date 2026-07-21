@@ -37,7 +37,7 @@ update-lock:
 
 
 .PHONY: fmt
-fmt: fmt-isort fmt-black
+fmt: fmt-ruff fmt-black
 
 .PHONY: fmt-ruff
 fmt-ruff:

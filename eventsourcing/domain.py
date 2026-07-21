@@ -541,7 +541,7 @@ class BoundCommandMethodDecorator:
         self.obj.trigger_event(event_cls, **filtered_kwargs)
 
 
-_given_event_classes = set[type]()
+# _given_event_classes = set[type]()
 decorated_func_callers: dict[CommandMethodDecorator, type[AbstractDecision]] = {}
 all_func_decorators: list[CommandMethodDecorator] = []
 
@@ -775,7 +775,7 @@ class Perspective(WorksWithDecisions[TDecision], ABC):
 
 
 class SupportsEventDecorator(WorksWithDecisions[TDecision]):
-    projected_types: ClassVar[list[type[AbstractDecision]]]
+    projected_types: ClassVar[list[type[TDecision]]]
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -793,7 +793,7 @@ class SupportsEventDecorator(WorksWithDecisions[TDecision]):
 
         for decorator in func_decorators:
             if decorator.given_event_cls:
-                decision_cls = decorator.given_event_cls
+                decision_cls = cast(type[TDecision], decorator.given_event_cls)
                 cls._check_decision_type(decision_cls)
 
             else:
@@ -853,7 +853,7 @@ class SupportsEventDecorator(WorksWithDecisions[TDecision]):
         bases: tuple[Any, ...],
         apply_method: CallableType | None,
         event_topic: str | None = None,
-    ) -> type[AbstractDecision]:
+    ) -> type[TDecision]:
         # Define annotations for the event class (specs the init method).
         cls_annotations = {}
         if apply_method is not None:
@@ -894,7 +894,7 @@ class SupportsEventDecorator(WorksWithDecisions[TDecision]):
 
         # Create the event class object.
         _new_class = types.new_class(name, bases, exec_body=populate_namespace)
-        return cast(type[AbstractDecision], _new_class)
+        return cast(type[TDecision], _new_class)
 
     def trigger_event(
         self,
@@ -956,19 +956,16 @@ class CallTriggersEvent(
 _abstract_enduring_object_classes = set[type[Any]]()
 
 
-class EnduringObject(
-    Perspective[TDecision],
-    CallTriggersEvent[TDecision],
-    Generic[TDecision],
-):
+class EnduringObject(Perspective[TDecision], CallTriggersEvent[TDecision]):
     id: str
 
     @classmethod
     def _create(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
-        obj = cls.__new__(cls, *args, **kwargs)
+        obj = cls.__new__(cls)
         # TODO: Maybe find a better way to do this, but it seems we need
         #  to set the `id` attribute before the call to `trigger_event()`?
-        obj.id = next(iter(kwargs.values()))  # assume ID is first arg
+        enduring_object_id = next(iter(kwargs.values()))  # assume ID is first kwarg
+        obj.id = enduring_object_id
         # Calling __init__ should trigger an event that
         # calls the original decorated __init__ method.
         obj.__init__(*args, **kwargs)  # type: ignore[misc]

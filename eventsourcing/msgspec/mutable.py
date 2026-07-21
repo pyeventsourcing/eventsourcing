@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 from typing import Any, Self, TypeVar
 
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, EnduringObject, Slice
 from eventsourcing.msgspec.immutable import (
     Immutable,
     MsgspecDecision,
@@ -11,6 +11,14 @@ from eventsourcing.msgspec.immutable import (
 
 
 class MsgspecAggregate(Aggregate[MsgspecDecision]):
+    pass
+
+
+class MsgspecSlice(Slice[MsgspecDecision]):
+    pass
+
+
+class MsgspecEnduringObject(EnduringObject[MsgspecDecision]):
     pass
 
 

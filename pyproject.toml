@@ -60,7 +60,6 @@ include = ["eventsourcing/py.typed"]
 [tool.poetry.group.dev.dependencies]
 black = { version = "*", allow-prereleases = true }
 coverage = "*"
-isort = "*"
 mypy = "*"
 ruff = "*"
 psycopg-binary = "*"
@@ -141,21 +140,21 @@ exclude_also = [
     'if TYPE_CHECKING:'
 ]
 
-[tool.isort]
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-line_length = 88
-combine_as_imports = true
-#;default_section = LOCALFOLDER
-#;known_first_party = eventsourcing
-#;known_standard_library = dataclasses
-#;known_third_party = django
-#;not_skip = __init__.py
-skip = ".eggs,.pip-cache,.poetry,venv,.venv,dist"
-profile = "black"
-sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
+#[tool.isort]
+#multi_line_output = 3
+#include_trailing_comma = true
+#force_grid_wrap = 0
+#use_parentheses = true
+#line_length = 88
+#combine_as_imports = true
+##;default_section = LOCALFOLDER
+##;known_first_party = eventsourcing
+##;known_standard_library = dataclasses
+##;known_third_party = django
+##;not_skip = __init__.py
+#skip = ".eggs,.pip-cache,.poetry,venv,.venv,dist"
+#profile = "black"
+#sections = "FUTURE,STDLIB,THIRDPARTY,FIRSTPARTY,LOCALFOLDER"
 
 [tool.ruff]
 # Same as Black.

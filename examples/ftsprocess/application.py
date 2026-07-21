@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, ClassVar, cast
 
 from eventsourcing.domain import AggregateEvent, EventEnvelope
 from eventsourcing.persistence import Recorder
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticAggregatesApplication
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.system import ProcessApplication
 from examples.contentmanagement.domainmodel import Page
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from eventsourcing.application import ProcessingEvent
 
 
-class FtsProcess(PydanticApplication, ProcessApplication[PydanticDecision]):
+class FtsProcess(PydanticAggregatesApplication, ProcessApplication[PydanticDecision]):
     env: ClassVar[dict[str, str]] = {
         "COMPRESSOR_TOPIC": "gzip",
     }

@@ -10,7 +10,7 @@ from traceback import format_exc
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, get_origin
 from warnings import warn
 
-from eventsourcing.application import Application, ProcessingEvent
+from eventsourcing.application import AggregatesApplication, ProcessingEvent
 from eventsourcing.dcb.api import DCBQuery, DCBQueryItem
 from eventsourcing.dcb.application import DCBApplication
 from eventsourcing.domain import (
@@ -46,7 +46,7 @@ class ApplicationSubscription(Iterator[tuple[EventEnvelope[TDecision], Tracking]
 
     def __init__(
         self,
-        app: Application[TDecision],
+        app: AggregatesApplication[TDecision],
         gt: int | None = None,
         topics: Sequence[str] = (),
     ):
@@ -188,7 +188,7 @@ class Projection(ABC, Generic[TTrackingRecorder]):
         """Process a domain event and track it."""
 
 
-class EventSourcedProjection(Application[TDecision], ABC):
+class EventSourcedProjection(AggregatesApplication[TDecision], ABC):
     """Extends the :py:class:`~eventsourcing.application.Application` class
     by using a process recorder as its application recorder, and by
     processing domain events through its :py:func:`policy` method.
@@ -281,9 +281,11 @@ class BaseProjectionRunner(Generic[TApplication]):
         app: Any
         # get_origin() because issubclass doesn't work with generic alias, and
         # then 'or' with the class in case get_origin() returns None.
-        if issubclass(get_origin(application_class) or application_class, Application):
+        if issubclass(
+            get_origin(application_class) or application_class, AggregatesApplication
+        ):
             # cast() because that call to issubclass() doesn't narrow the type.
-            app = cast(type[Application[Any]], application_class)(env)
+            app = cast(type[AggregatesApplication[Any]], application_class)(env)
             self.app_name = app.name
             self._subscription = ApplicationSubscription(
                 app=app,

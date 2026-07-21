@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eventsourcing.msgspec.application import MsgspecApplication
+from eventsourcing.msgspec.application import MsgspecAggregatesApplication
 from examples.aggregate9.domainmodel import (
     Trick,
     add_trick,
@@ -11,7 +11,7 @@ from examples.aggregate9.domainmodel import (
 )
 
 
-class DogSchool(MsgspecApplication):
+class DogSchool(MsgspecAggregatesApplication):
     is_snapshotting_enabled = True
 
     def register_dog(self, name: str) -> str:

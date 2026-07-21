@@ -65,6 +65,13 @@ class DCBReadResponse(Iterator[DCBSequencedEvent], ABC):
 
 class DCBRecorder(ABC):
     @abstractmethod
+    def head(self) -> int | None:
+        """
+        Returns the highest integer sequence position in the database,
+        or None if no events have been recorded.
+        """
+
+    @abstractmethod
     def read(
         self,
         query: DCBQuery | None = None,

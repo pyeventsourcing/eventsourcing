@@ -21,7 +21,7 @@ from eventsourcing.domain import (
     put_metadata_in_context,
     triggers,
 )
-from eventsourcing.msgspec.application import MsgspecApplication
+from eventsourcing.msgspec.application import MsgspecAggregatesApplication
 from eventsourcing.msgspec.immutable import MsgspecDecision
 from eventsourcing.msgspec.mutable import MsgspecAggregate
 from eventsourcing.persistence import (
@@ -98,7 +98,7 @@ class EventCountersInterface(EventCountersView, ABC):
     pass
 
 
-class Counters(EventSourcedProjection[MsgspecDecision], MsgspecApplication):
+class Counters(EventSourcedProjection[MsgspecDecision], MsgspecAggregatesApplication):
     def policy(
         self,
         envelope: EventEnvelope[MsgspecDecision],
@@ -271,7 +271,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
     def test_event_counters_projection(self) -> None:
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
-            application_class=MsgspecApplication,
+            application_class=MsgspecAggregatesApplication,
             projection_class=StudentEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
@@ -318,7 +318,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
     def test_run_forever_raises_projection_error(self) -> None:
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
-            application_class=MsgspecApplication,
+            application_class=MsgspecAggregatesApplication,
             projection_class=StudentEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
@@ -427,7 +427,7 @@ class EventSourcedProjectionTestCase(TestCase):
 
     def test_event_sourced_projection(self) -> None:
         with EventSourcedProjectionRunner(
-            application_class=MsgspecApplication,
+            application_class=MsgspecAggregatesApplication,
             projection_class=Counters,
             env=self.env,
         ) as runner:

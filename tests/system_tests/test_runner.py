@@ -21,7 +21,7 @@ from eventsourcing.domain import (
     triggers,
 )
 from eventsourcing.errors import ProgrammingError
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticAggregatesApplication
 from eventsourcing.pydantic.immutable import PydanticDecision
 from eventsourcing.pydantic.mutable import PydanticAggregate
 from eventsourcing.system import (
@@ -203,7 +203,9 @@ class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
             self.assertEqual(len(section.items), 10)
 
     def test_system_with_processing_loop(self) -> None:
-        class Commands(PydanticApplication, ProcessApplication[PydanticDecision]):
+        class Commands(
+            PydanticAggregatesApplication, ProcessApplication[PydanticDecision]
+        ):
             def create_command(self, text: str) -> str:
                 command = Command(text=text)
                 self.save(command)
@@ -230,7 +232,9 @@ class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
                 command = self.repository.get(command_id, Command)
                 return command.output, command.error
 
-        class Results(PydanticApplication, ProcessApplication[PydanticDecision]):
+        class Results(
+            PydanticAggregatesApplication, ProcessApplication[PydanticDecision]
+        ):
             def policy(
                 self,
                 envelope: EventEnvelope[PydanticDecision],

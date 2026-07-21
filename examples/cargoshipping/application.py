@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticAggregatesApplication
 from examples.cargoshipping.domainmodel import (
     REGISTERED_ROUTES,
     Cargo,
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 
-class BookingApplication(PydanticApplication):
+class BookingApplication(PydanticAggregatesApplication):
     def book_new_cargo(
         self,
         origin: Location,

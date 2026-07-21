@@ -20,7 +20,7 @@ from eventsourcing.domain import (
     TPerspective,
     TSlice,
 )
-from eventsourcing.persistence import TaggedEventMapper, TrackingRecorder
+from eventsourcing.persistence import TaggedEventMapper, TrackingRecorder, Transcoder
 from eventsourcing.utils import Environment, EnvType
 
 if TYPE_CHECKING:
@@ -45,16 +45,20 @@ class DCBApplication(Generic[TDecision]):
         )
 
         self.recorder = self.factory.dcb_recorder()
-        if "TRANSCODER_TOPIC" in self.env:
+        transcoder = self.construct_transcoder()
+        if transcoder is not None:
             # Only need a mapper, event store, and repository
             # if we are using the higher-level abstractions.
             self.mapper = TaggedEventMapper[TDecision](
-                transcoder=self.factory.transcoder(),
+                transcoder=transcoder,
                 compressor=self.factory.compressor(),
                 cipher=self.factory.cipher(),
             )
             self.events = DCBEventStore[TDecision](self.mapper, self.recorder)
             self.repository = DCBRepository[TDecision](self.events)
+
+    def construct_transcoder(self) -> Transcoder[TDecision] | None:
+        return self.factory.transcoder() if "TRANSCODER_TOPIC" in self.env else None
 
     def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
         """Constructs environment from which application will be configured."""
@@ -111,8 +115,10 @@ class DCBRepository(Generic[TDecision]):
     ) -> TEnduringObject:
         cb = [Selector[TDecision](tags=[enduring_object_id])]
         events = self.eventstore.read(*cb)
-        obj: TEnduringObject | None = enduring_object_cls.__new__(enduring_object_cls)
+        new_obj: TEnduringObject = enduring_object_cls.__new__(enduring_object_cls)
+        new_obj.id = enduring_object_id
         count_events = 0
+        obj: TEnduringObject | None = new_obj
         for event in events:
             count_events += 1
             obj = event.mutate(obj)
@@ -132,9 +138,11 @@ class DCBRepository(Generic[TDecision]):
             assert cls is not None
             classes = [cls] * len(ids)
         cb = [Selector[TDecision](tags=[id_]) for id_ in ids]
-        objs: dict[str, EnduringObject[TDecision] | None] = {
-            id_: cls.__new__(cls) for (id_, cls) in zip(ids, classes, strict=True)
-        }
+        objs: dict[str, EnduringObject[TDecision] | None] = {}
+        for obj_id, obj_cls in zip(ids, classes, strict=True):
+            new_obj = cls.__new__(obj_cls)
+            new_obj.id = obj_id
+            objs[obj_id] = new_obj
         event_counts: dict[str, int] = defaultdict(int)
         read_response = self.eventstore.read(cb)
         for event in read_response:
@@ -145,7 +153,7 @@ class DCBRepository(Generic[TDecision]):
                     objs[tag] = event.mutate(obj)
         for id_ in ids:
             obj = objs.get(id_)
-            if obj is None or event_counts[id_] == 0:
+            if event_counts[id_] == 0 or obj is None:
                 objs[id_] = None
             else:
                 obj.last_known_position = read_response.head

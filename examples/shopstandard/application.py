@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.persistence import IntegrityError
-from eventsourcing.pydantic.application import PydanticApplication
+from eventsourcing.pydantic.application import PydanticAggregatesApplication
 from eventsourcing.utils import get_topic
 from examples.shopstandard.domain import (
     Cart,
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from decimal import Decimal
 
 
-class Shop(PydanticApplication):
+class Shop(PydanticAggregatesApplication):
     def add_product_to_shop(
         self, product_id: str, name: str, description: str, price: Decimal
     ) -> None:

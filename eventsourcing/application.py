@@ -595,7 +595,7 @@ class ProcessingEvent(Generic[TDecision]):
         self.saved_kwargs.update(kwargs)
 
 
-class Application(WorksWithDecisions[TDecision]):
+class AggregatesApplication(WorksWithDecisions[TDecision]):
     """Base class for event-sourced applications."""
 
     name = "Application"
@@ -918,7 +918,7 @@ class Application(WorksWithDecisions[TDecision]):
             self.close()
 
 
-TApplication = TypeVar("TApplication", bound=Application[Any])
+TApplication = TypeVar("TApplication", bound=AggregatesApplication[Any])
 
 
 class AggregateNotFoundError(EventSourcingError):

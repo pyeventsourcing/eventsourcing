@@ -391,6 +391,12 @@ class PostgresDCBRecorderTT(DCBRecorder, PostgresRecorder):
     def format(self, sql: SQL) -> Composed:
         return sql.format(**self.sql_kwargs)
 
+    def head(self) -> int | None:
+        with self.datastore.cursor() as curs:
+            self.execute(curs, self.sql_select_max_id, explain=False)
+            row = curs.fetchone()
+            return row["max"] if row is not None else None
+
     def read(
         self,
         query: DCBQuery | None = None,
