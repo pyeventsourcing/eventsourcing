@@ -80,8 +80,8 @@ Let's start by writing an enduring object that supports registering a dog with a
 adding tricks, and reconstructing current state from the history of events.
 
 ```python
-from eventsourcing.pydantic import EnduringObject
 from eventsourcing.domain import event
+from eventsourcing.pydantic import EnduringObject
 
 
 class Dog(EnduringObject):
@@ -163,7 +163,6 @@ In this example, the three use cases are implemented as `RegisterDog`, `AddTrick
 ```python
 from uuid import uuid4
 
-from eventsourcing.domain import event
 from eventsourcing.pydantic import Selector, Slice
 
 
