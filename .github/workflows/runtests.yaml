@@ -51,14 +51,14 @@ jobs:
         PGPASSWORD=postgres psql eventsourcing_nopublic -c "CREATE SCHEMA myschema AUTHORIZATION eventsourcing" -U postgres -h localhost
         PGPASSWORD=postgres psql eventsourcing_nopublic -c "DROP SCHEMA public;" -U postgres -h localhost
 
-    - name: Start UmaDB
-      run: make start-umadb
-
     - name: Install Poetry
       run: make install-poetry
 
     - name: Install packages
       run: make install
+
+    - name: Start UmaDB
+      run: make start-umadb
 
     - name: Lint
       run: make lint

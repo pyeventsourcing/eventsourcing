@@ -239,12 +239,23 @@ docs-pdf:
 # ramdisk:
 # 	diskutil erasevolume HFS+ 'RAM Disk' `hdiutil attach -nobrowse -nomount ram://204800`
 
-.PHONY: start-umadb
-start-umadb:
+.PHONY: start-umadb-docker
+start-umadb-docker:
 	docker run --rm -d --name my-umadb -p 50051:50051 umadb/umadb:latest
 	sleep 1
 
 
+.PHONY: stop-umadb-docker
+stop-umadb-docker:
+	docker stop my-umadb
+
+.PHONY: start-umadb
+start-umadb:
+	UMADB_PAGE_CACHE_MAX_MB=2000 $(POETRY) run umadb > umadb.log 2>&1 & echo $$! > umadb.pid
+	sleep 1
+	cat umadb.log
+
 .PHONY: stop-umadb
 stop-umadb:
-	docker stop my-umadb
+	kill -15 `cat umadb.pid`
+	rm -f umadb.pid
