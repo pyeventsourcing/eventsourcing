@@ -150,8 +150,8 @@ slice can be purely focussed on the needs of the use case it supports. For each 
 we can define its parameters, a consistency boundary, a projection, and an `execute()`
 method or "decider" that triggers a new event.
 
-The `eventsourcing.pydantic.Slice` class makes it easy to express these aspects in a
-standard and coherent way, and also works with the `Decision` class.
+The `eventsourcing.pydantic.Slice` class works with the `Decision` class and makes it easy
+to express the four aspects of a slice in a standard and coherent way:
 
 1. Use case parameters are expressed as constructor params.
 2. Consistency boundary expressed with types and tags.
