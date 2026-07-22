@@ -86,8 +86,7 @@ from eventsourcing.domain import event
 
 class Dog(EnduringObject):
     @event(DogRegistered)
-    def __init__(self, dog_id: str, name: str) -> None:
-        self.dog_id = dog_id
+    def __init__(self, name: str) -> None:
         self.name = name
         self.tricks: list[str] = []
 
@@ -111,7 +110,6 @@ used by interfaces and integration tests.
 
 ```python
 from typing import TypedDict
-from uuid import uuid4
 
 from eventsourcing.pydantic import DCBApplication
 
@@ -123,9 +121,9 @@ class DogSummary(TypedDict):
 
 class DogSchool(DCBApplication):
     def register_dog(self, name: str) -> str:
-        dog = Dog(dog_id=str(uuid4()), name=name)
+        dog = Dog(name=name)
         self.repository.save(dog)
-        return dog.dog_id
+        return dog.id
 
     def add_trick(self, dog_id: str, trick: str) -> None:
         dog = self.repository.get(dog_id, Dog)
@@ -163,14 +161,16 @@ standard and coherent way, and also works with the `Decision` class.
 In this example, the three use cases are implemented as `RegisterDog`, `AddTrick` and `DogView`.
 
 ```python
+from uuid import uuid4
+
 from eventsourcing.pydantic import Slice
 from eventsourcing.domain import event, Selector
 
 
 class RegisterDog(Slice):
     # 1. Parameters are expressed as constructor params.
-    def __init__(self, dog_id: str, name: str) -> None:
-        self.dog_id = dog_id
+    def __init__(self, name: str) -> None:
+        self.dog_id = str(uuid4())
         self.name = name
         self.was_registered = False
 
@@ -261,9 +261,7 @@ and provides a `do()` method especially for vertical slices.
 ```python
 class DogSchoolWithSlices(DCBApplication):
     def register_dog(self, name: str) -> str:
-        dog_id = str(uuid4())
-        self.do(RegisterDog(dog_id=dog_id, name=name))
-        return dog_id
+        return self.do(RegisterDog(name=name)).dog_id
 
     def add_trick(self, dog_id: str, trick: str) -> None:
         self.do(AddTrick(dog_id=dog_id, trick=trick))

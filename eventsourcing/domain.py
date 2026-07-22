@@ -983,7 +983,7 @@ class EnduringObject(Perspective[TDecision], CallTriggersEvent[TDecision]):
     def _create(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
         obj = cls.__new__(cls)
         coerced_kwargs = _coerce_args_to_kwargs(obj.__init__, args, kwargs)  # type: ignore[misc]
-        continuity_id = coerced_kwargs[cls.continuity_id_name]
+        continuity_id = coerced_kwargs.get(cls.continuity_id_name) or str(uuid4())
         obj.id = continuity_id
         # Calling __init__ should trigger an event that
         # calls the original decorated __init__ method.
