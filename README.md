@@ -411,7 +411,7 @@ test_dog_school(
 ### Performance results
 
 By matching the consistency boundary to the needs of the use case,
-application commands can performance faster. Needless conflicts
+application commands can execute faster. Needless conflicts
 can also be avoided. The table below shows duration times for
 the tests above.
 
@@ -489,8 +489,9 @@ There are projects that adapt popular ORMs such as
 [Django](https://github.com/pyeventsourcing/eventsourcing-django#readme)
 and [SQLAlchemy](https://github.com/pyeventsourcing/eventsourcing-sqlalchemy#readme).
 There are projects that adapt specialist event stores such as
-[Axon Server](https://github.com/pyeventsourcing/eventsourcing-axonserver#readme) and
-[KurrentDB](https://github.com/pyeventsourcing/eventsourcing-kurrentdb#readme).
+[Axon Server](https://github.com/pyeventsourcing/eventsourcing-axonserver#readme),
+[KurrentDB](https://github.com/pyeventsourcing/eventsourcing-kurrentdb#readme),
+and [UmaDB](https://github.com/pyeventsourcing/eventsourcing-umadb#readme).
 There are projects that support popular NoSQL databases such as
 [DynamoDB](https://github.com/pyeventsourcing/eventsourcing-dynamodb#readme).
 There are also projects that provide examples of using the
