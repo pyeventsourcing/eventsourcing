@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import cast
-from uuid import uuid4
 
 from eventsourcing.domain import (
     event,
@@ -70,8 +69,7 @@ class StudentLeftCourse(StudentDecision, CourseDecision):
 
 class Student(EnduringObject):
     @event(StudentRegistered)
-    def __init__(self, student_id: str, name: str, max_courses: int) -> None:
-        self.id = student_id
+    def __init__(self, name: str, max_courses: int) -> None:
         self.name = name
         self.max_courses = max_courses
         self.course_ids: list[str] = []
@@ -97,8 +95,7 @@ class Student(EnduringObject):
 
 class Course(EnduringObject):
     @event(CourseRegistered)
-    def __init__(self, course_id: str, name: str, places: int) -> None:
-        self.id = course_id
+    def __init__(self, name: str, places: int) -> None:
         self.name = name
         self.places = places
         self.student_ids: list[str] = []
@@ -158,12 +155,12 @@ class StudentAndCourse(Group):
 
 class EnrolmentWithEnduringObjects(DCBApplication, EnrolmentInterface):
     def register_student(self, name: str, max_courses: int) -> str:
-        student = Student(student_id=str(uuid4()), name=name, max_courses=max_courses)
+        student = Student(name=name, max_courses=max_courses)
         self.repository.save(student)
         return student.id
 
     def register_course(self, name: str, places: int) -> str:
-        course = Course(course_id=str(uuid4()), name=name, places=places)
+        course = Course(name=name, places=places)
         self.repository.save(course)
         return course.id
 

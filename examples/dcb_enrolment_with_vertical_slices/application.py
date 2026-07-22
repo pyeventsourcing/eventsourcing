@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from eventsourcing.domain import (
-    Selector,
-    event,
-)
-from eventsourcing.pydantic import DCBApplication, Decision, Slice
+from eventsourcing.domain import event
+from eventsourcing.pydantic import DCBApplication, Decision, Selector, Slice
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseNotFoundError,
@@ -69,7 +66,7 @@ class RegisterStudent(Slice):
         self.name = name
         self.max_courses = max_courses
 
-    def consistency_boundary(self) -> Selector[Decision]:
+    def consistency_boundary(self) -> Selector:
         return Selector(types=[StudentRegistered], tags=[self.student_id])
 
     def execute(self) -> None:
@@ -88,7 +85,7 @@ class UpdateStudentName(Slice):
         self.name = name
         self.student_was_registered: bool = False
 
-    def consistency_boundary(self) -> Selector[Decision]:
+    def consistency_boundary(self) -> Selector:
         return Selector(
             types=[StudentRegistered, StudentNameUpdated], tags=[self.student_id]
         )
@@ -113,7 +110,7 @@ class UpdateMaxCourses(Slice):
         self.max_courses = max_courses
         self.student_was_registered: bool = False
 
-    def consistency_boundary(self) -> Selector[Decision]:
+    def consistency_boundary(self) -> Selector:
         return Selector(
             types=[StudentRegistered, StudentMaxCoursesUpdated],
             tags=[self.student_id],
@@ -139,7 +136,7 @@ class RegisterCourse(Slice):
         self.places = places
         self.course_id = f"course-{uuid4()}"
 
-    def consistency_boundary(self) -> Selector[Decision]:
+    def consistency_boundary(self) -> Selector:
         return Selector(types=[CourseRegistered], tags=[self.course_id])
 
     def execute(self) -> None:
@@ -158,7 +155,7 @@ class UpdateCourseName(Slice):
         self.name = name
         self.course_was_registered: bool = False
 
-    def consistency_boundary(self) -> Selector[Decision]:
+    def consistency_boundary(self) -> Selector:
         return Selector(
             types=[CourseRegistered, CourseNameUpdated], tags=[self.course_id]
         )
@@ -183,7 +180,7 @@ class UpdatePlaces(Slice):
         self.places = places
         self.course_was_registered: bool = False
 
-    def consistency_boundary(self) -> Selector[Decision]:
+    def consistency_boundary(self) -> Selector:
         return Selector(
             types=[CourseRegistered, CoursePlacesUpdated], tags=[self.course_id]
         )
@@ -213,7 +210,7 @@ class StudentJoinsCourse(Slice):
         self.students_on_course: list[str] = []
         self.courses_for_student: list[str] = []
 
-    def consistency_boundary(self) -> list[Selector[Decision]]:
+    def consistency_boundary(self) -> list[Selector]:
         return [
             Selector(
                 types=[
@@ -295,7 +292,7 @@ class StudentLeavesCourse(Slice):
         self.students_on_course: list[str] = []
         self.courses_for_student: list[str] = []
 
-    def consistency_boundary(self) -> list[Selector[Decision]]:
+    def consistency_boundary(self) -> list[Selector]:
         return [
             Selector(
                 types=[StudentRegistered, StudentJoinedCourse, StudentLeftCourse],
@@ -349,7 +346,7 @@ class StudentsIDs(Slice):
         self.course_id = course_id
         self.student_ids: list[str] = []
 
-    def consistency_boundary(self) -> Selector[Decision]:
+    def consistency_boundary(self) -> Selector:
         return Selector(
             types=[StudentJoinedCourse, StudentLeftCourse], tags=[self.course_id]
         )
@@ -367,7 +364,7 @@ class StudentNames(Slice):
     def __init__(self, student_ids: list[str]) -> None:
         self.student_id_names: dict[str, str | None] = dict.fromkeys(student_ids, None)
 
-    def consistency_boundary(self) -> list[Selector[Decision]]:
+    def consistency_boundary(self) -> list[Selector]:
         return [
             Selector(types=[StudentRegistered, StudentNameUpdated], tags=[student_id])
             for student_id in self.student_id_names
@@ -391,7 +388,7 @@ class CourseIDs(Slice):
         self.student_id = student_id
         self.course_ids: list[str] = []
 
-    def consistency_boundary(self) -> Selector[Decision]:
+    def consistency_boundary(self) -> Selector:
         return Selector(
             types=[StudentJoinedCourse, StudentLeftCourse], tags=[self.student_id]
         )
@@ -409,7 +406,7 @@ class CourseNames(Slice):
     def __init__(self, course_ids: list[str]) -> None:
         self.course_id_names: dict[str, str | None] = dict.fromkeys(course_ids, None)
 
-    def consistency_boundary(self) -> list[Selector[Decision]]:
+    def consistency_boundary(self) -> list[Selector]:
         return [
             Selector(types=[CourseRegistered, CourseNameUpdated], tags=[student_id])
             for student_id in self.course_id_names
@@ -436,7 +433,7 @@ class Student(Slice):
         self.max_courses: int = 0
         self.course_ids: list[str] = []
 
-    def consistency_boundary(self) -> Selector[Decision]:
+    def consistency_boundary(self) -> Selector:
         return Selector(tags=[self.student_id])
 
     @event(StudentRegistered)
@@ -470,7 +467,7 @@ class Course(Slice):
         self.places = 0
         self.student_ids: list[str] = []
 
-    def consistency_boundary(self) -> Selector[Decision]:
+    def consistency_boundary(self) -> Selector:
         return Selector(tags=[self.course_id])
 
     @event(CourseRegistered)

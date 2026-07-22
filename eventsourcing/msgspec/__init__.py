@@ -1,5 +1,6 @@
 from abc import ABC
 
+import eventsourcing.domain
 from eventsourcing.msgspec import application, immutable, mutable, transcoder
 
 
@@ -47,6 +48,10 @@ class ImmutableAggregateSnapshot(immutable.MsgspecImmutableAggregateSnapshot):
     pass  # pragma: no cover
 
 
+class Selector(eventsourcing.domain.Selector[Decision]):
+    pass  # pragma: no cover
+
+
 class Slice(mutable.MsgspecSlice[Decision], ABC):
     pass  # pragma: no cover
 
@@ -67,6 +72,7 @@ __all__ = [
     "Immutable",
     "ImmutableAggregate",
     "ImmutableAggregateSnapshot",
+    "Selector",
     "Slice",
     "Transcoder",
 ]

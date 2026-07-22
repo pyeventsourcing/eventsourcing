@@ -978,13 +978,18 @@ class EnduringObject(Perspective[TDecision], CallTriggersEvent[TDecision]):
             cls.__dict__.get("continuity_id_name", continuity_id_name)
             or to_snake_case(cls.__name__) + "_id"
         )
+        assert cls.continuity_id_name.endswith("_id")
+
+    @classmethod
+    def create_id(cls, **_: Any) -> str:
+        return f"{cls.continuity_id_name[:-3].replace('_', '-')}-{uuid4()!s}"
 
     @classmethod
     def _create(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
         obj = cls.__new__(cls)
-        coerced_kwargs = _coerce_args_to_kwargs(obj.__init__, args, kwargs)  # type: ignore[misc]
-        continuity_id = coerced_kwargs.get(cls.continuity_id_name) or str(uuid4())
-        obj.id = continuity_id
+        init_kwargs = _coerce_args_to_kwargs(obj.__init__, args, kwargs)  # type: ignore[misc]
+        id_kwargs = filter_kwargs_for_method_params(init_kwargs, cls.create_id)
+        obj.id = init_kwargs.get(cls.continuity_id_name) or cls.create_id(**id_kwargs)
         # Calling __init__ should trigger an event that
         # calls the original decorated __init__ method.
         obj.__init__(*args, **kwargs)  # type: ignore[misc]

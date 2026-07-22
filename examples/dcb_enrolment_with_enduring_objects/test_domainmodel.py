@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import cast
 from unittest import TestCase
-from uuid import uuid4
 
 from eventsourcing.domain import Selector, TaggedEvent
 from examples.dcb_enrolment_with_enduring_objects.application import (
@@ -17,9 +16,7 @@ from examples.dcb_enrolment_with_enduring_objects.application import (
 class TestEnduringObjects(TestCase):
     def test_student(self) -> None:
         # Construct a student by calling the class.
-        student = Student(
-            student_id="student-" + str(uuid4()), name="Max", max_courses=3
-        )
+        student = Student(name="Max", max_courses=3)
 
         # Check student id.
         self.assertTrue(student.id.startswith("student-"), student.id)
@@ -43,6 +40,8 @@ class TestEnduringObjects(TestCase):
 
         # Reconstruct enduring object.
         copy1 = Student.__new__(Student)
+        copy1.id = student.id
+
         copy1 = cast(Student, new_event1.mutate(copy1))
         self.assertEqual(copy1.id, student.id)
         self.assertEqual(copy1.name, student.name)
@@ -75,7 +74,7 @@ class TestEnduringObjects(TestCase):
 
     def test_course(self) -> None:
         # Construct a course by by calling the class.
-        course = Course(course_id="course-" + str(uuid4()), name="Biology", places=4)
+        course = Course(name="Biology", places=4)
 
         # Check course id.
         self.assertTrue(course.id.startswith("course-"), course.id)
@@ -100,6 +99,7 @@ class TestEnduringObjects(TestCase):
 
         # Reconstruct enduring object.
         copy = Course.__new__(Course)
+        copy.id = course.id
         copy = cast(Course, new_event.mutate(copy))
         self.assertEqual(copy.id, course.id)
         self.assertEqual(copy.name, course.name)

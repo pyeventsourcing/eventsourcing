@@ -153,8 +153,8 @@ method or "decider" that triggers a new event.
 The `eventsourcing.pydantic.Slice` class makes it easy to express these aspects in a
 standard and coherent way, and also works with the `Decision` class.
 
-1. Parameters are expressed as constructor params.
-2. Consistency boundary expressed as a function of the params.
+1. Use case parameters are expressed as constructor params.
+2. Consistency boundary expressed with types and tags.
 3. Projection defined using the @event decorator.
 4. Decider implemented with command-pattern execute() method.
 
@@ -163,21 +163,19 @@ In this example, the three use cases are implemented as `RegisterDog`, `AddTrick
 ```python
 from uuid import uuid4
 
-from eventsourcing.pydantic import Slice
-from eventsourcing.domain import event, Selector
+from eventsourcing.domain import event
+from eventsourcing.pydantic import Selector, Slice
 
 
 class RegisterDog(Slice):
-    # 1. Parameters are expressed as constructor params.
+    # 1. Use case parameters expressed as constructor params.
     def __init__(self, name: str) -> None:
-        self.dog_id = str(uuid4())
+        self.dog_id = f"dog-{uuid4()!s}"
         self.name = name
         self.was_registered = False
 
-    # 2. Consistency boundary expressed as a function of the params.
-    def consistency_boundary(
-        self,
-    ) -> Selector[Decision]:
+    # 2. Consistency boundary expressed with types and tags.
+    def consistency_boundary(self) -> Selector:
         return Selector(types=[DogRegistered], tags=[self.dog_id])
 
     # 3. Projection defined using the @event decorator.
@@ -197,16 +195,14 @@ class RegisterDog(Slice):
 
 
 class AddTrick(Slice):
-    # 1. Parameters are expressed as constructor params.
+    # 1. Use case parameters expressed as constructor params.
     def __init__(self, dog_id: str, trick: str) -> None:
         self.dog_id = dog_id
         self.new_trick = trick
         self.was_registered = False
 
-    # 2. Consistency boundary expressed as a function of the params.
-    def consistency_boundary(
-        self,
-    ) -> Selector[Decision]:
+    # 2. Consistency boundary expressed with types and tags.
+    def consistency_boundary(self) -> Selector:
         return Selector(types=[DogRegistered], tags=[self.dog_id])
 
     # 3. Projection defined using the @event decorator.
@@ -225,17 +221,16 @@ class AddTrick(Slice):
             trick=self.new_trick,
         )
 
+
 class DogView(Slice):
-    # 1. Parameters are expressed as constructor params.
+    # 1. Use case parameters expressed as constructor params.
     def __init__(self, dog_id: str) -> None:
         self.dog_id = dog_id
         self.name = ""
         self.tricks: list[str] = []
 
-    # 2. Consistency boundary expressed as a function of the params.
-    def consistency_boundary(
-        self,
-    ) -> Selector[Decision]:
+    # 2. Consistency boundary expressed with types and tags.
+    def consistency_boundary(self) -> Selector:
         return Selector(types=self.projected_types, tags=[self.dog_id])
 
     # 3. Projection defined using the @event decorator.
@@ -291,6 +286,7 @@ def test_dog_school(
     env: dict[str, str] | None,
     label: str,
 ) -> None:
+    print(f"Running test for: {label}")
     started = datetime.now()
 
     app = cls(env)
@@ -317,6 +313,7 @@ def test_dog_school(
     assert len(events) == 3
 
     # Check the events.
+    print(f"Dog ID: {dog_id}")
     assert events[0].tags == [dog_id]
     assert events[1].tags == [dog_id]
     assert events[2].tags == [dog_id]
@@ -335,7 +332,8 @@ def test_dog_school(
 
     # Print duration.
     duration = (datetime.now() - started).total_seconds()
-    print(f"{label}: {(duration*1000):.2f}ms")
+    print(f"Duration: {(duration*1000):.2f}ms")
+    print()
 ```
 
 Because the application class is defined independently of persistence infrastructure,
@@ -347,13 +345,13 @@ Let's run the applications in memory.
 test_dog_school(
     cls=DogSchool,
     env=None,
-    label="enduring object in memory"
+    label="Enduring object in memory"
 )
 
 test_dog_school(
     cls=DogSchoolWithSlices,
     env=None,
-    label="slices in memory"
+    label="Slices in memory"
 )
 ```
 
@@ -374,13 +372,13 @@ postgres_env: dict[str, str] = {
 test_dog_school(
     cls=DogSchool,
     env=postgres_env,
-    label="enduring object with Postgres"
+    label="Enduring object with Postgres"
 )
 
 test_dog_school(
     cls=DogSchoolWithSlices,
     env=postgres_env,
-    label="slice with Postgres"
+    label="Slice with Postgres"
 )
 ```
 
@@ -398,13 +396,13 @@ umadb_env: dict[str, str] = {
 test_dog_school(
     cls=DogSchool,
     env=umadb_env,
-    label="enduring object with UmaDB"
+    label="Enduring object with UmaDB"
 )
 
 test_dog_school(
     cls=DogSchoolWithSlices,
     env=umadb_env,
-    label="slices with UmaDB"
+    label="Slices with UmaDB"
 )
 ```
 
