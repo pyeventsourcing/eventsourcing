@@ -105,7 +105,7 @@ jobs:
         pip install -U pip
         pip install wheel
         make build
-        find ./dist -type f -name '*.whl' -exec pip install '{}[postgres]' \;
+        find ./dist -type f -name '*.whl' -exec pip install '{}[postgres,msgspec,pydantic]' \;
         rm -r dist
         rm -r eventsourcing
         python -m unittest -v tests/domain_tests/test_aggregate.py
