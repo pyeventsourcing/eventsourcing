@@ -24,7 +24,7 @@ experience. Please [read the docs](https://eventsourcing.readthedocs.io/). See a
 ## Installation
 
 Add the Python `eventsourcing` package to your project. Alternatively, install
-into directly into a Python virtual environment from the [Python Package Index](https://pypi.org/project/eventsourcing/).
+directly into a Python virtual environment from the [Python Package Index](https://pypi.org/project/eventsourcing/).
 
 We recommended installing version 10 with the `pydantic` option to enable support for modeling
 events with Pydantic.
