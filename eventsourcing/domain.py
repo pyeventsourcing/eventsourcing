@@ -802,14 +802,16 @@ class SupportsEventDecorator(WorksWithDecisions[TDecision]):
 
             else:
                 assert decorator.given_event_name
-                assert decorator.given_event_name not in cls.__dict__
-                assert cls.works_with_decision_type
-                decision_cls = cls._define_event_class(
-                    name=decorator.given_event_name,
-                    bases=(cls.works_with_decision_type,),
-                    apply_method=decorator.decorated_func,
-                )
-                setattr(cls, decorator.given_event_name, decision_cls)
+                if decorator.given_event_name not in cls.__dict__:
+                    assert cls.works_with_decision_type
+                    decision_cls = cls._define_event_class(
+                        name=decorator.given_event_name,
+                        bases=(cls.works_with_decision_type,),
+                        apply_method=decorator.decorated_func,
+                    )
+                    setattr(cls, decorator.given_event_name, decision_cls)
+                else:
+                    decision_cls = cls.__dict__[decorator.given_event_name]
 
             decorated_func_callers[decorator] = decision_cls
 

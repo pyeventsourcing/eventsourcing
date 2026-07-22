@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -26,7 +25,6 @@ if TYPE_CHECKING:
 
 @pytest.mark.benchmark(group="mapper-encode")
 def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
-    @dataclass(frozen=True, kw_only=True)
     class MyObj(eventsourcing.dataclasses.immutable.DataclassDecision):
         a: int
         b: str
@@ -55,7 +53,6 @@ def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-decode")
 def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
-    @dataclass(frozen=True, kw_only=True)
     class MyObj(eventsourcing.dataclasses.immutable.DataclassDecision):
         a: int
         b: str

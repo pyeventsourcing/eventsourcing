@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from eventsourcing.application import AggregatesApplication
+from eventsourcing.pydantic import AggregatesApplication
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
