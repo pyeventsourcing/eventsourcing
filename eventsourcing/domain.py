@@ -3,7 +3,6 @@ from __future__ import annotations
 import contextvars
 import inspect
 import os
-import types
 import typing
 from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Callable, Iterable
@@ -11,7 +10,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
 from functools import cache
-from types import FunctionType
+from types import FunctionType, NoneType, WrapperDescriptorType, new_class
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -34,6 +33,7 @@ from eventsourcing.utils import (
     get_method_name,
     resolve_multi_generic_target,
     resolve_topic,
+    to_snake_case,
 )
 
 if TYPE_CHECKING:
@@ -586,9 +586,12 @@ def _coerce_args_to_kwargs(
     expects_id: bool = False,
 ) -> dict[str, Any]:
     # __init__ methods are WrapperDescriptorType, other method are FunctionType.
-    # assert isinstance(
-    # target_method, (FunctionType, WrapperDescriptorType)
-    # ), target_method
+    if isinstance(target_method, BoundCommandMethodDecorator):
+        target_method = target_method.event_decorator.decorated_func
+    assert isinstance(
+        target_method,
+        (FunctionType, WrapperDescriptorType, BoundCommandMethodDecorator),
+    ), target_method
 
     args = tuple(args)
     enumerated_args_names, keyword_defaults_items = _spec_coerce_args_to_kwargs(
@@ -719,7 +722,7 @@ class WorksWithDecisions(Generic[TDecision]):
             cls.works_with_decision_type = resolved_decision_type
 
     @classmethod
-    def _check_decision_type(cls, decision_cls: Any) -> None:
+    def check_decision_type(cls, decision_cls: Any) -> None:
         if cls.works_with_decision_type is None:
             msg = f"{cls} has no decision type argument"
             raise TypeError(msg)
@@ -752,13 +755,14 @@ class Perspective(WorksWithDecisions[TDecision], ABC):
         self,
         decision_cls: Callable[_P, TDecision],
         tags: Sequence[str] = (),
+        /,
         *args: _P.args,
         **kwargs: _P.kwargs,
     ) -> None:
         """
         Constructs new event and appends to list of uncommitted events.
         """
-        self._check_decision_type(decision_cls)
+        self.check_decision_type(decision_cls)
         envelope = TaggedEvent[TDecision](
             tags=list(tags),
             decision=decision_cls(*args, **kwargs),
@@ -794,7 +798,7 @@ class SupportsEventDecorator(WorksWithDecisions[TDecision]):
         for decorator in func_decorators:
             if decorator.given_event_cls:
                 decision_cls = cast(type[TDecision], decorator.given_event_cls)
-                cls._check_decision_type(decision_cls)
+                cls.check_decision_type(decision_cls)
 
             else:
                 assert decorator.given_event_name
@@ -893,12 +897,14 @@ class SupportsEventDecorator(WorksWithDecisions[TDecision]):
             ns.update(event_cls_dict)
 
         # Create the event class object.
-        _new_class = types.new_class(name, bases, exec_body=populate_namespace)
+        _new_class = new_class(name, bases, exec_body=populate_namespace)
         return cast(type[TDecision], _new_class)
 
     def trigger_event(
         self,
         decision_cls: Any,
+        tags: Sequence[str] = (),
+        /,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -958,14 +964,25 @@ _abstract_enduring_object_classes = set[type[Any]]()
 
 class EnduringObject(Perspective[TDecision], CallTriggersEvent[TDecision]):
     id: str
+    continuity_id_name: ClassVar[str]
+
+    def __init_subclass__(
+        cls,
+        continuity_id_name: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__(**kwargs)
+        cls.continuity_id_name = (
+            cls.__dict__.get("continuity_id_name", continuity_id_name)
+            or to_snake_case(cls.__name__) + "_id"
+        )
 
     @classmethod
     def _create(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
         obj = cls.__new__(cls)
-        # TODO: Maybe find a better way to do this, but it seems we need
-        #  to set the `id` attribute before the call to `trigger_event()`?
-        enduring_object_id = next(iter(kwargs.values()))  # assume ID is first kwarg
-        obj.id = enduring_object_id
+        coerced_kwargs = _coerce_args_to_kwargs(obj.__init__, args, kwargs)  # type: ignore[misc]
+        continuity_id = coerced_kwargs[cls.continuity_id_name]
+        obj.id = continuity_id
         # Calling __init__ should trigger an event that
         # calls the original decorated __init__ method.
         obj.__init__(*args, **kwargs)  # type: ignore[misc]
@@ -978,9 +995,12 @@ class EnduringObject(Perspective[TDecision], CallTriggersEvent[TDecision]):
         self,
         decision_cls: Callable[_P, TDecision],
         tags: Sequence[str] = (),
+        /,
         *args: _P.args,
         **kwargs: _P.kwargs,
     ) -> None:
+        if self.continuity_id_name not in kwargs:
+            kwargs[self.continuity_id_name] = self.id
         super().trigger_event(decision_cls, [self.id, *tags], *args, **kwargs)
 
 
@@ -1006,9 +1026,7 @@ class Group(Perspective[TDecision]):
 
             if args:
                 # Filter out NoneType to just get the actual class
-                extracted_classes.extend(
-                    arg for arg in args if arg is not types.NoneType
-                )
+                extracted_classes.extend(arg for arg in args if arg is not NoneType)
             else:
                 # If it wasn't a Union/Optional, just append the hint directly
                 extracted_classes.append(hint)
@@ -1031,6 +1049,7 @@ class Group(Perspective[TDecision]):
         self,
         decision_cls: Callable[_P, TDecision],
         tags: Sequence[str] = (),
+        /,
         *args: _P.args,
         **kwargs: _P.kwargs,
     ) -> None:
@@ -1162,7 +1181,7 @@ class Aggregate(CallTriggersEvent[TDecision]):
         """
         Constructs new event and appends to list of uncommitted events.
         """
-        self._check_decision_type(decision_cls)
+        self.check_decision_type(decision_cls)
         envelope = AggregateEvent(
             decision=decision_cls(*args, **kwargs),
             originator_id=self.id,

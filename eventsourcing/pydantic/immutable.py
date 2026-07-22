@@ -3,32 +3,35 @@ from __future__ import annotations
 from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict
+from typing_extensions import TypeVar
 
 import eventsourcing.domain
-from eventsourcing.utils import get_topic
 
 
-class Immutable(BaseModel):
+class PydanticImmutable(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-class PydanticDecision(Immutable, eventsourcing.domain.AbstractDecision):
+class PydanticDecision(PydanticImmutable, eventsourcing.domain.AbstractDecision):
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
 
 
-class ImmutablePydanticAggregate(Immutable):
+TPydanticDecision = TypeVar(
+    "TPydanticDecision", bound=PydanticDecision, default=PydanticDecision
+)
+
+
+class PydanticImmutableAggregate(PydanticImmutable):
     id: str
     version: int
 
 
-class ImmutablePydanticAggregateSnapshot(PydanticDecision):
-    topic: str
+class PydanticImmutableAggregateSnapshot(PydanticDecision):
     state: dict[str, Any]
 
     @classmethod
-    def take(cls, aggregate: ImmutablePydanticAggregate) -> Self:
+    def take(cls, aggregate: PydanticImmutableAggregate) -> Self:
         return cls(
-            topic=get_topic(type(aggregate)),
             state=aggregate.model_dump(),
         )

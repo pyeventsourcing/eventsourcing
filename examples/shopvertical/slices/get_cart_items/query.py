@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal  # noqa:TC003
 from typing import TYPE_CHECKING
 
-from eventsourcing.pydantic.immutable import Immutable
+from eventsourcing.pydantic import Immutable
 from examples.shopvertical.common import Query, get_events
 from examples.shopvertical.events import (
     AddedItemToCart,

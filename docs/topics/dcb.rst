@@ -737,7 +737,7 @@ all newly generated events.
     # Generate and apply new event.
     perspective.trigger_event(
         Decision,
-        tags=["tag1", "tag2"],
+        ["tag1", "tag2"],
     )
 
     # Collect new events, usually before appending them into an event
@@ -973,7 +973,7 @@ automatically collects all decision classes mentioned in the slice's :func:`@eve
             assert self.name != self.new_name
             self.trigger_event(
                 StudentNameUpdated,
-                tags=[self.student_id],
+                [self.student_id],
                 name=self.new_name,
             )
 

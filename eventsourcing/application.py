@@ -723,7 +723,8 @@ class AggregatesApplication(WorksWithDecisions[TDecision]):
         for use by the application.
         """
         transcoder = self.construct_transcoder()
-        self._check_decision_type(transcoder)
+        transcoder.check_decision_type(self)
+        # self._check_decision_type(transcoder)
         return self.factory.mapper(transcoder=transcoder)
 
     def construct_transcoder(self) -> Transcoder[TDecision]:
@@ -793,9 +794,9 @@ class AggregatesApplication(WorksWithDecisions[TDecision]):
                 case None:
                     continue
                 case AggregateEvent(decision=decision):
-                    self._check_decision_type(type(decision))
+                    self.check_decision_type(type(decision))
                 case _:
-                    self._check_decision_type(type(obj))
+                    self.check_decision_type(type(obj))
         processing_event: ProcessingEvent[TDecision] = ProcessingEvent()
         processing_event.collect_events(*objs, **kwargs)
         recordings = self._record(processing_event)

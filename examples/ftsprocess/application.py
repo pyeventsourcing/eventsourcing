@@ -4,8 +4,7 @@ from typing import TYPE_CHECKING, ClassVar, cast
 
 from eventsourcing.domain import AggregateEvent, EventEnvelope
 from eventsourcing.persistence import Recorder
-from eventsourcing.pydantic.application import PydanticAggregatesApplication
-from eventsourcing.pydantic.immutable import PydanticDecision
+from eventsourcing.pydantic import AggregatesApplication, Decision
 from eventsourcing.system import ProcessApplication
 from examples.contentmanagement.domainmodel import Page
 from examples.contentmanagement.utils import apply_diff
@@ -15,15 +14,15 @@ if TYPE_CHECKING:
     from eventsourcing.application import ProcessingEvent
 
 
-class FtsProcess(PydanticAggregatesApplication, ProcessApplication[PydanticDecision]):
+class FtsProcess(AggregatesApplication, ProcessApplication[Decision]):
     env: ClassVar[dict[str, str]] = {
         "COMPRESSOR_TOPIC": "gzip",
     }
 
     def policy(
         self,
-        envelope: EventEnvelope[PydanticDecision],
-        processing_event: ProcessingEvent[PydanticDecision],
+        envelope: EventEnvelope[Decision],
+        processing_event: ProcessingEvent[Decision],
     ) -> None:
         match envelope:
             case AggregateEvent(

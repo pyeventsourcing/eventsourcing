@@ -4,18 +4,18 @@ from typing import TYPE_CHECKING
 
 from eventsourcing.application import AggregatesApplication
 from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.msgspec.immutable import MsgspecDecision
+from eventsourcing.msgspec.immutable import TMsgspecDecision
 from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 
 if TYPE_CHECKING:
     from eventsourcing.persistence import Transcoder
 
 
-class MsgspecAggregatesApplication(AggregatesApplication[MsgspecDecision]):
-    def construct_transcoder(self) -> Transcoder[MsgspecDecision]:
+class MsgspecAggregatesApplication(AggregatesApplication[TMsgspecDecision]):
+    def construct_transcoder(self) -> Transcoder[TMsgspecDecision]:
         return MsgspecTranscoder()
 
 
-class MsgspecDCBApplication(DCBApplication[MsgspecDecision]):
-    def construct_transcoder(self) -> Transcoder[MsgspecDecision]:
+class MsgspecDCBApplication(DCBApplication[TMsgspecDecision]):
+    def construct_transcoder(self) -> Transcoder[TMsgspecDecision]:
         return MsgspecTranscoder()

@@ -91,11 +91,8 @@ class Dog(EnduringObject):
         self.name = name
         self.tricks: list[str] = []
 
-    def add_trick(self, trick: str) -> None:
-        self._add_trick(dog_id=self.dog_id, trick=trick)
-
     @event(TrickAdded)
-    def _add_trick(self, dog_id: str, trick: str) -> None:
+    def add_trick(self, trick: str) -> None:
         self.tricks.append(trick)
 ```
 
@@ -193,7 +190,7 @@ class RegisterDog(Slice):
         assert not self.was_registered
         self.trigger_event(
             DogRegistered,
-            tags=[self.dog_id],
+            [self.dog_id],
             dog_id=self.dog_id,
             name=self.name,
         )
@@ -223,7 +220,7 @@ class AddTrick(Slice):
         assert self.was_registered
         self.trigger_event(
             TrickAdded,
-            tags=[self.dog_id],
+            [self.dog_id],
             dog_id=self.dog_id,
             trick=self.new_trick,
         )
@@ -330,7 +327,9 @@ def test_dog_school(
     assert isinstance(events[2].decision, TrickAdded)
     assert events[0].decision.dog_id, dog_id
     assert events[0].decision.name, 'Fido'
+    assert events[1].decision.dog_id, dog_id
     assert events[1].decision.trick, 'roll over'
+    assert events[2].decision.dog_id, dog_id
     assert events[2].decision.trick, 'play deead'
     assert events[0].metadata == context_attributes
     assert events[1].metadata == context_attributes

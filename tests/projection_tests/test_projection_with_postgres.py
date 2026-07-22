@@ -4,7 +4,7 @@ from typing import Any, ClassVar
 
 from psycopg.sql import SQL, Identifier
 
-from eventsourcing.msgspec.application import MsgspecAggregatesApplication
+from eventsourcing.msgspec import AggregatesApplication
 from eventsourcing.persistence import (
     InfrastructureFactory,
     Tracking,
@@ -151,14 +151,14 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
         # Resume....
         with ProjectionRunner(
-            application_class=MsgspecAggregatesApplication,
+            application_class=AggregatesApplication,
             projection_class=StudentEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ):
 
             # Construct separate instance of "write model".
-            write_model = MsgspecAggregatesApplication(self.env)
+            write_model = AggregatesApplication(self.env)
 
             # Construct separate instance of "read model".
             factory: InfrastructureFactory[EventCountersView] = (
@@ -207,14 +207,14 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
         # Resume...
         with ProjectionRunner(
-            application_class=MsgspecAggregatesApplication,
+            application_class=AggregatesApplication,
             projection_class=StudentEventCountersProjection,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
 
             # Construct separate instance of "write model".
-            write_model = MsgspecAggregatesApplication(self.env)
+            write_model = AggregatesApplication(self.env)
 
             # Construct separate instance of "read model".
             factory: InfrastructureFactory[PostgresEventCounters] = (
@@ -228,7 +228,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
             # Still terminates with projection error.
             with self.assertRaises(SpannerThrownError):
-                runner.run_forever()
+                runner.run_forever(timeout=5)
 
             # Wait times out (event has not been processed).
             with self.assertRaises(TimeoutError):

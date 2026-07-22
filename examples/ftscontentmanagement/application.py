@@ -9,17 +9,15 @@ from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 if TYPE_CHECKING:
     from eventsourcing.domain import AggregateEvent, CollectEventsProtocol
     from eventsourcing.persistence import Recording
-    from eventsourcing.pydantic.immutable import PydanticDecision
+    from eventsourcing.pydantic import Decision
 
 
 class FtsContentManagement(ContentManagement):
     def save(
         self,
-        *objs: CollectEventsProtocol[PydanticDecision]
-        | AggregateEvent[PydanticDecision]
-        | None,
+        *objs: CollectEventsProtocol[Decision] | AggregateEvent[Decision] | None,
         **kwargs: Any,
-    ) -> list[Recording[PydanticDecision]]:
+    ) -> list[Recording[Decision]]:
         insert_pages: list[PageInfo] = []
         update_pages: list[PageInfo] = []
         for obj in objs:

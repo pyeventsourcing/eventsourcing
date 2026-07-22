@@ -13,7 +13,6 @@ from eventsourcing.application import (
 )
 from eventsourcing.domain import (
     AggregateEvent,
-    EnduringObject,
     EventEnvelope,
     TaggedEvent,
     put_metadata_in_context,
@@ -24,6 +23,7 @@ from eventsourcing.msgspec import (
     AggregatesApplication,
     DCBApplication,
     Decision,
+    EnduringObject,
 )
 from eventsourcing.persistence import (
     IntegrityError,
@@ -200,12 +200,16 @@ class SpannerThrownError(Exception):
 class DCBSpannerThrown(Decision):
     # Avoid segmentation violation with Python 3.13
     # and MsgStruct instances with zero attributes.
+    thing_id: str
     a: str
 
 
 # Define a perspective.
-class Thing(EnduringObject[Decision]):
+class Thing(EnduringObject):
     class Created(Decision):
+        thing_id: str
+
+    class Next(Decision):
         thing_id: str
 
     @triggers(Created)
@@ -217,7 +221,7 @@ class DecisionCountersProjection(Projection[EventCountersView]):
     name = "eventcounters"
     topics: tuple[str, ...] = (
         get_topic(Thing.Created),
-        get_topic(Decision),
+        get_topic(Thing.Next),
         get_topic(DCBSpannerThrown),
     )
 
@@ -230,7 +234,7 @@ class DecisionCountersProjection(Projection[EventCountersView]):
             case DCBSpannerThrown():
                 msg = "This is a deliberate bug"
                 raise SpannerThrownError(msg)
-            case Decision():
+            case Thing.Next():
                 self.view.incr_student_name_changed_counter(tracking)
             case _:
                 self.view.insert_tracking(tracking)
@@ -356,8 +360,8 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
 
             # Write some events.
             perspective = Thing(thing_id=str("thing-" + str(uuid4())))
-            perspective.trigger_event(Decision)
-            perspective.trigger_event(Decision)
+            perspective.trigger_event(Thing.Next, thing_id=perspective.id)
+            perspective.trigger_event(Thing.Next, thing_id=perspective.id)
             self.assertEqual(3, len(perspective.new_decisions))
             position = write_model.repository.save(perspective)
 
@@ -373,8 +377,8 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
 
             # Write some more events.
             perspective = Thing(thing_id=str("thing-" + str(uuid4())))
-            perspective.trigger_event(Decision)
-            perspective.trigger_event(Decision)
+            perspective.trigger_event(Thing.Next, thing_id=perspective.id)
+            perspective.trigger_event(Thing.Next, thing_id=perspective.id)
             position = write_model.repository.save(perspective)
 
             # Wait for the events to be processed.
@@ -400,7 +404,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
 
             # Write some events.
             perspective = Thing(thing_id=str("thing-" + str(uuid4())))
-            perspective.trigger_event(DCBSpannerThrown, a="")
+            perspective.trigger_event(DCBSpannerThrown, a="", thing_id=perspective.id)
             position = write_model.repository.save(perspective)
 
             # Projection runner terminates with projection error.

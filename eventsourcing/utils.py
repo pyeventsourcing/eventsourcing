@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import re
 from collections.abc import Callable, Iterator, Mapping
 from functools import wraps
 from inspect import isfunction
@@ -415,3 +416,15 @@ def unwrap_new_type(id_type: type[_T]) -> type[_T]:
             return id_type
         assert isinstance(id_type, NewType), id_type
         id_type = id_type.__supertype__
+
+
+def to_snake_case(name: str) -> str:
+    """
+    Converts a CamelCase or PascalCase string to snake_case.
+    """
+    # Insert an underscore before any capital letter followed by lowercase letters
+    name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    # Insert an underscore between a lowercase/number and a capital letter
+    name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
+
+    return name.lower()

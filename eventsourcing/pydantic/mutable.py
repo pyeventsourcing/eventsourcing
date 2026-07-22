@@ -1,38 +1,42 @@
 from __future__ import annotations
 
 import typing
-from typing import Any, Self, TypeVar
+from typing import Any, Generic, Self, TypeVar
 
 from pydantic import ConfigDict
 
 from eventsourcing.domain import Aggregate, EnduringObject, Group, Slice
-from eventsourcing.pydantic.immutable import Immutable, PydanticDecision
+from eventsourcing.pydantic.immutable import (
+    PydanticDecision,
+    PydanticImmutable,
+    TPydanticDecision,
+)
 
 
-class PydanticAggregate(Aggregate[PydanticDecision]):
+class PydanticAggregate(Aggregate[TPydanticDecision]):
     pass
 
 
-class PydanticSlice(Slice[PydanticDecision]):
+class PydanticSlice(Slice[TPydanticDecision]):
     pass
 
 
-class PydanticEnduringObject(EnduringObject[PydanticDecision]):
+class PydanticEnduringObject(EnduringObject[TPydanticDecision]):
     pass
 
 
-class PydanticGroup(Group[PydanticDecision]):
+class PydanticGroup(Group[TPydanticDecision]):
     pass
 
 
 _T = TypeVar("_T")
 
 
-class PydanticAggregateSnapshot(PydanticDecision):
+class PydanticAggregateSnapshot(PydanticDecision, Generic[TPydanticDecision]):
     state: Any
 
     @classmethod
-    def take(cls, aggregate: PydanticAggregate) -> Self:
+    def take(cls, aggregate: PydanticAggregate[TPydanticDecision]) -> Self:
         type_of_snapshot_state = typing.get_type_hints(cls)["state"]
         aggregate_state = dict(aggregate.__dict__)
         aggregate_state.pop("new_decisions")
@@ -49,5 +53,5 @@ class PydanticAggregateSnapshot(PydanticDecision):
         return obj
 
 
-class PydanticAggregateState(Immutable):
+class PydanticAggregateState(PydanticImmutable):
     model_config = ConfigDict(extra="allow")

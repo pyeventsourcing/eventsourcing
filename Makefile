@@ -37,7 +37,7 @@ update-lock:
 
 
 .PHONY: fmt
-fmt: fmt-ruff fmt-black
+fmt:  fmt-black fmt-ruff
 
 .PHONY: fmt-ruff
 fmt-ruff:
@@ -85,7 +85,7 @@ coveragetest:
 	$(POETRY) run coverage run -m unittest discover . -v
 
 .PHONY: coverage96
-coverage100:
+coverage96:
 	$(POETRY) run coverage report --fail-under=96 --show-missing
 
 .PHONY: coverage100

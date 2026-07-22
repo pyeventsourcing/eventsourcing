@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from eventsourcing.pydantic.application import PydanticAggregatesApplication
+from eventsourcing.pydantic import AggregatesApplication
 from examples.aggregate7.domainmodel import Trick, add_trick, evolve_dog, register_dog
 
 
-class DogSchool(PydanticAggregatesApplication):
+class DogSchool(AggregatesApplication):
     def register_dog(self, name: str) -> str:
         event = register_dog(name)
         self.save(event)

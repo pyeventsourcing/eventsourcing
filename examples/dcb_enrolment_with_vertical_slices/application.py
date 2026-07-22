@@ -4,10 +4,9 @@ from uuid import uuid4
 
 from eventsourcing.domain import (
     Selector,
-    Slice,
     event,
 )
-from eventsourcing.msgspec import DCBApplication, Decision
+from eventsourcing.pydantic import DCBApplication, Decision, Slice
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseNotFoundError,
@@ -19,49 +18,52 @@ from examples.dcb_enrolment.interface import (
 )
 
 
-class StudentJoinedCourse(Decision):
+class StudentDecision(Decision):
     student_id: str
+
+
+class CourseDecision(Decision):
     course_id: str
 
 
-class StudentLeftCourse(Decision):
-    student_id: str
-    course_id: str
-
-
-class StudentRegistered(Decision):
-    student_id: str
+class StudentRegistered(StudentDecision):
     name: str
     max_courses: int
 
 
-class StudentNameUpdated(Decision):
-    student_id: str
+class StudentNameUpdated(StudentDecision):
     name: str
 
 
-class StudentMaxCoursesUpdated(Decision):
-    student_id: str
+class StudentMaxCoursesUpdated(StudentDecision):
     max_courses: int
 
 
-class CourseRegistered(Decision):
+class CourseRegistered(CourseDecision):
     course_id: str
     name: str
     places: int
 
 
-class CourseNameUpdated(Decision):
+class CourseNameUpdated(CourseDecision):
     course_id: str
     name: str
 
 
-class CoursePlacesUpdated(Decision):
+class CoursePlacesUpdated(CourseDecision):
     course_id: str
     places: int
 
 
-class RegisterStudent(Slice[Decision]):
+class StudentJoinedCourse(StudentDecision, CourseDecision):
+    pass
+
+
+class StudentLeftCourse(StudentDecision, CourseDecision):
+    pass
+
+
+class RegisterStudent(Slice):
     def __init__(self, name: str, max_courses: int):
         self.student_id = f"student-{uuid4()}"
         self.name = name
@@ -73,14 +75,14 @@ class RegisterStudent(Slice[Decision]):
     def execute(self) -> None:
         self.trigger_event(
             StudentRegistered,
-            tags=[self.student_id],
+            [self.student_id],
             student_id=self.student_id,
             name=self.name,
             max_courses=self.max_courses,
         )
 
 
-class UpdateStudentName(Slice[Decision]):
+class UpdateStudentName(Slice):
     def __init__(self, student_id: str, name: str) -> None:
         self.student_id = student_id
         self.name = name
@@ -99,13 +101,13 @@ class UpdateStudentName(Slice[Decision]):
         assert self.student_was_registered
         self.trigger_event(
             StudentNameUpdated,
-            tags=[self.student_id],
+            [self.student_id],
             student_id=self.student_id,
             name=self.name,
         )
 
 
-class UpdateMaxCourses(Slice[Decision]):
+class UpdateMaxCourses(Slice):
     def __init__(self, student_id: str, max_courses: int) -> None:
         self.student_id = student_id
         self.max_courses = max_courses
@@ -125,13 +127,13 @@ class UpdateMaxCourses(Slice[Decision]):
         assert self.student_was_registered
         self.trigger_event(
             StudentMaxCoursesUpdated,
-            tags=[self.student_id],
+            [self.student_id],
             student_id=self.student_id,
             max_courses=self.max_courses,
         )
 
 
-class RegisterCourse(Slice[Decision]):
+class RegisterCourse(Slice):
     def __init__(self, name: str, places: int):
         self.name = name
         self.places = places
@@ -143,14 +145,14 @@ class RegisterCourse(Slice[Decision]):
     def execute(self) -> None:
         self.trigger_event(
             CourseRegistered,
-            tags=[self.course_id],
+            [self.course_id],
             course_id=self.course_id,
             name=self.name,
             places=self.places,
         )
 
 
-class UpdateCourseName(Slice[Decision]):
+class UpdateCourseName(Slice):
     def __init__(self, course_id: str, name: str) -> None:
         self.course_id = course_id
         self.name = name
@@ -169,13 +171,13 @@ class UpdateCourseName(Slice[Decision]):
         assert self.course_was_registered
         self.trigger_event(
             CourseNameUpdated,
-            tags=[self.course_id],
+            [self.course_id],
             course_id=self.course_id,
             name=self.name,
         )
 
 
-class UpdatePlaces(Slice[Decision]):
+class UpdatePlaces(Slice):
     def __init__(self, course_id: str, places: int) -> None:
         self.course_id = course_id
         self.places = places
@@ -194,13 +196,13 @@ class UpdatePlaces(Slice[Decision]):
         assert self.course_was_registered
         self.trigger_event(
             CoursePlacesUpdated,
-            tags=[self.course_id],
+            [self.course_id],
             course_id=self.course_id,
             places=self.places,
         )
 
 
-class StudentJoinsCourse(Slice[Decision]):
+class StudentJoinsCourse(Slice):
     def __init__(self, student_id: str, course_id: str) -> None:
         self.student_id = student_id
         self.course_id = course_id
@@ -278,13 +280,13 @@ class StudentJoinsCourse(Slice[Decision]):
             raise AlreadyJoinedError((self.student_id, self.course_id))
         self.trigger_event(
             StudentJoinedCourse,
-            tags=[self.student_id, self.course_id],
+            [self.student_id, self.course_id],
             student_id=self.student_id,
             course_id=self.course_id,
         )
 
 
-class StudentLeavesCourse(Slice[Decision]):
+class StudentLeavesCourse(Slice):
     def __init__(self, student_id: str, course_id: str) -> None:
         self.student_id = student_id
         self.course_id = course_id
@@ -336,13 +338,13 @@ class StudentLeavesCourse(Slice[Decision]):
             raise NotAlreadyJoinedError
         self.trigger_event(
             StudentLeftCourse,
-            tags=[self.student_id, self.course_id],
+            [self.student_id, self.course_id],
             student_id=self.student_id,
             course_id=self.course_id,
         )
 
 
-class StudentsIDs(Slice[Decision]):
+class StudentsIDs(Slice):
     def __init__(self, course_id: str) -> None:
         self.course_id = course_id
         self.student_ids: list[str] = []
@@ -361,7 +363,7 @@ class StudentsIDs(Slice[Decision]):
         self.student_ids.remove(student_id)
 
 
-class StudentNames(Slice[Decision]):
+class StudentNames(Slice):
     def __init__(self, student_ids: list[str]) -> None:
         self.student_id_names: dict[str, str | None] = dict.fromkeys(student_ids, None)
 
@@ -384,7 +386,7 @@ class StudentNames(Slice[Decision]):
         return [n for n in self.student_id_names.values() if n]
 
 
-class CourseIDs(Slice[Decision]):
+class CourseIDs(Slice):
     def __init__(self, student_id: str) -> None:
         self.student_id = student_id
         self.course_ids: list[str] = []
@@ -403,7 +405,7 @@ class CourseIDs(Slice[Decision]):
         self.course_ids.remove(course_id)
 
 
-class CourseNames(Slice[Decision]):
+class CourseNames(Slice):
     def __init__(self, course_ids: list[str]) -> None:
         self.course_id_names: dict[str, str | None] = dict.fromkeys(course_ids, None)
 
@@ -426,7 +428,7 @@ class CourseNames(Slice[Decision]):
         return [n for n in self.course_id_names.values() if n]
 
 
-class Student(Slice[Decision]):
+class Student(Slice):
     def __init__(self, student_id: str) -> None:
         self.student_id = student_id
         self.student_was_registered: bool = False
@@ -460,7 +462,7 @@ class Student(Slice[Decision]):
         self.course_ids.remove(course_id)
 
 
-class Course(Slice[Decision]):
+class Course(Slice):
     def __init__(self, course_id: str) -> None:
         self.course_id = course_id
         self.course_was_registered: bool = False

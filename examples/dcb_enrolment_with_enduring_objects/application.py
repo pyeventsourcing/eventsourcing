@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import cast
 from uuid import uuid4
 
 from eventsourcing.domain import (
     event,
 )
-from eventsourcing.msgspec import (
+from eventsourcing.pydantic import (
     DCBApplication,
     Decision,
     EnduringObject,
     Group,
-    Transcoder,
 )
-from eventsourcing.utils import get_topic
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseNotFoundError,
@@ -24,44 +22,65 @@ from examples.dcb_enrolment.interface import (
     TooManyCoursesError,
 )
 
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
-
-class StudentJoinedCourse(Decision):
+class StudentDecision(Decision):
     student_id: str
+
+
+class CourseDecision(Decision):
     course_id: str
 
 
-class StudentLeftCourse(Decision):
-    student_id: str
+class StudentRegistered(StudentDecision):
+    name: str
+    max_courses: int
+
+
+class StudentNameUpdated(StudentDecision):
+    name: str
+
+
+class StudentMaxCoursesUpdated(StudentDecision):
+    max_courses: int
+
+
+class CourseRegistered(CourseDecision):
     course_id: str
+    name: str
+    places: int
+
+
+class CourseNameUpdated(CourseDecision):
+    course_id: str
+    name: str
+
+
+class CoursePlacesUpdated(CourseDecision):
+    course_id: str
+    places: int
+
+
+class StudentJoinedCourse(StudentDecision, CourseDecision):
+    pass
+
+
+class StudentLeftCourse(StudentDecision, CourseDecision):
+    pass
 
 
 class Student(EnduringObject):
-    class Registered(Decision):
-        student_id: str
-        name: str
-        max_courses: int
-
-    class NameUpdated(Decision):
-        name: str
-
-    class MaxCoursesUpdated(Decision):
-        max_courses: int
-
-    @event(Registered)
+    @event(StudentRegistered)
     def __init__(self, student_id: str, name: str, max_courses: int) -> None:
         self.id = student_id
         self.name = name
         self.max_courses = max_courses
         self.course_ids: list[str] = []
 
-    @event(NameUpdated)
+    @event(StudentNameUpdated)
     def update_name(self, name: str) -> None:
         self.name = name
 
-    @event(MaxCoursesUpdated)
+    @event(StudentMaxCoursesUpdated)
     def update_max_courses(self, max_courses: int) -> None:
         self.max_courses = max_courses
 
@@ -77,29 +96,18 @@ class Student(EnduringObject):
 
 
 class Course(EnduringObject):
-    class Registered(Decision):
-        course_id: str
-        name: str
-        places: int
-
-    class NameUpdated(Decision):
-        name: str
-
-    class PlacesUpdated(Decision):
-        places: int
-
-    @event(Registered)
+    @event(CourseRegistered)
     def __init__(self, course_id: str, name: str, places: int) -> None:
         self.id = course_id
         self.name = name
         self.places = places
         self.student_ids: list[str] = []
 
-    @event(NameUpdated)
+    @event(CourseNameUpdated)
     def update_name(self, name: str) -> None:
         self.name = name
 
-    @event(PlacesUpdated)
+    @event(CoursePlacesUpdated)
     def update_places(self, places: int) -> None:
         self.places = places
 
@@ -149,20 +157,13 @@ class StudentAndCourse(Group):
 
 
 class EnrolmentWithEnduringObjects(DCBApplication, EnrolmentInterface):
-    env: Mapping[str, str] = {
-        "TRANSCODER_TOPIC": get_topic(Transcoder),
-        **DCBApplication.env,
-    }
-
     def register_student(self, name: str, max_courses: int) -> str:
-        student = Student(
-            student_id=str(str(uuid4())), name=name, max_courses=max_courses
-        )
+        student = Student(student_id=str(uuid4()), name=name, max_courses=max_courses)
         self.repository.save(student)
         return student.id
 
     def register_course(self, name: str, places: int) -> str:
-        course = Course(course_id=str(str(uuid4())), name=name, places=places)
+        course = Course(course_id=str(uuid4()), name=name, places=places)
         self.repository.save(course)
         return course.id
 

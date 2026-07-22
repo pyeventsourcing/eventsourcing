@@ -88,7 +88,7 @@ class Follower(EventSourcedProjection[TDecision]):
         env = self.construct_env(name, self.env)
         factory = self.construct_factory(env)
         transcoder = self.construct_transcoder()
-        self._check_decision_type(transcoder)
+        transcoder.check_decision_type(self)
         mapper = factory.mapper(transcoder, mapper_class=type(self.mapper))
         self.readers[name] = reader
         self.mappers[name] = mapper

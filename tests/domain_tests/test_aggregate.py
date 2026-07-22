@@ -38,7 +38,7 @@ class TestWorksWithDecisions(TestCase):
                 return dict(self.__dict__)
 
         with self.assertRaises(TypeError) as cm:
-            GenericSubclass._check_decision_type(int)
+            GenericSubclass.check_decision_type(int)
 
         self.assertIn("has no decision type argument", str(cm.exception))
 
@@ -52,9 +52,9 @@ class TestWorksWithDecisions(TestCase):
 
         self.assertIs(SubclassOfGenericSubclass.works_with_decision_type, MyDecision)
 
-        SubclassOfGenericSubclass._check_decision_type(MyDecision)
+        SubclassOfGenericSubclass.check_decision_type(MyDecision)
         with self.assertRaises(TypeError) as cm:
-            SubclassOfGenericSubclass._check_decision_type(int)
+            SubclassOfGenericSubclass.check_decision_type(int)
 
         self.assertIn("mismatches", str(cm.exception))
 

@@ -5,7 +5,13 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.domain import Selector, TaggedEvent
-from examples.dcb_enrolment_with_enduring_objects.application import Course, Student
+from examples.dcb_enrolment_with_enduring_objects.application import (
+    Course,
+    CourseRegistered,
+    Student,
+    StudentNameUpdated,
+    StudentRegistered,
+)
 
 
 class TestEnduringObjects(TestCase):
@@ -28,8 +34,8 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
-        new_event1 = cast(TaggedEvent[Student.Registered], new_events[0])
-        self.assertIsInstance(new_event1.decision, Student.Registered)
+        new_event1 = cast(TaggedEvent[StudentRegistered], new_events[0])
+        self.assertIsInstance(new_event1.decision, StudentRegistered)
         self.assertEqual(new_event1.decision.student_id, student.id)
 
         # Check the event has tags.
@@ -54,8 +60,8 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
-        new_event2 = cast(TaggedEvent[Student.NameUpdated], new_events[0])
-        self.assertIsInstance(new_event2.decision, Student.NameUpdated)
+        new_event2 = cast(TaggedEvent[StudentNameUpdated], new_events[0])
+        self.assertIsInstance(new_event2.decision, StudentNameUpdated)
         self.assertEqual(new_event2.decision.name, "Maxine")
 
         # Check the event has tags.
@@ -84,8 +90,8 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(len(new_events), 1)
 
         # Check the event type and attributes.
-        new_event = cast(TaggedEvent[Course.Registered], new_events[0])
-        self.assertIsInstance(new_event.decision, Course.Registered)
+        new_event = cast(TaggedEvent[CourseRegistered], new_events[0])
+        self.assertIsInstance(new_event.decision, CourseRegistered)
         self.assertEqual(new_event.decision.course_id, course.id)
 
         # Check the event has tags.

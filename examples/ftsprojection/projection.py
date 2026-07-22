@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from eventsourcing.domain import AggregateEvent
-    from eventsourcing.pydantic.immutable import PydanticDecision
+    from eventsourcing.pydantic import Decision
 
 
 class FtsViewInterface(FtsRecorder, TrackingRecorder, ABC):
@@ -34,7 +34,7 @@ class FtsViewInterface(FtsRecorder, TrackingRecorder, ABC):
 
 class FtsProjection(Projection[FtsViewInterface]):
     def process_event(
-        self, envelope: AggregateEvent[PydanticDecision], tracking: Tracking
+        self, envelope: AggregateEvent[Decision], tracking: Tracking
     ) -> None:
         match envelope.decision:
             case Page.Created(title=title, slug=slug, body=body):

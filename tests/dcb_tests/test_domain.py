@@ -1,9 +1,8 @@
 from collections.abc import Sequence
 from unittest import TestCase
 
-from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses import Decision, EnduringObject
 from eventsourcing.domain import (
-    EnduringObject,
     Group,
     Selector,
     Slice,
@@ -15,7 +14,7 @@ from eventsourcing.errors import ProgrammingError
 
 class TestEnduringObject(TestCase):
     def test_raises_if_missing_init_method(self) -> None:
-        class Obj(EnduringObject[DataclassDecision]):
+        class Obj(EnduringObject):
             pass
 
         with self.assertRaises(ProgrammingError) as cm:
@@ -24,7 +23,7 @@ class TestEnduringObject(TestCase):
         self.assertIn("has no __init__ method", str(cm.exception))
 
     def test_raises_if_init_method_not_decorated(self) -> None:
-        class Obj(EnduringObject[DataclassDecision]):
+        class Obj(EnduringObject):
             def __init__(self) -> None:
                 pass
 
@@ -34,10 +33,10 @@ class TestEnduringObject(TestCase):
         self.assertIn("is not decorated with @event decorator", str(cm.exception))
 
     def test_can_create_enduring_object(self) -> None:
-        class ObjCreated(DataclassDecision):
+        class ObjCreated(Decision):
             obj_id: str
 
-        class Obj(EnduringObject[DataclassDecision]):
+        class Obj(EnduringObject):
             @triggers(ObjCreated)
             def __init__(self, obj_id: str):
                 self.id = obj_id
@@ -58,13 +57,14 @@ class TestEnduringObject(TestCase):
         self.assertEqual(copy.id, "blah")
 
     def test_enduring_object_with_decorated_command(self) -> None:
-        class ObjCreated(DataclassDecision):
+        class ObjCreated(Decision):
             obj_id: str
 
-        class ObjUpdated(DataclassDecision):
+        class ObjUpdated(Decision):
+            obj_id: str
             a: str
 
-        class Obj(EnduringObject[DataclassDecision]):
+        class Obj(EnduringObject):
             @triggers(ObjCreated)
             def __init__(self, obj_id: str):
                 self.id = obj_id
@@ -97,18 +97,18 @@ class TestEnduringObject(TestCase):
 
 class TestGroup(TestCase):
     def test(self) -> None:
-        class Updated(DataclassDecision):
+        class Updated(Decision):
             a: str
 
-        class BothUpdated(DataclassDecision):
+        class BothUpdated(Decision):
             a: str
 
-        class Obj1(EnduringObject[DataclassDecision]):
-            class Created(DataclassDecision):
+        class Obj1(EnduringObject):
+            class Created(Decision):
                 obj1_id: str
                 a: str
 
-            class Updated(DataclassDecision):
+            class Updated(Decision):
                 a: str
 
             @triggers(Created)
@@ -124,8 +124,8 @@ class TestGroup(TestCase):
             def _(self, a: str) -> None:
                 self.a = a
 
-        class Obj2(EnduringObject[DataclassDecision]):
-            class Created(DataclassDecision):
+        class Obj2(EnduringObject):
+            class Created(Decision):
                 obj2_id: str
                 a: str
 
@@ -142,7 +142,7 @@ class TestGroup(TestCase):
             def _(self, a: str) -> None:
                 self.a = a
 
-        class MyGroup(Group[DataclassDecision]):
+        class MyGroup(Group[Decision]):
             def __init__(self, obj1: Obj1, obj2: Obj2) -> None:
                 self.obj1 = obj1
                 self.obj2 = obj2
@@ -180,30 +180,30 @@ class TestGroup(TestCase):
 
 class TestSlice(TestCase):
     def test_slice(self) -> None:
-        class Created(DataclassDecision):
+        class Created(Decision):
             a: str
 
-        class Updated(DataclassDecision):
+        class Updated(Decision):
             a: str
 
-        class Create(Slice[DataclassDecision]):
+        class Create(Slice[Decision]):
             def __init__(self, obj_id: str, a: str) -> None:
                 self.obj_id = obj_id
                 self.a = a
 
             def consistency_boundary(
                 self,
-            ) -> Selector[DataclassDecision] | Sequence[Selector[DataclassDecision]]:
+            ) -> Selector[Decision] | Sequence[Selector[Decision]]:
                 return Selector(types=[Created], tags=[self.obj_id])
 
             def execute(self) -> None:
                 self.trigger_event(
                     Created,
-                    tags=[self.obj_id],
+                    [self.obj_id],
                     a=self.a,
                 )
 
-        class Update(Slice[DataclassDecision]):
+        class Update(Slice[Decision]):
             def __init__(self, obj_id: str, a: str):
                 self.obj_id = obj_id
                 self.a = ""
@@ -211,7 +211,7 @@ class TestSlice(TestCase):
 
             def consistency_boundary(
                 self,
-            ) -> Selector[DataclassDecision] | Sequence[Selector[DataclassDecision]]:
+            ) -> Selector[Decision] | Sequence[Selector[Decision]]:
                 return Selector(types=[Created, Updated], tags=[self.obj_id])
 
             @triggers(Created)
@@ -225,7 +225,7 @@ class TestSlice(TestCase):
             def execute(self) -> None:
                 self.trigger_event(
                     Updated,
-                    tags=[self.obj_id],
+                    [self.obj_id],
                     a=self.new_a,
                 )
 
@@ -257,17 +257,18 @@ class TestSlice(TestCase):
 class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
     def test(self) -> None:
         # Define an enduring object that can update "a".
-        class MyObject(EnduringObject[DataclassDecision]):
-            class Created(DataclassDecision):
-                myobject_id: str
+        class MyObject(EnduringObject):
+            class Created(Decision):
+                my_object_id: str
                 a: str
 
-            class Updated(DataclassDecision):
+            class Updated(Decision):
+                my_object_id: str
                 a: str
 
             @triggers(Created)
-            def __init__(self, myobject_id: str, a: str) -> None:
-                self.id = myobject_id
+            def __init__(self, my_object_id: str, a: str) -> None:
+                self.id = my_object_id
                 self.a = a
 
             @triggers(Updated)
@@ -275,17 +276,17 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
                 self.a = a
 
         # Define a slice that will just update "a".
-        class Update(Slice[DataclassDecision]):
-            def __init__(self, obj_id: str, a: str):
-                self.obj_id = obj_id
+        class Update(Slice[Decision]):
+            def __init__(self, my_object_id: str, a: str):
+                self.my_object_id = my_object_id
                 self.a = ""
                 self.new_a = a
 
             def consistency_boundary(
                 self,
-            ) -> Selector[DataclassDecision] | Sequence[Selector[DataclassDecision]]:
+            ) -> Selector[Decision] | Sequence[Selector[Decision]]:
                 return Selector(
-                    types=[MyObject.Created, MyObject.Updated], tags=[self.obj_id]
+                    types=[MyObject.Created, MyObject.Updated], tags=[self.my_object_id]
                 )
 
             @triggers(MyObject.Created)
@@ -299,12 +300,13 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
             def execute(self) -> None:
                 self.trigger_event(
                     MyObject.Updated,
-                    tags=[self.obj_id],
+                    [self.my_object_id],
+                    my_object_id=self.my_object_id,
                     a=self.new_a,
                 )
 
         # Construct an enduring object and update "a".
-        obj = MyObject(myobject_id="obj1", a="1")
+        obj = MyObject(my_object_id="obj1", a="1")
         self.assertIsInstance(obj, MyObject)
         self.assertEqual(obj.a, "1")
         obj.set_a(a="2")
@@ -329,21 +331,21 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         self.assertEqual("3", copy1.a)
 
         # Define a slice that creates an enduring object.
-        class Create(Slice[DataclassDecision]):
+        class Create(Slice[Decision]):
             def __init__(self, obj_id: str, a: str):
                 self.obj_id = obj_id
                 self.a = a
 
             def consistency_boundary(
                 self,
-            ) -> Selector[DataclassDecision] | Sequence[Selector[DataclassDecision]]:
+            ) -> Selector[Decision] | Sequence[Selector[Decision]]:
                 return Selector(types=[MyObject.Created], tags=[self.obj_id])
 
             def execute(self) -> None:
                 self.trigger_event(
                     MyObject.Created,
-                    tags=[self.obj_id],
-                    myobject_id=self.obj_id,
+                    [self.obj_id],
+                    my_object_id=self.obj_id,
                     a=self.a,
                 )
 

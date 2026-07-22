@@ -112,8 +112,11 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
         # Select stored events, expect list of one.
         self.assert_events_eq(recorder.select_events(originator_id1), [event1])
 
-        # Check get record conflict error if attempt to store it again.
-        if not self.recorder_supports_idempotent_appends:
+        if self.recorder_supports_idempotent_appends:
+            # Check get record conflict doesn't error when we attempt to store it again.
+            recorder.insert_events([event1])
+        else:
+            # Check get record conflict error when we attempt to store it again.
             with self.assertRaises(IntegrityError):
                 recorder.insert_events([event1])
 

@@ -4,9 +4,9 @@ from eventsourcing.domain import event
 from eventsourcing.msgspec import (
     Aggregate,
     AggregateSnapshot,
+    AggregateState,
     Decision,
     Immutable,
-    SnapshotState,
 )
 
 
@@ -14,7 +14,7 @@ class Trick(Immutable):
     name: str
 
 
-class DogSnapshotState(SnapshotState):
+class DogSnapshotState(AggregateState):
     name: str
     tricks: list[Trick]
 

@@ -13,6 +13,7 @@ from eventsourcing.utils import (
     resolve_topic,
     retry,
     strtobool,
+    to_snake_case,
 )
 
 
@@ -297,3 +298,17 @@ class TestResolveMultiGenericTargets(TestCase):
 
 
 _T = TypeVar("_T")
+
+
+class TestToSnakeCase(TestCase):
+    def test(self) -> None:
+        test_cases = [
+            ("TrickAdded", "trick_added"),
+            ("DogRegistered", "dog_registered"),
+            ("EnduringObject", "enduring_object"),
+            ("HTTPResponseCode", "http_response_code"),
+            ("XML2HTMLParser", "xml2_html_parser"),
+        ]
+
+        for camel, snake in test_cases:
+            self.assertEqual(to_snake_case(camel), snake)
