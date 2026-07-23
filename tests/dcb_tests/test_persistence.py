@@ -8,16 +8,16 @@ from eventsourcing.dcb.persistence import (
 from eventsourcing.dcb.popo import InMemoryDCBRecorder
 from eventsourcing.domain import EnduringObject, TaggedEvent
 from eventsourcing.errors import ProgrammingError
-from eventsourcing.msgspec.immutable import MsgspecDecision
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+from eventsourcing.msgspec.immutable import Decision
+from eventsourcing.msgspec.transcoder import Transcoder
 from eventsourcing.persistence import TaggedEventMapper
 
 
 class TestRepository(TestCase):
     def test_repository(self) -> None:
-        repo = DCBRepository[MsgspecDecision](
+        repo = DCBRepository[Decision](
             DCBEventStore(
-                mapper=TaggedEventMapper(transcoder=MsgspecTranscoder()),
+                mapper=TaggedEventMapper(transcoder=Transcoder()),
                 recorder=InMemoryDCBRecorder(),
             )
         )
@@ -27,17 +27,17 @@ class TestRepository(TestCase):
 
 class TestEventStore(TestCase):
     def test_event_store(self) -> None:
-        event_store = DCBEventStore[MsgspecDecision](
-            mapper=TaggedEventMapper(MsgspecTranscoder()),
+        event_store = DCBEventStore[Decision](
+            mapper=TaggedEventMapper(Transcoder()),
             recorder=InMemoryDCBRecorder(),
         )
         event_store.read()  # no args
         self.assertEqual(0, event_store.append([]))  # no events
 
-        class MyMsgspecDecision(MsgspecDecision):
+        class MyMsgspecDecision(Decision):
             a: int
 
-        event: TaggedEvent[MsgspecDecision] = TaggedEvent(
+        event: TaggedEvent[Decision] = TaggedEvent(
             tags=["tag1", "tag2"],
             decision=MyMsgspecDecision(a=1),
         )

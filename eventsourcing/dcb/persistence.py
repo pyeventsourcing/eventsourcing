@@ -103,7 +103,7 @@ class DCBEventStoreReadResponse(Iterator[TaggedEvent[TDecision]]):
     def __next__(self) -> TaggedEvent[TDecision]:
         dcb_sequenced_event = self._dcb_read_response.__next__()
         with null_metadata_in_context():
-            return self._mapper.to_domain_event(dcb_sequenced_event.event)
+            return self._mapper.to_tagged_event(dcb_sequenced_event.event)
 
 
 class NotFoundError(Exception):

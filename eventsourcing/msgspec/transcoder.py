@@ -2,15 +2,13 @@ from __future__ import annotations
 
 import msgspec
 
-from eventsourcing.msgspec.immutable import TMsgspecDecision
-from eventsourcing.persistence import Transcoder
+import eventsourcing.persistence
+from eventsourcing.msgspec.immutable import Decision
 
 
-class MsgspecTranscoder(Transcoder[TMsgspecDecision]):
-    def encode(self, decision: TMsgspecDecision) -> bytes:
+class Transcoder(eventsourcing.persistence.Transcoder[Decision]):
+    def encode(self, decision: Decision) -> bytes:
         return msgspec.msgpack.encode(decision)
 
-    def decode(
-        self, data: bytes, decision_class: type[TMsgspecDecision]
-    ) -> TMsgspecDecision:
+    def decode(self, data: bytes, decision_class: type[Decision]) -> Decision:
         return msgspec.msgpack.decode(data, type=decision_class)

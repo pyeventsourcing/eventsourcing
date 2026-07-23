@@ -3,13 +3,9 @@ from typing import Any
 from unittest.case import TestCase
 
 from eventsourcing.application import ProcessingEvent
-from eventsourcing.domain import AggregateEvent, EventEnvelope, TDecision
-from eventsourcing.persistence import (
-    IntegrityError,
-    Transcoder,
-)
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.transcoder import PydanticTranscoder
+from eventsourcing.domain import AggregateEvent, TDecision
+from eventsourcing.persistence import IntegrityError
+from eventsourcing.pydantic import Decision, Transcoder
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -26,7 +22,7 @@ class TestProcessApplication(TestCase):
     def test_pull_and_process(self) -> None:
         leader_cls = types.new_class(
             BankAccountsWithPydantic.__name__,
-            (BankAccountsWithPydantic, Leader[PydanticDecision]),
+            (BankAccountsWithPydantic, Leader[Decision]),
         )
 
         accounts = leader_cls()
@@ -84,20 +80,18 @@ class TestProcessApplication(TestCase):
         )
 
 
-class EmailProcess(ProcessApplication[PydanticDecision]):
-    def construct_transcoder(self) -> Transcoder[PydanticDecision]:
-        return PydanticTranscoder()
+class EmailProcess(ProcessApplication[Decision]):
+    def construct_transcoder(self) -> Transcoder:
+        return Transcoder()
 
     def policy(
         self,
-        envelope: EventEnvelope[PydanticDecision],
-        processing_event: ProcessingEvent[PydanticDecision],
+        envelope: AggregateEvent[Decision],
+        processing_event: ProcessingEvent[Decision],
     ) -> None:
-        match envelope:
-            case AggregateEvent(
-                decision=BankAccountWithPydantic.Opened(
-                    full_name=full_name, email_address=email_address
-                )
+        match envelope.decision:
+            case BankAccountWithPydantic.Opened(
+                full_name=full_name, email_address=email_address
             ):
                 notification = EmailNotification(
                     to=email_address.address,

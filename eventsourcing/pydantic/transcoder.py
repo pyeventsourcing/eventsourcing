@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from eventsourcing.persistence import Transcoder
-from eventsourcing.pydantic.immutable import TPydanticDecision
+import eventsourcing.persistence
+from eventsourcing.pydantic.immutable import Decision
 
 
-class PydanticTranscoder(Transcoder[TPydanticDecision]):
-    def encode(self, decision: TPydanticDecision) -> bytes:
+class Transcoder(eventsourcing.persistence.Transcoder[Decision]):
+    def encode(self, decision: Decision) -> bytes:
         return decision.model_dump_json().encode()
 
-    def decode(
-        self, data: bytes, decision_class: type[TPydanticDecision]
-    ) -> TPydanticDecision:
+    def decode(self, data: bytes, decision_class: type[Decision]) -> Decision:
         return decision_class.model_validate_json(data.decode())

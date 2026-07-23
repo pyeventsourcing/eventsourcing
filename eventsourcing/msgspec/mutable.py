@@ -2,44 +2,43 @@ from __future__ import annotations
 
 import typing
 from abc import ABC
-from typing import Any, Generic, Self, TypeVar
+from typing import Any, Self, TypeVar
 
-from eventsourcing.domain import Aggregate, EnduringObject, Group, Slice
+import eventsourcing.domain
 from eventsourcing.msgspec.immutable import (
-    MsgspecDecision,
-    MsgspecImmutable,
-    TMsgspecDecision,
+    Decision,
+    Immutable,
 )
 
 
-class MsgspecAggregate(Aggregate[TMsgspecDecision]):
+class Aggregate(eventsourcing.domain.Aggregate[Decision]):
     pass
 
 
-class MsgspecSlice(Slice[TMsgspecDecision], ABC):
+class Slice(eventsourcing.domain.Slice[Decision], ABC):
     pass
 
 
-class MsgspecEnduringObject(EnduringObject[TMsgspecDecision]):
+class EnduringObject(eventsourcing.domain.EnduringObject[Decision]):
     pass
 
 
-class MsgspecGroup(Group[TMsgspecDecision]):
+class Group(eventsourcing.domain.Group[Decision]):
     pass
 
 
-class MsgspecAggregateState(MsgspecImmutable):
+class AggregateState(Immutable):
     pass
 
 
 _T = TypeVar("_T")
 
 
-class MsgspecAggregateSnapshot(MsgspecDecision, Generic[TMsgspecDecision]):
+class AggregateSnapshot(Decision):
     state: Any
 
     @classmethod
-    def take(cls, aggregate: MsgspecAggregate[TMsgspecDecision]) -> Self:
+    def take(cls, aggregate: Aggregate) -> Self:
         type_of_snapshot_state = typing.get_type_hints(cls)["state"]
         aggregate_state = dict(aggregate.__dict__)
         aggregate_state.pop("new_decisions")

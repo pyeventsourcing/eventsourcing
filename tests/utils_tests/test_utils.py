@@ -1,7 +1,5 @@
-from typing import Generic, cast
+from typing import Generic, TypeVar, cast
 from unittest import TestCase
-
-from typing_extensions import TypeVar
 
 import eventsourcing
 from eventsourcing.utils import (

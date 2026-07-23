@@ -6,8 +6,8 @@ from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,
 )
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.transcoder import PydanticTranscoder
+from eventsourcing.pydantic.immutable import Decision
+from eventsourcing.pydantic.transcoder import Transcoder
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
 from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 
@@ -32,8 +32,8 @@ class TestEventStore(TestCase):
         recorder = SQLiteAggregateRecorder(
             SQLiteDatastore(":memory:", originator_id_type="text")
         )
-        event_store = EventStore[PydanticDecision](
-            mapper=AggregateEventMapper(PydanticTranscoder()),
+        event_store = EventStore[Decision](
+            mapper=AggregateEventMapper(Transcoder()),
             recorder=recorder,
         )
         recorder.create_table()
@@ -54,7 +54,7 @@ class TestEventStore(TestCase):
         )
         for event in events:
             assert isinstance(event, AggregateEvent)
-            assert isinstance(event.decision, PydanticDecision)
+            assert isinstance(event.decision, Decision)
             copy = event.mutate(copy)
 
         # Check copy has correct attribute values.

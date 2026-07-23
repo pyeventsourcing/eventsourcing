@@ -6,18 +6,9 @@ from uuid import uuid4
 
 import pytest
 
-import eventsourcing.dataclasses.immutable
-import eventsourcing.domain_old
-import eventsourcing.msgspec.immutable
-import eventsourcing.pydantic.immutable
-from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing import dataclasses, msgspec, pydantic
 from eventsourcing.domain import AggregateEvent
-from eventsourcing.msgspec.immutable import MsgspecDecision
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
 from eventsourcing.persistence import AggregateEventMapper
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.transcoder import PydanticTranscoder
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
@@ -25,7 +16,7 @@ if TYPE_CHECKING:
 
 @pytest.mark.benchmark(group="mapper-encode")
 def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
-    class MyObj(eventsourcing.dataclasses.immutable.DataclassDecision):
+    class MyObj(dataclasses.Decision):
         a: int
         b: str
         c: float
@@ -42,8 +33,8 @@ def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    transcoder = DataclassTranscoder()
-    mapper = AggregateEventMapper[DataclassDecision](transcoder=transcoder)
+    transcoder = dataclasses.Transcoder()
+    mapper = AggregateEventMapper[dataclasses.Decision](transcoder=transcoder)
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -53,7 +44,7 @@ def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-decode")
 def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
-    class MyObj(eventsourcing.dataclasses.immutable.DataclassDecision):
+    class MyObj(dataclasses.Decision):
         a: int
         b: str
         c: float
@@ -70,8 +61,8 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    transcoder = DataclassTranscoder()
-    mapper = AggregateEventMapper[DataclassDecision](transcoder=transcoder)
+    transcoder = dataclasses.Transcoder()
+    mapper = AggregateEventMapper[dataclasses.Decision](transcoder=transcoder)
 
     stored_event = mapper.to_stored_event(obj)
 
@@ -83,7 +74,7 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-encode")
 def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
-    class MyObj(eventsourcing.pydantic.immutable.PydanticDecision):
+    class MyObj(pydantic.Decision):
         a: int
         b: str
         c: float
@@ -100,7 +91,7 @@ def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper[PydanticDecision](transcoder=PydanticTranscoder())
+    mapper = AggregateEventMapper[pydantic.Decision](transcoder=pydantic.Transcoder())
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -110,7 +101,7 @@ def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-decode")
 def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
-    class MyObj(eventsourcing.pydantic.immutable.PydanticDecision):
+    class MyObj(pydantic.Decision):
         a: int
         b: str
         c: float
@@ -127,7 +118,7 @@ def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper[PydanticDecision](transcoder=PydanticTranscoder())
+    mapper = AggregateEventMapper[pydantic.Decision](transcoder=pydantic.Transcoder())
 
     stored_event = mapper.to_stored_event(obj)
 
@@ -139,7 +130,7 @@ def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-encode")
 def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
-    class MyObj(eventsourcing.msgspec.immutable.MsgspecDecision):
+    class MyObj(msgspec.Decision):
         a: int
         b: str
         c: float
@@ -156,7 +147,7 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper[MsgspecDecision](transcoder=MsgspecTranscoder())
+    mapper = AggregateEventMapper[msgspec.Decision](transcoder=msgspec.Transcoder())
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -166,7 +157,7 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="mapper-decode")
 def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
-    class MyObj(eventsourcing.msgspec.immutable.MsgspecDecision):
+    class MyObj(msgspec.Decision):
         a: int
         b: str
         c: float
@@ -183,7 +174,7 @@ def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper[MsgspecDecision](transcoder=MsgspecTranscoder())
+    mapper = AggregateEventMapper[msgspec.Decision](transcoder=msgspec.Transcoder())
 
     stored_event = mapper.to_stored_event(obj)
 

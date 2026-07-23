@@ -1,7 +1,7 @@
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses import Decision
 from eventsourcing.domain import (
     AggregateEvent,
     null_metadata_in_context,
@@ -20,7 +20,7 @@ class TestEventMetadata(TestCase):
             event = AggregateEvent(
                 originator_id=str(uuid4()),
                 originator_version=1,
-                decision=DataclassDecision(),
+                decision=Decision(),
             )
         self.assertEqual(event.metadata["user_id"], "user-1")
         self.assertEqual(event.metadata["correlation_id"], "cor-1")
@@ -35,7 +35,7 @@ class TestEventMetadata(TestCase):
                 originator_id=str(uuid4()),
                 originator_version=1,
                 metadata={"user_id": "user-2"},
-                decision=DataclassDecision(),
+                decision=Decision(),
             )
         self.assertEqual(event.metadata, {"user_id": "user-2"})
 
@@ -47,7 +47,7 @@ class TestEventMetadata(TestCase):
             event = AggregateEvent(
                 originator_id=str(uuid4()),
                 originator_version=1,
-                decision=DataclassDecision(),
+                decision=Decision(),
             )
         self.assertEqual(event.metadata, {})
 

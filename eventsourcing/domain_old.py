@@ -26,7 +26,7 @@
 # from uuid import NAMESPACE_DNS, UUID, uuid4, uuid5
 # from warnings import warn
 #
-# from typing_extensions import TypeVar
+# from typing import TypeVar
 #
 # # from eventsourcing.domain import NIL_UUID, datetime_now_with_tzinfo, \
 # #     AbstractDecision, get_metadata_from_context, EventSourcingError, ProgrammingErro

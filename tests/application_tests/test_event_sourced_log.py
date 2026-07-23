@@ -5,8 +5,7 @@ from unittest import TestCase
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from eventsourcing.application import EventSourcedLog
-from eventsourcing.dataclasses.application import DataclassAggregatesApplication
-from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses import AggregatesApplication, Decision
 from eventsourcing.dataclasses.legacy import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -17,17 +16,17 @@ from eventsourcing.domain import Aggregate, AggregateEvent, triggers
 from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,
-    Transcoder,
 )
 from eventsourcing.popo import POPOAggregateRecorder
 
 if TYPE_CHECKING:
+    import eventsourcing.persistence
     from eventsourcing.utils import EnvType
 
 
 class TestEventSourcedLog(TestCase):
     def test_logging_aggregate_ids(self) -> None:
-        class LoggedID(DataclassDecision):
+        class LoggedID(Decision):
             aggregate_id: str
 
         transcoder = LegacyJSONTranscoder()
@@ -36,7 +35,7 @@ class TestEventSourcedLog(TestCase):
         transcoder.register(DatetimeAsISO())
 
         event_recorder = POPOAggregateRecorder()
-        event_store = EventStore[DataclassDecision](
+        event_store = EventStore[Decision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
@@ -90,18 +89,18 @@ class TestEventSourcedLog(TestCase):
         self.assertEqual(ids, [id3, id2, id1])
 
     def test_with_application(self) -> None:
-        class LoggedID(DataclassDecision):
+        class LoggedID(Decision):
             aggregate_id: str
 
-        class MyAggregate(Aggregate[DataclassDecision]):
-            class Created(DataclassDecision):
+        class MyAggregate(Aggregate[Decision]):
+            class Created(Decision):
                 pass
 
             @triggers(Created)
             def __init__(self) -> None:
                 pass
 
-        class MyApplication(DataclassAggregatesApplication):
+        class MyApplication(AggregatesApplication):
             def __init__(self, env: EnvType | None = None) -> None:
                 super().__init__(env=env)
                 self.aggregate_log = EventSourcedLog(
@@ -116,7 +115,9 @@ class TestEventSourcedLog(TestCase):
                 self.save(aggregate, logged_id)
                 return aggregate.id
 
-            def construct_transcoder(self) -> Transcoder[DataclassDecision]:
+            def construct_transcoder(
+                self,
+            ) -> eventsourcing.persistence.Transcoder[Decision]:
                 transcoder = LegacyJSONTranscoder()
                 transcoder.register(UUIDAsHex())
                 transcoder.register(DecimalAsStr())
@@ -147,12 +148,12 @@ class TestEventSourcedLog(TestCase):
         transcoder.register(DatetimeAsISO())
 
         event_recorder = POPOAggregateRecorder()
-        event_store = EventStore[DataclassDecision](
+        event_store = EventStore[Decision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
 
-        class TransactionLogEvent(DataclassDecision):
+        class TransactionLogEvent(Decision):
             pass
 
         class AccountCredited(TransactionLogEvent):
@@ -163,10 +164,10 @@ class TestEventSourcedLog(TestCase):
 
         # Subclass EventSourcedLog.
         class TransactionLog(EventSourcedLog[TransactionLogEvent]):
-            def account_credited(self) -> AggregateEvent[DataclassDecision]:
+            def account_credited(self) -> AggregateEvent[Decision]:
                 return self._trigger_event(logged_cls=AccountCredited)
 
-            def account_debited(self) -> AggregateEvent[DataclassDecision]:
+            def account_debited(self) -> AggregateEvent[Decision]:
                 return self._trigger_event(logged_cls=AccountDebited)
 
         transaction_log = TransactionLog(

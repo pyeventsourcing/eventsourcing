@@ -7,7 +7,7 @@ from unittest import TestCase
 from unittest.mock import Mock
 from uuid import uuid4
 
-from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.dataclasses import Transcoder
 from eventsourcing.errors import (
     DatabaseError,
     DataError,
@@ -489,7 +489,7 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase[SQLiteFactor
         self.env[InfrastructureFactory.PERSISTENCE_MODULE] = SQLiteFactory.__module__
         self.env[SQLiteFactory.SQLITE_DBNAME] = ":memory:"
         self.env[SQLiteFactory.MAPPER_TOPIC] = get_topic(AggregateEventMapper)
-        self.env[SQLiteFactory.TRANSCODER_TOPIC] = get_topic(DataclassTranscoder)
+        self.env[SQLiteFactory.TRANSCODER_TOPIC] = get_topic(Transcoder)
         super().setUp()
 
     def tearDown(self) -> None:

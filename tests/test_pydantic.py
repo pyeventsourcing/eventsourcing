@@ -3,15 +3,14 @@ from threading import Thread
 from unittest import TestCase
 
 import eventsourcing.domain
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.transcoder import PydanticTranscoder
+from eventsourcing.pydantic import Decision, Transcoder
 from eventsourcing.tests.persistence import (
     AggregateEventMapperTestCase,
     TaggedEventMapperTestCase,
 )
 
 
-class MyPydanticDecision(PydanticDecision):
+class MyPydanticDecision(Decision):
     a: str
 
 
@@ -33,7 +32,7 @@ class TestDecision(TestCase):
 
 
 class TestPydanticTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase):
-    transcoder_class = PydanticTranscoder
+    transcoder_class = Transcoder
 
     def test_tagged_event_mapper(self) -> None:
         super()._test_tagged_event_mapper()
@@ -43,7 +42,7 @@ class TestPydanticTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase):
 
 
 class TestPydanticTranscoderWithAggregateEventMapper(AggregateEventMapperTestCase):
-    transcoder_class = PydanticTranscoder
+    transcoder_class = Transcoder
 
     def test_aggregate_event_mapper(self) -> None:
         super()._test_aggregate_event_mapper()

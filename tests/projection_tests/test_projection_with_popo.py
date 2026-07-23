@@ -4,7 +4,7 @@ import sys
 from typing import TYPE_CHECKING, ClassVar
 from unittest import skipIf
 
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+from eventsourcing.msgspec.transcoder import Transcoder
 from eventsourcing.persistence import AggregateEventMapper, TaggedEventMapper
 from eventsourcing.popo import POPOTrackingRecorder
 from eventsourcing.tests.projection import (
@@ -54,7 +54,7 @@ class TestAggregateEventCountersProjectionWithPOPO(
 ):
     env: ClassVar[dict[str, str]] = {
         "MAPPER_TOPIC": get_topic(AggregateEventMapper),
-        "TRANSCODER_TOPIC": get_topic(MsgspecTranscoder),
+        "TRANSCODER_TOPIC": get_topic(Transcoder),
     }
     view_class: type[EventCountersView] = POPOEventCounters
 
@@ -68,7 +68,7 @@ class TestTaggedEventCountersProjectionWithPOPO(DecisionCountersProjectionTestCa
 
     env: ClassVar[dict[str, str]] = {
         "MAPPER_TOPIC": get_topic(TaggedEventMapper),
-        "TRANSCODER_TOPIC": get_topic(MsgspecTranscoder),
+        "TRANSCODER_TOPIC": get_topic(Transcoder),
     }
     view_class: type[EventCountersView] = POPOEventCounters
 

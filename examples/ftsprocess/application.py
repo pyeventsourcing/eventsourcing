@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, cast
 
-from eventsourcing.domain import AggregateEvent, EventEnvelope
 from eventsourcing.persistence import Recorder
 from eventsourcing.pydantic import AggregatesApplication, Decision
 from eventsourcing.system import ProcessApplication
@@ -12,6 +11,7 @@ from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
     from eventsourcing.application import ProcessingEvent
+    from eventsourcing.domain import AggregateEvent
 
 
 class FtsProcess(AggregatesApplication, ProcessApplication[Decision]):
@@ -21,36 +21,29 @@ class FtsProcess(AggregatesApplication, ProcessApplication[Decision]):
 
     def policy(
         self,
-        envelope: EventEnvelope[Decision],
+        envelope: AggregateEvent[Decision],
         processing_event: ProcessingEvent[Decision],
     ) -> None:
-        match envelope:
-            case AggregateEvent(
-                decision=Page.Created(title=title, slug=slug, body=body),
-                originator_id=page_id,
-            ):
+        match envelope.decision:
+            case Page.Created(title=title, slug=slug, body=body):
                 processing_event.collect_events(
                     insert_pages=[
                         PageInfo(
-                            id=page_id,
+                            id=envelope.originator_id,
                             title=title,
                             slug=slug,
                             body=body,
                         )
                     ]
                 )
-            case AggregateEvent(
-                decision=Page.BodyUpdated(diff=diff),
-                originator_id=page_id,
-            ):
-
+            case Page.BodyUpdated(diff=diff):
                 recorder = cast(FtsRecorder, cast(Recorder, self.recorder))
-                page = recorder.select_page(page_id)
+                page = recorder.select_page(envelope.originator_id)
                 page_body = apply_diff(page.body, diff)
                 processing_event.collect_events(
                     update_pages=[
                         PageInfo(
-                            id=page_id,
+                            id=envelope.originator_id,
                             slug=page.slug,
                             title=page.title,
                             body=page_body,

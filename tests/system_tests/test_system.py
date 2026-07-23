@@ -4,15 +4,11 @@ from typing import TYPE_CHECKING, Any
 from unittest.case import TestCase
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
+from eventsourcing import dataclasses, pydantic
 from eventsourcing.application import AggregatesApplication, ProcessingEvent
-from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.dataclasses.mutable import DataclassAggregate
-from eventsourcing.dataclasses.transcoder import DataclassTranscoder
-from eventsourcing.domain import AggregateEvent, EventEnvelope, triggers
+from eventsourcing.domain import AggregateEvent, triggers
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError, Notification, Tracking
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.mutable import PydanticAggregate
 from eventsourcing.system import (
     Follower,
     Leader,
@@ -184,12 +180,12 @@ class TestSystem(TestCase):
 class TestLeader(TestCase):
     def test(self) -> None:
         # Define fixture that receives prompts.
-        class FollowerFixture(RecordingEventReceiver[DataclassDecision]):
+        class FollowerFixture(RecordingEventReceiver[dataclasses.Decision]):
             def __init__(self) -> None:
                 self.num_received = 0
 
             def receive_recording_event(
-                self, new_recording_event: RecordingEvent[DataclassDecision]
+                self, new_recording_event: RecordingEvent[dataclasses.Decision]
             ) -> None:
                 self.num_received += 1
 
@@ -198,18 +194,18 @@ class TestLeader(TestCase):
         follower.receive_recording_event(RecordingEvent("Leader", [], 1))
         self.assertEqual(follower.num_received, 1)
 
-        class MyAggregate(DataclassAggregate):
-            class Created(DataclassDecision):
+        class MyAggregate(dataclasses.Aggregate):
+            class Created(dataclasses.Decision):
                 pass
 
             @triggers(Created)
             def __init__(self) -> None:
                 pass
 
-        env = {"TRANSCODER_TOPIC": get_topic(DataclassTranscoder)}
+        env = {"TRANSCODER_TOPIC": get_topic(dataclasses.Transcoder)}
 
         # Construct leader.
-        class DataclassLeader(Leader[DataclassDecision]):
+        class DataclassLeader(Leader[dataclasses.Decision]):
             pass
 
         leader = DataclassLeader(env=env)
@@ -231,8 +227,8 @@ class TestLeader(TestCase):
 
 class TestFollower(TestCase):
     def test_process_event(self) -> None:
-        class UUID5EmailNotification(PydanticAggregate):
-            class Created(PydanticDecision):
+        class UUID5EmailNotification(pydantic.Aggregate):
+            class Created(pydantic.Decision):
                 to: str
                 subject: str
                 message: str
@@ -250,14 +246,12 @@ class TestFollower(TestCase):
         class UUID5EmailProcess(EmailProcess):
             def policy(
                 self,
-                envelope: EventEnvelope[PydanticDecision],
-                processing_event: ProcessingEvent[PydanticDecision],
+                envelope: AggregateEvent[pydantic.Decision],
+                processing_event: ProcessingEvent[pydantic.Decision],
             ) -> None:
-                match envelope:
-                    case AggregateEvent(
-                        decision=BankAccountWithPydantic.Opened(
-                            full_name=full_name, email_address=email_address
-                        )
+                match envelope.decision:
+                    case BankAccountWithPydantic.Opened(
+                        full_name=full_name, email_address=email_address
                     ):
                         processing_event.collect_events(
                             UUID5EmailNotification(
@@ -311,7 +305,7 @@ class TestFollower(TestCase):
             email_process.process_event(aggregate_event, tracking)
 
     def test_filter_received_notifications(self) -> None:
-        class MyFollower(Follower[DataclassDecision]):
+        class MyFollower(Follower[dataclasses.Decision]):
             topics: Sequence[str] = ()
 
             def policy(self, *args: Any, **kwargs: Any) -> None:
@@ -324,7 +318,7 @@ class TestFollower(TestCase):
         #     @triggers(Created)
         #     def __init__(self):
         #         pass
-        env = {"TRANSCODER_TOPIC": get_topic(DataclassTranscoder)}
+        env = {"TRANSCODER_TOPIC": get_topic(dataclasses.Transcoder)}
 
         follower = MyFollower(env)
         notifications = [

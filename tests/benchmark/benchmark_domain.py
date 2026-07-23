@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 from eventsourcing.domain import event
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic.immutable import Decision
+from eventsourcing.pydantic.mutable import Aggregate
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 @pytest.mark.benchmark(group="define-aggregate-subclass")
 def test_define_aggregate(benchmark: BenchmarkFixture) -> None:
     def define_aggregate() -> None:
-        class A(PydanticAggregate):
+        class A(Aggregate):
             @event("Created")
             def __init__(self, a: int, b: int):
                 self.a = a
@@ -31,7 +31,7 @@ def test_define_aggregate(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="construct-aggregate-subclass")
 def test_construct_aggregate_subclass(benchmark: BenchmarkFixture) -> None:
-    class A(PydanticAggregate):
+    class A(Aggregate):
         @event("Created")
         def __init__(self, a: int, b: int):
             self.a = a
@@ -50,13 +50,13 @@ def test_construct_aggregate_subclass(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="trigger-aggregate-event")
 def test_trigger_aggregate_event(benchmark: BenchmarkFixture) -> None:
-    class A(PydanticAggregate):
+    class A(Aggregate):
         @event("Created")
         def __init__(self, a: int, b: int):
             self.a = a
             self.b = b
 
-        class Commanded(PydanticDecision):
+        class Commanded(Decision):
             a: int
             b: int
 
@@ -75,13 +75,13 @@ def test_trigger_aggregate_event(benchmark: BenchmarkFixture) -> None:
 
 @pytest.mark.benchmark(group="call-decorated-command-method")
 def test_call_decorated_command_method(benchmark: BenchmarkFixture) -> None:
-    class A(PydanticAggregate):
+    class A(Aggregate):
         @event("Created")
         def __init__(self, a: int, b: int):
             self.a = a
             self.b = b
 
-        class Commanded(PydanticDecision):
+        class Commanded(Decision):
             a: int
             b: int
 

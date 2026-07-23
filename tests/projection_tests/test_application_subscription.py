@@ -1,9 +1,9 @@
 from unittest import TestCase
 
+from eventsourcing.application import AggregatesApplicationSubscription
 from eventsourcing.dataclasses import Aggregate, AggregatesApplication, Decision
 from eventsourcing.domain import triggers
 from eventsourcing.persistence import Tracking
-from eventsourcing.projection import ApplicationSubscription
 from eventsourcing.utils import get_topic
 
 
@@ -35,7 +35,9 @@ class TestApplicationSubscription(TestCase):
         aggregate.do()
         app.save(aggregate)
 
-        subscription = ApplicationSubscription(app=app, gt=max_notification_id)
+        subscription = AggregatesApplicationSubscription(
+            app=app, gt=max_notification_id
+        )
 
         # Catch up.
         event, tracking = next(subscription)
@@ -78,7 +80,7 @@ class TestApplicationSubscription(TestCase):
         aggregate.trigger_event(FilteredEvent)
         app.save(aggregate)
 
-        subscription = ApplicationSubscription(
+        subscription = AggregatesApplicationSubscription(
             app=app,
             gt=max_notification_id,
             topics=[get_topic(FilteredEvent)],

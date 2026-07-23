@@ -2,7 +2,7 @@
 # from unittest import TestCase
 # from uuid import UUID
 #
-# from typing_extensions import TypeVar
+# from typing import TypeVar
 #
 # from eventsourcing.application import Application
 #

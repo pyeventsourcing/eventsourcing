@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
-from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses import Decision
 from eventsourcing.dataclasses.legacy import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -49,7 +49,7 @@ class TestDataclassMapper(TestCase):
         )
 
         # Construct mapper with transcoder.
-        mapper = AggregateEventMapper[DataclassDecision](transcoder=transcoder)
+        mapper = AggregateEventMapper[Decision](transcoder=transcoder)
 
         # Map to stored event.
         stored_event = mapper.to_stored_event(domain_event)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from concurrent.futures.thread import ThreadPoolExecutor
 from uuid import uuid4
 
-from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.dataclasses import Transcoder
 from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.persistence import (
     AggregateEventMapper,
@@ -165,7 +165,7 @@ class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase[POPOFactory]):
     def setUp(self) -> None:
         self.env = Environment("TestCase")
         self.env[POPOFactory.MAPPER_TOPIC] = get_topic(AggregateEventMapper)
-        self.env[POPOFactory.TRANSCODER_TOPIC] = get_topic(DataclassTranscoder)
+        self.env[POPOFactory.TRANSCODER_TOPIC] = get_topic(Transcoder)
 
         super().setUp()
 

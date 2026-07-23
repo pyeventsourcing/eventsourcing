@@ -4,7 +4,7 @@
 # from unittest import TestCase
 # from uuid import UUID, uuid4
 #
-# from typing_extensions import TypeVar, get_original_bases
+# from typing import TypeVar, get_original_bases
 #
 # from eventsourcing.domain import datetime_now_with_tzinfo, event
 # from eventsourcing.pydantic.mutable import (

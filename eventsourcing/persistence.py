@@ -10,9 +10,7 @@ from dataclasses import dataclass, field
 from threading import Condition, Event, Lock, Semaphore, Thread, Timer
 from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
-from typing import TYPE_CHECKING, Any, Generic, Self
-
-from typing_extensions import TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 
 from eventsourcing.dcb.api import DCBEvent
 from eventsourcing.domain import (
@@ -182,7 +180,7 @@ else:  # pragma: no cover
     ShutDown = queue.ShutDown  # pyright: ignore[reportAttributeAccessIssue]
 
 
-class Transcoder(ABC, WorksWithDecisions[TDecision]):
+class Transcoder(WorksWithDecisions[TDecision], ABC):
     """Abstract base class for transcoders."""
 
     @abstractmethod
@@ -612,8 +610,9 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
-    ) -> None:
+    ) -> bool | None:
         self._is_entered = False
+        return None
 
     def close(self) -> None:
         """Closes any database connections, and anything else that needs closing."""
@@ -1420,7 +1419,7 @@ class TaggedEventMapper(Generic[TDecision]):
             metadata=event.metadata,
         )
 
-    def to_domain_event(self, event: DCBEvent) -> TaggedEvent[TDecision]:
+    def to_tagged_event(self, event: DCBEvent) -> TaggedEvent[TDecision]:
         data = event.data
         if self.cipher:
             data = self.cipher.decrypt(data)

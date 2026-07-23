@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-import os
+import contextlib
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Generic
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
-from typing_extensions import TypeVar
-
+from eventsourcing.application import (
+    AbstractApplication,
+    AbstractApplicationSubscription,
+)
+from eventsourcing.dcb.api import DCBQuery, DCBQueryItem
 from eventsourcing.dcb.persistence import (
     DCBEventStore,
     DCBInfrastructureFactory,
@@ -15,35 +18,101 @@ from eventsourcing.domain import (
     EnduringObject,
     Perspective,
     Selector,
+    TaggedEvent,
     TDecision,
     TGroup,
     TPerspective,
     TSlice,
+    null_metadata_in_context,
 )
-from eventsourcing.persistence import TaggedEventMapper, TrackingRecorder, Transcoder
-from eventsourcing.utils import Environment, EnvType
+from eventsourcing.persistence import (
+    TaggedEventMapper,
+    Tracking,
+    TrackingRecorder,
+    Transcoder,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Sequence
     from types import TracebackType
     from typing import Self
 
+    from eventsourcing.utils import EnvType
 
-class DCBApplication(Generic[TDecision]):
-    name = "DCBApplication"
-    env: Mapping[str, str] = {"PERSISTENCE_MODULE": "eventsourcing.dcb.popo"}
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        if "name" not in cls.__dict__:
-            cls.name = cls.__name__
+class DCBApplicationSubscription(
+    AbstractApplicationSubscription[TaggedEvent[TDecision]]
+):
+    """An iterator that yields all events recorded in an application
+    sequence that have sequence numbers greater than a given value. The iterator
+    will block when all events have been yielded, and then
+    continue when new ones are recorded. Events are returned along
+    with tracking objects that identify the position in the application sequence.
+    """
 
-    def __init__(self, env: EnvType | None = None):
-        env_ = self.construct_env(self.name, env)
-        self.env = env_
-        self.factory: DCBInfrastructureFactory[TrackingRecorder] = (
-            DCBInfrastructureFactory.construct(env_)
+    def __init__(
+        self,
+        app: DCBApplication[TDecision],
+        gt: int | None = None,
+        topics: Sequence[str] = (),
+    ):
+        """
+        Starts a subscription to application's recorder.
+        """
+        self.name = app.name
+        self.recorder = app.recorder
+        self.mapper = app.mapper
+        self.subscription = self.recorder.subscribe(
+            query=DCBQuery(items=[DCBQueryItem(types=list(topics))]),
+            after=gt,
         )
 
+    def stop(self) -> None:
+        """Stops the subscription to the application's recorder."""
+        self.subscription.stop()
+
+    def __enter__(self) -> Self:
+        """Calls __enter__ on the stored event subscription."""
+        self.subscription.__enter__()
+        return self
+
+    def __exit__(self, *args: object, **kwargs: Any) -> None:
+        """Calls __exit__ on the stored event subscription."""
+        self.subscription.__exit__(*args, **kwargs)
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> tuple[TaggedEvent[TDecision], Tracking]:
+        """Returns the next stored event from subscription to the application's
+        recorder. Constructs a tracking object that identifies the position of
+        the event in the application sequence. Constructs a domain event object
+        from the stored event object using the application's mapper. Returns a
+        tuple of the domain event object and the tracking object.
+        """
+        sequenced = next(self.subscription)
+        tracking = Tracking(self.name, sequenced.position)
+        with null_metadata_in_context():
+            event = self.mapper.to_tagged_event(sequenced.event)
+        return event, tracking
+
+    def __del__(self) -> None:
+        """Stops the stored event subscription."""
+        # Seems this doesn't get called with Python 3.13, hence 'no cover':
+        with contextlib.suppress(AttributeError):  # pragma: no cover
+            self.stop()
+
+
+class DCBApplication(
+    AbstractApplication[TDecision, DCBApplicationSubscription[TDecision]],
+):
+    env: ClassVar[dict[str, str]] = {"PERSISTENCE_MODULE": "eventsourcing.dcb.popo"}
+
+    def __init__(self, env: EnvType | None = None):
+        super().__init__(env=env)
+        self.factory: DCBInfrastructureFactory[TrackingRecorder] = (
+            DCBInfrastructureFactory.construct(self.env)
+        )
         self.recorder = self.factory.dcb_recorder()
         transcoder = self.construct_transcoder()
         if transcoder is not None:
@@ -60,14 +129,6 @@ class DCBApplication(Generic[TDecision]):
     def construct_transcoder(self) -> Transcoder[TDecision] | None:
         return self.factory.transcoder() if "TRANSCODER_TOPIC" in self.env else None
 
-    def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
-        """Constructs environment from which application will be configured."""
-        _env = dict(type(self).env)
-        _env.update(os.environ)
-        if env is not None:
-            _env.update(env)
-        return Environment(name, _env)
-
     def do(self, s: TSlice) -> TSlice:
         """
         Advances and executes a slice, then saves new decisions.
@@ -78,6 +139,17 @@ class DCBApplication(Generic[TDecision]):
         if s.new_decisions:
             self.repository.save(s)
         return s
+
+    def application_subscription(
+        self,
+        gt: int | None = None,
+        topics: Sequence[str] = (),
+    ) -> DCBApplicationSubscription[TDecision]:
+        return DCBApplicationSubscription(
+            app=self,
+            gt=gt,
+            topics=topics,
+        )
 
     def close(self) -> None:
         self.factory.close()

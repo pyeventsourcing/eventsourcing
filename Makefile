@@ -51,9 +51,6 @@ fmt-ruff-unsafe:
 fmt-black:
 	$(POETRY) run black eventsourcing tests examples
 
-.PHONY: lint
-lint: lint-black lint-ruff lint-mypy #lint-pyright #lint-dockerfile
-
 .PHONY: lint-black
 lint-black:
 	$(POETRY) run black --check --diff eventsourcing tests examples
@@ -69,6 +66,9 @@ lint-pyright:
 .PHONY: lint-mypy
 lint-mypy:
 	$(POETRY) run mypy eventsourcing tests examples
+
+.PHONY: lint
+lint: lint-black lint-ruff lint-mypy
 
 
 # .PHONY: lint-dockerfile

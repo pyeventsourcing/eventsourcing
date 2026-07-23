@@ -5,10 +5,9 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from uuid import uuid4
 
 from eventsourcing.domain import (
-    EventEnvelope,
     MutatorFunction,
     ProjectorFunction,
-    TDecision,
+    TEnvelope,
     datetime_now_with_tzinfo,
     get_metadata_from_context,
 )
@@ -53,10 +52,10 @@ TAggregate = TypeVar("TAggregate", bound=Aggregate)
 
 
 def aggregate_projector(
-    mutator: MutatorFunction[TDecision, TAggregate],
-) -> ProjectorFunction[TAggregate, TDecision]:
+    mutator: MutatorFunction[TEnvelope, TAggregate],
+) -> ProjectorFunction[TAggregate, TEnvelope]:
     def project_aggregate(
-        aggregate: TAggregate | None, events: Iterable[EventEnvelope[TDecision]]
+        aggregate: TAggregate | None, events: Iterable[TEnvelope]
     ) -> TAggregate | None:
         for event in events:
             aggregate = mutator(event, aggregate)

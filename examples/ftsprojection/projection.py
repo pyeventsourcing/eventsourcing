@@ -3,9 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.persistence import Tracking, TrackingRecorder
 from eventsourcing.postgres import PostgresTrackingRecorder
 from eventsourcing.projection import Projection
+from eventsourcing.pydantic import Decision
 from examples.contentmanagement.domainmodel import Page
 from examples.contentmanagement.utils import apply_diff
 from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
@@ -13,9 +15,6 @@ from examples.ftscontentmanagement.postgres import PostgresFtsRecorder
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-
-    from eventsourcing.domain import AggregateEvent
-    from eventsourcing.pydantic import Decision
 
 
 class FtsViewInterface(FtsRecorder, TrackingRecorder, ABC):
@@ -32,7 +31,7 @@ class FtsViewInterface(FtsRecorder, TrackingRecorder, ABC):
         pass
 
 
-class FtsProjection(Projection[FtsViewInterface]):
+class FtsProjection(Projection[FtsViewInterface, AggregateEvent[Decision]]):
     def process_event(
         self, envelope: AggregateEvent[Decision], tracking: Tracking
     ) -> None:

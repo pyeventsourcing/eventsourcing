@@ -1,9 +1,7 @@
 from typing import Any, cast
 from unittest import TestCase
 
-from eventsourcing.dataclasses.application import DataclassAggregatesApplication
-from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.dataclasses.mutable import DataclassAggregate
+from eventsourcing import dataclasses, msgspec, pydantic
 from eventsourcing.domain import (
     NIL_UUID,
     AbstractDecision,
@@ -12,11 +10,6 @@ from eventsourcing.domain import (
     WorksWithDecisions,
     event,
 )
-from eventsourcing.msgspec.immutable import MsgspecDecision
-from eventsourcing.msgspec.mutable import MsgspecAggregate
-from eventsourcing.pydantic.application import PydanticAggregatesApplication
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.mutable import PydanticAggregate
 
 
 class TestWorksWithDecisions(TestCase):
@@ -61,7 +54,7 @@ class TestWorksWithDecisions(TestCase):
 
 class TestAggregate(TestCase):
     def test_detects_missing_decision_type_arg_in_aggregate_subclass(self) -> None:
-        class Initial(DataclassDecision):
+        class Initial(dataclasses.Decision):
             pass
 
         with self.assertRaises(TypeError) as cm:
@@ -74,7 +67,7 @@ class TestAggregate(TestCase):
         self.assertIn("has no decision type argument", str(cm.exception))
 
         # This is okay
-        class GoodAggregate(Aggregate[DataclassDecision]):
+        class GoodAggregate(Aggregate[dataclasses.Decision]):
             @event(Initial)
             def __init__(self) -> None:
                 pass
@@ -82,12 +75,12 @@ class TestAggregate(TestCase):
         GoodAggregate()
 
     def test_detects_mismatched_decision_type(self) -> None:
-        class Initial(DataclassDecision):
+        class Initial(dataclasses.Decision):
             pass
 
         with self.assertRaises(TypeError) as cm:
 
-            class BadAggregate(Aggregate[PydanticDecision]):
+            class BadAggregate(Aggregate[pydantic.Decision]):
                 @event(Initial)
                 def __init__(self) -> None:
                     pass
@@ -95,7 +88,7 @@ class TestAggregate(TestCase):
         self.assertIn("mismatches", str(cm.exception))
 
         # This is okay
-        class GoodAggregate(Aggregate[DataclassDecision]):
+        class GoodAggregate(Aggregate[dataclasses.Decision]):
             @event(Initial)
             def __init__(self) -> None:
                 pass
@@ -103,13 +96,13 @@ class TestAggregate(TestCase):
         GoodAggregate()
 
     def test_event_sourced_property(self) -> None:
-        class Initial(DataclassDecision):
+        class Initial(dataclasses.Decision):
             pass
 
-        class Something(DataclassDecision):
+        class Something(dataclasses.Decision):
             a: str
 
-        class GoodAggregate(Aggregate[DataclassDecision]):
+        class GoodAggregate(Aggregate[dataclasses.Decision]):
             @event(Initial)
             def __init__(self) -> None:
                 self.a = ""
@@ -133,13 +126,13 @@ class TestAggregate(TestCase):
         self.assertEqual(len(new_events), 2)
 
     def test_with_app(self) -> None:
-        class Initial(DataclassDecision):
+        class Initial(dataclasses.Decision):
             a: int
 
-        class Next(DataclassDecision):
+        class Next(dataclasses.Decision):
             b: int
 
-        class MyAggregate(Aggregate[DataclassDecision]):
+        class MyAggregate(Aggregate[dataclasses.Decision]):
             @event(Initial)
             def __init__(self, a: int):
                 self.a = a
@@ -150,7 +143,7 @@ class TestAggregate(TestCase):
                 self.b = b
 
         a = MyAggregate(a=1)
-        app = DataclassAggregatesApplication()
+        app = dataclasses.AggregatesApplication()
         app.save(a)
 
         copy = app.repository.get(a.id, MyAggregate)
@@ -158,13 +151,13 @@ class TestAggregate(TestCase):
         self.assertEqual(copy, a)
 
     def test_app_save_raises_type_error_for_mismatched_decision_type(self) -> None:
-        class Initial(MsgspecDecision):
+        class Initial(msgspec.Decision):
             a: int
 
-        class Next(MsgspecDecision):
+        class Next(msgspec.Decision):
             b: int
 
-        class MyAggregate(MsgspecAggregate):
+        class MyAggregate(msgspec.Aggregate):
             @event(Initial)
             def __init__(self, a: int):
                 self.a = a
@@ -175,7 +168,7 @@ class TestAggregate(TestCase):
                 self.b = b
 
         a = MyAggregate(a=1)
-        app = PydanticAggregatesApplication()
+        app = pydantic.AggregatesApplication()
         with self.assertRaises(TypeError) as cm:
             app.save(a)  # type: ignore[arg-type]
 
@@ -184,13 +177,13 @@ class TestAggregate(TestCase):
 
 class TestDataclassAggregate(TestCase):
     def test_call_aggregate_and_decorated_command_method(self) -> None:
-        class Initial(DataclassDecision):
+        class Initial(dataclasses.Decision):
             a: int
 
-        class Next(DataclassDecision):
+        class Next(dataclasses.Decision):
             b: int
 
-        class MyAggregate(DataclassAggregate):
+        class MyAggregate(dataclasses.Aggregate):
             @event(Initial)
             def __init__(self, a: int):
                 self.a = a
@@ -225,7 +218,7 @@ class TestDataclassAggregate(TestCase):
         self.assertEqual(copy, a)
 
     def test_defines_event_classes_from_given_names(self) -> None:
-        class MyAggregate(DataclassAggregate):
+        class MyAggregate(dataclasses.Aggregate):
             @event("Initial")
             def __init__(self, a: int):
                 self.a = a
@@ -262,13 +255,13 @@ class TestDataclassAggregate(TestCase):
 
 class TestPydanticAggregate(TestCase):
     def test_call_aggregate_and_decorated_command_method(self) -> None:
-        class Initial(PydanticDecision):
+        class Initial(pydantic.Decision):
             a: int
 
-        class Next(PydanticDecision):
+        class Next(pydantic.Decision):
             b: int
 
-        class MyAggregate(PydanticAggregate):
+        class MyAggregate(pydantic.Aggregate):
             @event(Initial)
             def __init__(self, a: int):
                 self.a = a
@@ -303,7 +296,7 @@ class TestPydanticAggregate(TestCase):
         self.assertEqual(copy, a)
 
     def test_defines_event_classes_from_given_names(self) -> None:
-        class MyAggregate(PydanticAggregate):
+        class MyAggregate(pydantic.Aggregate):
             @event("Initial")
             def __init__(self, a: int):
                 self.a = a
@@ -340,13 +333,13 @@ class TestPydanticAggregate(TestCase):
 
 class TestMsgspecAggregate(TestCase):
     def test_call_aggregate_and_decorated_command_method(self) -> None:
-        class Initial(MsgspecDecision):
+        class Initial(msgspec.Decision):
             a: int
 
-        class Next(MsgspecDecision):
+        class Next(msgspec.Decision):
             b: int
 
-        class MyAggregate(MsgspecAggregate):
+        class MyAggregate(msgspec.Aggregate):
             @event(Initial)
             def __init__(self, a: int):
                 self.a = a
@@ -381,7 +374,7 @@ class TestMsgspecAggregate(TestCase):
         self.assertEqual(copy, a)
 
     def test_defines_event_classes_from_given_names(self) -> None:
-        class MyAggregate(MsgspecAggregate):
+        class MyAggregate(msgspec.Aggregate):
             @event("Initial")
             def __init__(self, a: int):
                 self.a = a

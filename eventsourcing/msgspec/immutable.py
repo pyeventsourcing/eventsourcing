@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from abc import ABCMeta
-from typing import Any, Self
+from typing import Any, Self, TypeVar
 
 import msgspec
-from typing_extensions import TypeVar
 
 import eventsourcing.domain
 from eventsourcing.utils import get_topic
@@ -25,31 +24,26 @@ class ImmutableMeta(msgspec.StructMeta, ABCMeta):
         return super().__new__(mcls, name, bases, namespace, **kwargs)
 
 
-class MsgspecImmutable(msgspec.Struct, metaclass=ImmutableMeta):
+class Immutable(msgspec.Struct, metaclass=ImmutableMeta):
     pass
 
 
-class MsgspecDecision(MsgspecImmutable, eventsourcing.domain.AbstractDecision):
+class Decision(Immutable, eventsourcing.domain.AbstractDecision):
     def as_dict(self) -> dict[str, Any]:
         return {key: getattr(self, key) for key in self.__struct_fields__}
 
 
-TMsgspecDecision = TypeVar(
-    "TMsgspecDecision", bound=MsgspecDecision, default=MsgspecDecision
-)
-
-
-class MsgspecImmutableAggregate(MsgspecImmutable):
+class ImmutableAggregate(Immutable):
     id: str
     version: int
 
 
-class MsgspecImmutableAggregateSnapshot(MsgspecDecision):
+class ImmutableAggregateSnapshot(Decision):
     topic: str
     state: bytes
 
     @classmethod
-    def take(cls, aggregate: MsgspecImmutableAggregate) -> Self:
+    def take(cls, aggregate: ImmutableAggregate) -> Self:
         return cls(
             topic=get_topic(type(aggregate)),
             state=msgspec.json.encode(aggregate),

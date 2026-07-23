@@ -6,8 +6,7 @@ from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,
 )
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.transcoder import PydanticTranscoder
+from eventsourcing.pydantic import Decision, Transcoder
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
 from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 
@@ -25,13 +24,13 @@ class TestSnapshotting(TestCase):
         account.append_transaction(Decimal("25.00"))
         account.append_transaction(Decimal("30.00"))
 
-        transcoder = PydanticTranscoder()
+        transcoder = Transcoder()
 
         recorder = SQLiteAggregateRecorder(
             SQLiteDatastore(":memory:"),
             events_table_name="snapshots",
         )
-        snapshot_store = EventStore[PydanticDecision](
+        snapshot_store = EventStore[Decision](
             mapper=AggregateEventMapper(transcoder=transcoder),
             recorder=recorder,
         )

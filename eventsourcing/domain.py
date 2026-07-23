@@ -19,13 +19,12 @@ from typing import (
     ParamSpec,
     Protocol,
     Self,
+    TypeVar,
     cast,
     overload,
     runtime_checkable,
 )
 from uuid import UUID, uuid4
-
-from typing_extensions import TypeVar
 
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.utils import (
@@ -175,6 +174,8 @@ class EventEnvelope(Generic[TDecision_co]):
         with set_metadata_in_context(self.metadata):
             return self.decision.mutate(obj)
 
+
+TEnvelope = TypeVar("TEnvelope", bound=EventEnvelope[Any])
 
 TPerspective = TypeVar("TPerspective", bound="Perspective[Any]")
 
@@ -727,6 +728,10 @@ class WorksWithDecisions(Generic[TDecision]):
             msg = f"{cls} has no decision type argument"
             raise TypeError(msg)
         requirement = getattr(decision_cls, "works_with_decision_type", decision_cls)
+        if requirement is None:
+            msg = f"{decision_cls} has no decision type argument"
+            raise TypeError(msg)
+
         if not issubclass(requirement, cls.works_with_decision_type):
             msg = f"{requirement} mismatches {cls.works_with_decision_type}"
             raise TypeError(msg)
@@ -1209,22 +1214,20 @@ class Aggregate(CallTriggersEvent[TDecision]):
 
 
 ProjectorFunction = Callable[
-    [_T | None, Iterable[EventEnvelope[TDecision]]],
+    [_T | None, Iterable[TEnvelope]],
     _T | None,
 ]
 
 MutatorFunction = Callable[
-    [EventEnvelope[TDecision], _T | None],
+    [TEnvelope, _T | None],
     _T | None,
 ]
 
 
 def projector(
-    mutator: MutatorFunction[TDecision, _T],
-) -> ProjectorFunction[_T, TDecision]:
-    def projector_function(
-        obj: _T | None, events: Iterable[EventEnvelope[TDecision]]
-    ) -> _T | None:
+    mutator: MutatorFunction[TEnvelope, _T],
+) -> ProjectorFunction[_T, TEnvelope]:
+    def projector_function(obj: _T | None, events: Iterable[TEnvelope]) -> _T | None:
         for e in events:
             obj = mutator(e, obj)
         return obj
@@ -1234,7 +1237,7 @@ def projector(
 
 @projector
 def evolve_aggregate(
-    envelope: EventEnvelope[TDecision],
+    envelope: TEnvelope,
     obj: _T | None,
 ) -> _T | None:
     return envelope.mutate(obj)

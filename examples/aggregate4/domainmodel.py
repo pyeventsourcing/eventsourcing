@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent, EventEnvelope
+from eventsourcing.domain import AggregateEvent
 from examples.aggregate4.baseclasses import Aggregate, TimestampedDecision
 
 if TYPE_CHECKING:
@@ -39,22 +39,18 @@ class Dog(Aggregate):
     def add_trick(self, trick: str) -> None:
         self.trigger_event(self.TrickAdded, trick=trick)
 
-    def apply_event(self, event: EventEnvelope[Decision]) -> None:
-        match event:
-            case AggregateEvent(
-                decision=Dog.Registered(timestamp=timestamp, name=name)
-            ):
-                self.id = event.originator_id
-                self.version = event.originator_version
+    def apply_event(self, envelope: AggregateEvent[Decision]) -> None:
+        match envelope.decision:
+            case Dog.Registered(timestamp=timestamp, name=name):
+                self.id = envelope.originator_id
+                self.version = envelope.originator_version
                 self.created_on = timestamp
                 self.modified_on = timestamp
                 self.name = name
                 self.tricks = []
-            case AggregateEvent(
-                decision=Dog.TrickAdded(timestamp=timestamp, trick=trick)
-            ):
+            case Dog.TrickAdded(timestamp=timestamp, trick=trick):
                 self.tricks.append(trick)
-                self.version = event.originator_version
+                self.version = envelope.originator_version
                 self.modified_on = timestamp
             case _:
-                super().apply_event(event)
+                super().apply_event(envelope)

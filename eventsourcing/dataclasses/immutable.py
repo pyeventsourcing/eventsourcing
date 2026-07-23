@@ -7,19 +7,17 @@ from abc import ABCMeta
 from datetime import date, datetime
 from decimal import Decimal
 from functools import lru_cache
-from typing import Any, Self, dataclass_transform
+from typing import Any, Self, TypeVar, dataclass_transform
 from uuid import UUID
-
-from typing_extensions import TypeVar
 
 import eventsourcing.domain
 
-_T = TypeVar("_T", bound="MetaDataclassImmutable")
+_T = TypeVar("_T", bound="MetaImmutable")
 
 
 @dataclass_transform(frozen_default=True, kw_only_default=True)
-class MetaDataclassImmutable(ABCMeta):
-    def __call__(cls: MetaDataclassImmutable, **kwargs: Any) -> Any:
+class MetaImmutable(ABCMeta):
+    def __call__(cls: MetaImmutable, **kwargs: Any) -> Any:
         validated_kwargs = {}
         init_types = get_init_types(cls)
 
@@ -56,30 +54,25 @@ def get_init_types(cls: type[Any]) -> dict[str, Any]:
     }
 
 
-class DataclassImmutable(metaclass=MetaDataclassImmutable):
+class Immutable(metaclass=MetaImmutable):
     pass
 
 
-class DataclassDecision(DataclassImmutable, eventsourcing.domain.AbstractDecision):
+class Decision(Immutable, eventsourcing.domain.AbstractDecision):
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
 
 
-TDataclassDecision = TypeVar(
-    "TDataclassDecision", bound=DataclassDecision, default=DataclassDecision
-)
-
-
-class DataclassImmutableAggregate(DataclassImmutable):
+class ImmutableAggregate(Immutable):
     id: str
     version: int
 
 
-class DataclassImmutableAggregateSnapshot(DataclassDecision):
+class ImmutableAggregateSnapshot(Decision):
     state: dict[str, Any]
 
     @classmethod
-    def take(cls, aggregate: DataclassImmutableAggregate) -> Self:
+    def take(cls, aggregate: ImmutableAggregate) -> Self:
         return cls(
             state=aggregate.__dict__.copy(),
         )

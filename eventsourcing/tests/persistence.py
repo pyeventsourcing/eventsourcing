@@ -15,13 +15,10 @@ from uuid import UUID, uuid4
 
 from typing_extensions import TypeVar
 
+from eventsourcing import dataclasses, msgspec
 from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
-from eventsourcing.dataclasses.immutable import DataclassDecision
-from eventsourcing.dataclasses.legacy import (
-    Transcoding,
-)
-from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.dataclasses.legacy import Transcoding
 from eventsourcing.domain import (
     AbstractDecision,
     AggregateEvent,
@@ -1209,7 +1206,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
             _TInfrastrutureFactory, InfrastructureFactory.construct(self.env)
         )
         self.assertIsInstance(self.factory, self.expected_factory_class())
-        self.transcoder = DataclassTranscoder()
+        self.transcoder = dataclasses.Transcoder()
         # self.transcoder = LegacyJSONTranscoder()
         # self.transcoder.register(UUIDAsHex())
         # self.transcoder.register(DecimalAsStr())
@@ -1247,14 +1244,14 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
 
         # Create mapper.
 
-        mapper: Mapper[DataclassDecision] = self.factory.mapper(
+        mapper = self.factory.mapper(
             transcoder=self.transcoder,
         )
         self.assertIsInstance(mapper, Mapper)
         self.assertIsNone(mapper.cipher)
         self.assertIsNone(mapper.compressor)
 
-        class MapperSubclass(AggregateEventMapper[DataclassDecision]):
+        class MapperSubclass(AggregateEventMapper[dataclasses.Decision]):
             pass
 
         mapper = self.factory.mapper(
@@ -1268,9 +1265,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
     def test_mapper_with_compressor(self) -> None:
         # Create mapper with compressor class as topic.
         self.env[self.factory.COMPRESSOR_TOPIC] = get_topic(ZlibCompressor)
-        mapper: Mapper[DataclassDecision] = self.factory.mapper(
-            transcoder=self.transcoder
-        )
+        mapper = self.factory.mapper(transcoder=self.transcoder)
         self.assertIsInstance(mapper, Mapper)
         self.assertIsInstance(mapper.compressor, ZlibCompressor)
         self.assertIsNone(mapper.cipher)
@@ -1296,9 +1291,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         self.env[AESCipher.CIPHER_KEY] = cipher_key
 
         # Create mapper with cipher.
-        mapper: Mapper[DataclassDecision] = self.factory.mapper(
-            transcoder=self.transcoder
-        )
+        mapper = self.factory.mapper(transcoder=self.transcoder)
         self.assertIsInstance(mapper, Mapper)
         self.assertIsNotNone(mapper.cipher)
         self.assertIsNone(mapper.compressor)
@@ -1313,9 +1306,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         cipher_key = AESCipher.create_key(16)
         self.env[AESCipher.CIPHER_KEY] = cipher_key
 
-        mapper: Mapper[DataclassDecision] = self.factory.mapper(
-            transcoder=self.transcoder
-        )
+        mapper = self.factory.mapper(transcoder=self.transcoder)
         self.assertIsInstance(mapper, Mapper)
         self.assertIsNotNone(mapper.cipher)
         self.assertIsNotNone(mapper.compressor)
@@ -1328,21 +1319,21 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         self.env["APP1_" + AESCipher.CIPHER_KEY] = cipher_key1
         self.env["APP2_" + AESCipher.CIPHER_KEY] = cipher_key2
 
-        mapper1: Mapper[DataclassDecision] = self.factory.mapper(
+        mapper1 = self.factory.mapper(
             transcoder=self.transcoder,
         )
 
         domain_event = AggregateEvent(
             originator_id=str(uuid4()),
             originator_version=1,
-            decision=DataclassDecision(),
+            decision=dataclasses.Decision(),
         )
         stored_event = mapper1.to_stored_event(domain_event)
         copy = mapper1.to_domain_event(stored_event)
         self.assertEqual(domain_event.originator_id, copy.originator_id)
 
         self.env.name = "App2"
-        mapper2: Mapper[DataclassDecision] = self.factory.mapper(
+        mapper2 = self.factory.mapper(
             transcoder=self.transcoder,
         )
         # This should fail because the infrastructure factory
@@ -1516,7 +1507,7 @@ class MyClass:
     pass
 
 
-class MyDataclassDecision(DataclassDecision):
+class MyDataclassDecision(msgspec.Decision):
     my_class: MyClass
 
 
@@ -1804,7 +1795,7 @@ class TaggedEventMapperTestCase(TestCase, ABC):
         self.assertEqual(dcb_event.uuid, event.uuid)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
-        copy = mapper.to_domain_event(dcb_event)
+        copy = mapper.to_tagged_event(dcb_event)
         self.assertEqual(type(copy), TaggedEvent)
         self.assertEqual(copy.tags, event.tags)
         self.assertEqual(copy.decision, event.decision)
@@ -1819,7 +1810,7 @@ class TaggedEventMapperTestCase(TestCase, ABC):
         self.assertEqual(dcb_event.uuid, event.uuid)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
-        copy = mapper.to_domain_event(dcb_event)
+        copy = mapper.to_tagged_event(dcb_event)
         self.assertEqual(type(copy), TaggedEvent)
         self.assertEqual(copy.tags, event.tags)
         self.assertEqual(copy.decision, event.decision)
@@ -1836,7 +1827,7 @@ class TaggedEventMapperTestCase(TestCase, ABC):
         self.assertEqual(dcb_event.uuid, event.uuid)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
-        copy = mapper.to_domain_event(dcb_event)
+        copy = mapper.to_tagged_event(dcb_event)
         self.assertEqual(type(copy), TaggedEvent)
         self.assertEqual(copy.tags, event.tags)
         self.assertEqual(copy.decision, event.decision)
@@ -1850,7 +1841,7 @@ class TaggedEventMapperTestCase(TestCase, ABC):
         self.assertEqual(dcb_event.uuid, event.uuid)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
-        copy = mapper.to_domain_event(dcb_event)
+        copy = mapper.to_tagged_event(dcb_event)
         self.assertEqual(type(copy), TaggedEvent)
         self.assertEqual(copy.tags, event.tags)
         self.assertEqual(copy.decision, event.decision)

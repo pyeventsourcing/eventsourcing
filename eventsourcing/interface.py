@@ -6,7 +6,7 @@ from base64 import b64decode, b64encode
 from typing import TYPE_CHECKING, Generic
 from uuid import UUID
 
-from eventsourcing.application import NotificationLog, Section, TApplication
+from eventsourcing.application import NotificationLog, Section, TAggregatesApplication
 from eventsourcing.persistence import Notification
 
 if TYPE_CHECKING:
@@ -38,10 +38,12 @@ class NotificationLogInterface(ABC):
         """
 
 
-class NotificationLogJSONService(NotificationLogInterface, Generic[TApplication]):
+class NotificationLogJSONService(
+    NotificationLogInterface, Generic[TAggregatesApplication]
+):
     """Presents serialised sections of a notification log."""
 
-    def __init__(self, app: TApplication):
+    def __init__(self, app: TAggregatesApplication):
         """Initialises service with given application."""
         self.app = app
 

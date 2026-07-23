@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
-from eventsourcing.dataclasses.immutable import DataclassDecision
+from eventsourcing.dataclasses import Decision
 from eventsourcing.errors import TranscodingNotRegisteredError
 from eventsourcing.persistence import Transcoder
 
@@ -27,7 +27,7 @@ class Transcoding(ABC):
         """Decodes encoded object."""
 
 
-class LegacyJSONTranscoder(Transcoder[DataclassDecision]):
+class LegacyJSONTranscoder(Transcoder[Decision]):
     """Extensible transcoder that uses the Python :mod:`json` module."""
 
     def __init__(self) -> None:
@@ -45,13 +45,11 @@ class LegacyJSONTranscoder(Transcoder[DataclassDecision]):
         self.types[transcoding.type] = transcoding
         self.names[transcoding.name] = transcoding
 
-    def encode(self, decision: DataclassDecision) -> bytes:
+    def encode(self, decision: Decision) -> bytes:
         """Encodes given object as a bytes array."""
         return self.encoder.encode(decision.as_dict()).encode("utf8")
 
-    def decode(
-        self, data: bytes, decision_class: type[DataclassDecision]
-    ) -> DataclassDecision:
+    def decode(self, data: bytes, decision_class: type[Decision]) -> Decision:
         """Decodes bytes array as previously encoded object."""
         return decision_class(**self.decoder.decode(data.decode("utf8")))
 

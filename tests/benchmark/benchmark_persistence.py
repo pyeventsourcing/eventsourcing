@@ -8,8 +8,7 @@ import pytest
 from eventsourcing.domain import event, triggers
 from eventsourcing.persistence import InfrastructureFactory, StoredEvent
 from eventsourcing.postgres import PostgresApplicationRecorder
-from eventsourcing.pydantic.application import PydanticAggregatesApplication
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic import Aggregate, AggregatesApplication
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import Environment, clear_topic_cache
 
@@ -273,11 +272,11 @@ def test_app_save(env: str, num_events: int, benchmark: BenchmarkFixture) -> Non
     if "text" in env:
         pytest.skip("Skipping test (text IDs not supported by test)")
 
-    app = PydanticAggregatesApplication(env=envs[env])
+    app = AggregatesApplication(env=envs[env])
 
     clear_topic_cache()
 
-    class A(PydanticAggregate):
+    class A(Aggregate):
         @event("Created")
         def __init__(self, a: int):
             self.a = a
@@ -292,7 +291,7 @@ def test_app_save(env: str, num_events: int, benchmark: BenchmarkFixture) -> Non
             agg.subsequent(a=i + 1)
         return (app, agg), {}
 
-    def func(app: PydanticAggregatesApplication, agg: PydanticAggregate) -> None:
+    def func(app: AggregatesApplication, agg: Aggregate) -> None:
         app.save(agg)
 
     try:
@@ -309,7 +308,7 @@ def test_app_command(env: str, num_events: int, benchmark: BenchmarkFixture) -> 
     if "text" in env:
         pytest.skip("Skipping test (text IDs not supported by test)")
 
-    class A(PydanticAggregate):
+    class A(Aggregate):
         @event("Created")
         def __init__(self, a: int):
             self.a = a
@@ -318,7 +317,7 @@ def test_app_command(env: str, num_events: int, benchmark: BenchmarkFixture) -> 
         def subsequent(self, a: int) -> None:
             self.a = a
 
-    class MyApplication(PydanticAggregatesApplication):
+    class MyApplication(AggregatesApplication):
         def command(self) -> None:
             agg = A(a=0)
             for i in range(num_events - 1):
@@ -345,7 +344,7 @@ def test_repository_get(env: str, num_events: int, benchmark: BenchmarkFixture) 
 
     clear_topic_cache()
 
-    class A(PydanticAggregate):
+    class A(Aggregate):
         @triggers("Created")
         def __init__(self, a: int):
             self.a = a
@@ -354,7 +353,7 @@ def test_repository_get(env: str, num_events: int, benchmark: BenchmarkFixture) 
         def subsequent(self, a: int) -> None:
             self.a = a
 
-    app = PydanticAggregatesApplication(env=envs[env])
+    app = AggregatesApplication(env=envs[env])
     agg = A(a=0)
     for i in range(num_events - 1):
         agg.subsequent(a=i + 1)

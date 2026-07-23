@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import os
 from abc import ABC, abstractmethod
+from collections.abc import Iterator, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from itertools import chain
@@ -12,6 +13,7 @@ from typing import (
     Any,
     ClassVar,
     Generic,
+    Self,
     TypeVar,
     cast,
     overload,
@@ -25,8 +27,10 @@ from eventsourcing.domain import (
     CollectEventsProtocol,
     ProjectorFunction,
     TDecision,
+    TEnvelope,
     WorksWithDecisions,
     evolve_aggregate,
+    null_metadata_in_context,
 )
 from eventsourcing.errors import EventSourcingError, ProgrammingError
 from eventsourcing.persistence import (
@@ -47,7 +51,7 @@ from eventsourcing.utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Sequence
     from types import TracebackType
     from typing import Self
 
@@ -232,7 +236,7 @@ class Repository(WorksWithDecisions[TDecision]):
         aggregate_id: str,
         *,
         version: int | None = None,
-        projector: ProjectorFunction[_T, TDecision],
+        projector: ProjectorFunction[_T, AggregateEvent[TDecision]],
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
     ) -> _T: ...
@@ -244,7 +248,7 @@ class Repository(WorksWithDecisions[TDecision]):
         aggregate_cls: type[_T] | None,
         *,
         version: int | None = None,
-        projector: ProjectorFunction[_T, TDecision],
+        projector: ProjectorFunction[_T, AggregateEvent[TDecision]],
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
     ) -> _T: ...
@@ -255,7 +259,7 @@ class Repository(WorksWithDecisions[TDecision]):
         aggregate_cls: type[_T] | None = None,
         *,
         version: int | None = None,
-        projector: ProjectorFunction[_T, TDecision] | None = None,
+        projector: ProjectorFunction[_T, AggregateEvent[TDecision]] | None = None,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
     ) -> _T:
@@ -273,7 +277,9 @@ class Repository(WorksWithDecisions[TDecision]):
             raise ProgrammingError(msg)
 
         if projector is None:
-            projector = cast(ProjectorFunction[_T, TDecision], evolve_aggregate)
+            projector = cast(
+                ProjectorFunction[_T, AggregateEvent[TDecision]], evolve_aggregate
+            )
 
         if self.cache and version is None:
             try:
@@ -325,7 +331,7 @@ class Repository(WorksWithDecisions[TDecision]):
         aggregate_id: str,
         aggregate_cls: type[_T] | None,
         version: int | None,
-        projector: ProjectorFunction[_T, TDecision],
+        projector: ProjectorFunction[_T, AggregateEvent[TDecision]],
     ) -> _T:
         gt: int | None = None
 
@@ -598,11 +604,142 @@ class ProcessingEvent(Generic[TDecision]):
 _TA = TypeVar("_TA", bound=Aggregate[Any])
 
 
-class AggregatesApplication(WorksWithDecisions[TDecision]):
+class AbstractApplicationSubscription(Iterator[tuple[TEnvelope, Tracking]], ABC):
+    def __iter__(self) -> Self:
+        return self
+
+    @abstractmethod
+    def __next__(self) -> tuple[TEnvelope, Tracking]:
+        pass
+
+    @abstractmethod
+    def stop(self) -> None:
+        pass
+
+    @abstractmethod
+    def __enter__(self) -> Self:
+        return self
+
+    @abstractmethod
+    def __exit__(self, *args: object, **kwargs: Any) -> None:
+        pass
+
+
+TApplicationSubscription = TypeVar(
+    "TApplicationSubscription", bound=AbstractApplicationSubscription[Any]
+)
+
+
+class AbstractApplication(
+    WorksWithDecisions[TDecision], Generic[TDecision, TApplicationSubscription]
+):
+    name: str
+    env: ClassVar[dict[str, str]] = {}
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if "name" not in cls.__dict__:
+            cls.name = cls.__name__
+
+    def __init__(self, env: EnvType | None = None):
+        self.env = self.construct_env(self.name, env)  # type: ignore[misc]
+
+    def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
+        """Constructs environment from which application will be configured."""
+
+        # Start with environment variables defined on the class.
+        _env = dict(type(self).env)
+
+        # Override with environment variabled defined in the OS environment.
+        _env.update(os.environ)
+
+        # Override with the given environment variables.
+        if env is not None:
+            _env.update(env)
+        return Environment(name, _env)
+        _env.update(os.environ)
+        if env is not None:
+            _env.update(env)
+        return Environment(name, _env)
+
+    @abstractmethod
+    def application_subscription(
+        self,
+        gt: int | None = None,
+        topics: Sequence[str] = (),
+    ) -> TApplicationSubscription:
+        pass
+
+    @abstractmethod
+    def close(self) -> None:
+        pass
+
+
+class AggregatesApplicationSubscription(
+    AbstractApplicationSubscription[AggregateEvent[TDecision]],
+):
+    """An iterator that yields all domain events recorded in an application
+    sequence that have notification IDs greater than a given value. The iterator
+    will block when all recorded domain events have been yielded, and then
+    continue when new events are recorded. Domain events are returned along
+    with tracking objects that identify the position in the application sequence.
+    """
+
+    def __init__(
+        self,
+        app: AggregatesApplication[TDecision],
+        gt: int | None = None,
+        topics: Sequence[str] = (),
+    ):
+        """
+        Starts a subscription to application's recorder.
+        """
+        self.name = app.name
+        self.recorder = app.recorder
+        self.mapper = app.mapper
+        self.subscription = self.recorder.subscribe(gt=gt, topics=topics)
+
+    def stop(self) -> None:
+        """Stops the subscription to the application's recorder."""
+        self.subscription.stop()
+
+    def __enter__(self) -> Self:
+        """Calls __enter__ on the stored event subscription."""
+        self.subscription.__enter__()
+        return super().__enter__()
+
+    def __exit__(self, *args: object, **kwargs: Any) -> None:
+        """Calls __exit__ on the stored event subscription."""
+        self.subscription.__exit__(*args, **kwargs)
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> tuple[AggregateEvent[TDecision], Tracking]:
+        """Returns the next stored event from subscription to the application's
+        recorder. Constructs a tracking object that identifies the position of
+        the event in the application sequence. Constructs a domain event object
+        from the stored event object using the application's mapper. Returns a
+        tuple of the domain event object and the tracking object.
+        """
+        notification = next(self.subscription)
+        tracking = Tracking(self.name, notification.id)
+        with null_metadata_in_context():
+            domain_event = self.mapper.to_domain_event(notification)
+        return domain_event, tracking
+
+    def __del__(self) -> None:
+        """Stops the stored event subscription."""
+        with contextlib.suppress(AttributeError):
+            self.stop()
+
+
+class AggregatesApplication(
+    AbstractApplication[TDecision, AggregatesApplicationSubscription[TDecision]],
+):
     """Base class for event-sourced applications."""
 
     name = "Application"
-    env: ClassVar[dict[str, str]] = {}
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: ClassVar[dict[type[Any], int]] = {}
     snapshotting_projectors: ClassVar[
@@ -623,8 +760,13 @@ class AggregatesApplication(WorksWithDecisions[TDecision]):
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if "name" not in cls.__dict__:
-            cls.name = cls.__name__
+        # Set the 'is snapshotting enabled' environment variable.
+        if cls.is_snapshotting_enabled or cls.snapshotting_intervals:
+            if "env" not in cls.__dict__:
+                cls.env = {}
+            if "IS_SNAPSHOTTING_ENABLED" not in cls.env:
+                cls.env["IS_SNAPSHOTTING_ENABLED"] = "y"
+
         # if "aggregate_id_type" not in cls.__dict__:
         #     application_type_args = resolve_multi_generic_target(cls, Application)
         #     assert len(application_type_args) == 1, application_type_args
@@ -652,8 +794,8 @@ class AggregatesApplication(WorksWithDecisions[TDecision]):
         a :class:`~eventsourcing.application.Repository`, and
         a :class:`~eventsourcing.application.LocalNotificationLog`.
         """
+        super().__init__(env=env)
         self.closing = Event()
-        self.env = self.construct_env(self.name, env)  # type: ignore[misc]
         self.factory = self.construct_factory(self.env)
         self.mapper: Mapper[TDecision] = self.construct_mapper()
         self.recorder = self.construct_recorder()
@@ -677,41 +819,25 @@ class AggregatesApplication(WorksWithDecisions[TDecision]):
         """
         return self._notification_log
 
-    def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
-        """Constructs environment from which application will be configured."""
-        # Construct a dict to gather environment variables.
-        _env = {}
-
-        # Set the 'is snapshotting enabled' environment variable.
-        if type(self).is_snapshotting_enabled or type(self).snapshotting_intervals:
-            _env["IS_SNAPSHOTTING_ENABLED"] = "y"
-
-        # # Set the 'originator id type' environment variable.
-        # try:
-        #     _env["ORIGINATOR_ID_TYPE"] = {
-        #         UUID: "uuid",
-        #         str: "text",
-        #     }[type(self).aggregate_id_type]
-        # except KeyError:
-        #     msg = (
-        #         f"Invalid type argument for Application[TAggregateID]:"
-        #         f" {type(self).aggregate_id_type}"
-        #     )
-        #     raise TypeError(msg) from None
-
-        # Override with the defined environment variables.
-        _env.update(type(self).env)
-
-        # Override with the OS environment variables.
-        _env.update(os.environ)
-
-        # Override with the given environment variables.
-        if env is not None:
-            _env.update(env)
-        return Environment(name, _env)
+    # def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
+    #     """Constructs environment from which application will be configured."""
+    #     return super().construct_env(name, env)
+    #
+    #     # # Set the 'originator id type' environment variable.
+    #     # try:
+    #     #     _env["ORIGINATOR_ID_TYPE"] = {
+    #     #         UUID: "uuid",
+    #     #         str: "text",
+    #     #     }[type(self).aggregate_id_type]
+    #     # except KeyError:
+    #     #     msg = (
+    #     #         f"Invalid type argument for Application[TAggregateID]:"
+    #     #         f" {type(self).aggregate_id_type}"
+    #     #     )
+    #     #     raise TypeError(msg) from None
 
     def construct_factory(
-        self, env: Environment
+        self, env: Environment | EnvType | None = None
     ) -> InfrastructureFactory[TrackingRecorder]:
         """Constructs an :class:`~eventsourcing.persistence.InfrastructureFactory`
         for use by the application.
@@ -900,6 +1026,17 @@ class AggregatesApplication(WorksWithDecisions[TDecision]):
         need to take action when new domain events have been saved.
         """
 
+    def application_subscription(
+        self,
+        gt: int | None = None,
+        topics: Sequence[str] = (),
+    ) -> AggregatesApplicationSubscription[TDecision]:
+        return AggregatesApplicationSubscription(
+            app=self,
+            gt=gt,
+            topics=topics,
+        )
+
     def close(self) -> None:
         self.closing.set()
         self.factory.close()
@@ -913,16 +1050,18 @@ class AggregatesApplication(WorksWithDecisions[TDecision]):
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
-    ) -> None:
+    ) -> bool | None:
         self.close()
-        self.factory.__exit__(exc_type, exc_val, exc_tb)
+        return self.factory.__exit__(exc_type, exc_val, exc_tb)
 
     def __del__(self) -> None:
         with contextlib.suppress(AttributeError):
             self.close()
 
 
-TApplication = TypeVar("TApplication", bound=AggregatesApplication[Any])
+TAggregatesApplication = TypeVar(
+    "TAggregatesApplication", bound=AggregatesApplication[Any]
+)
 
 
 class AggregateNotFoundError(EventSourcingError):

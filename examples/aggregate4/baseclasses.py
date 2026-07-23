@@ -5,16 +5,13 @@ from dataclasses import dataclass, field
 from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
-from eventsourcing.dataclasses import (
-    Decision,
-)
+from eventsourcing.dataclasses import Decision
 from eventsourcing.dataclasses.immutable import (
     coerce_value,
     get_init_types,
 )
 from eventsourcing.domain import (
     AggregateEvent,
-    EventEnvelope,
     WorksWithDecisions,
     datetime_now_with_tzinfo,
 )
@@ -76,8 +73,8 @@ class Aggregate(WorksWithDecisions[Decision]):
         events, self._pending_events = self._pending_events, []
         return events
 
-    def apply_event(self, event: EventEnvelope[Decision]) -> None:
-        match event.decision:
+    def apply_event(self, envelope: AggregateEvent[Decision]) -> None:
+        match envelope.decision:
             case Aggregate.Snapshot(state=state):
                 validated_state = {}
                 init_types = get_init_types(cast(Hashable, type(self)))
@@ -90,14 +87,14 @@ class Aggregate(WorksWithDecisions[Decision]):
 
                 self.__dict__.update(validated_state)
             case _:
-                msg = f"For {type(event.decision).__qualname__}"
+                msg = f"For {type(envelope.decision).__qualname__}"
                 raise NotImplementedError(msg)
 
     @classmethod
     def project_events(
         cls,
         _: Self | None,
-        events: Iterable[EventEnvelope[Decision]],
+        events: Iterable[AggregateEvent[Decision]],
     ) -> Self | None:
         aggregate: Self = Aggregate.__new__(cls)
         for event in events:

@@ -14,12 +14,11 @@ from eventsourcing.application import (
     AggregatesApplication,
     NotificationLog,
     Section,
-    TApplication,
+    TAggregatesApplication,
 )
 from eventsourcing.domain import (
     AggregateEvent,
     CollectEventsProtocol,
-    EventEnvelope,
     TDecision,
     null_metadata_in_context,
 )
@@ -58,7 +57,9 @@ class RecordingEvent(Generic[TDecision]):
 ConvertingJob = RecordingEvent[TDecision] | Sequence[Notification] | None
 
 
-class Follower(EventSourcedProjection[TDecision]):
+class Follower(
+    EventSourcedProjection[TDecision, ProcessRecorder, AggregateEvent[TDecision]]
+):
     """Extends the :class:`~eventsourcing.projection.EventSourcedProjection` class
     by pulling notification objects from its notification log readers, by converting
     the notification objects to domain events and tracking objects and by processing
@@ -110,7 +111,7 @@ class Follower(EventSourcedProjection[TDecision]):
                 self.process_event(domain_event, tracking)
 
     def process_event(
-        self, envelope: EventEnvelope[TDecision], tracking: Tracking
+        self, envelope: AggregateEvent[TDecision], tracking: Tracking
     ) -> None:
         with self.processing_lock:
             super().process_event(envelope, tracking)
@@ -152,14 +153,12 @@ class Follower(EventSourcedProjection[TDecision]):
         processing_jobs = []
         with null_metadata_in_context():
             for notification in notifications:
-                domain_event: AggregateEvent[TDecision] = mapper.to_domain_event(
-                    notification
-                )
+                envelope = mapper.to_domain_event(notification)
                 tracking = Tracking(
                     application_name=leader_name,
                     notification_id=notification.id,
                 )
-                processing_jobs.append((domain_event, tracking))
+                processing_jobs.append((envelope, tracking))
         return processing_jobs
 
 
@@ -218,7 +217,7 @@ class Leader(AggregatesApplication[TDecision]):
                 follower.receive_recording_event(recording_event)
 
 
-class ProcessApplication(Leader[TDecision], Follower[TDecision]):
+class ProcessApplication(Follower[TDecision], Leader[TDecision]):
     """Base class for event processing applications
     that are both "leaders" and followers".
     """
@@ -354,7 +353,7 @@ class Runner(ABC, Generic[TDecision]):
         """Stops the runner."""
 
     @abstractmethod
-    def get(self, cls: type[TApplication]) -> TApplication:
+    def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
         """Returns an application instance for given application class."""
 
     def __enter__(self) -> Self:
@@ -476,7 +475,7 @@ class SingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision])
             app.close()
         self.apps.clear()
 
-    def get(self, cls: type[TApplication]) -> TApplication:
+    def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
         app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
@@ -618,7 +617,7 @@ class NewSingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecisio
             app.close()
         self.apps.clear()
 
-    def get(self, cls: type[TApplication]) -> TApplication:
+    def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
         app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
@@ -712,7 +711,7 @@ class MultiThreadedRunner(Runner[TDecision]):
             if thread.error:
                 raise thread.error
 
-    def get(self, cls: type[TApplication]) -> TApplication:
+    def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
         app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app
@@ -917,7 +916,7 @@ class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision
             if thread.error:
                 raise thread.error
 
-    def get(self, cls: type[TApplication]) -> TApplication:
+    def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
         app = self.apps[cls.name]
         assert isinstance(app, cls)
         return app

@@ -14,7 +14,7 @@ from psycopg.sql import SQL, Identifier
 from psycopg_pool import ConnectionPool
 from psycopg_pool.base import AttemptWithBackoff
 
-from eventsourcing.dataclasses.transcoder import DataclassTranscoder
+from eventsourcing.dataclasses import Transcoder
 from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.errors import (
     DatabaseError,
@@ -1420,7 +1420,7 @@ class TestPostgresFactory(InfrastructureFactoryTestCase[PostgresFactory]):
         self.env[PostgresFactory.POSTGRES_USER] = "eventsourcing"
         self.env[PostgresFactory.POSTGRES_PASSWORD] = "eventsourcing"
         self.env[PostgresFactory.MAPPER_TOPIC] = get_topic(AggregateEventMapper)
-        self.env[PostgresFactory.TRANSCODER_TOPIC] = get_topic(DataclassTranscoder)
+        self.env[PostgresFactory.TRANSCODER_TOPIC] = get_topic(Transcoder)
         super().setUp()
 
     def tearDown(self) -> None:

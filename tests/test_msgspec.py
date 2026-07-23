@@ -3,15 +3,15 @@ from threading import Thread
 from unittest import TestCase
 
 import eventsourcing.domain
-from eventsourcing.msgspec.immutable import MsgspecDecision
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+from eventsourcing.msgspec.immutable import Decision
+from eventsourcing.msgspec.transcoder import Transcoder
 from eventsourcing.tests.persistence import (
     AggregateEventMapperTestCase,
     TaggedEventMapperTestCase,
 )
 
 
-class MyMsgspecDecision(MsgspecDecision):
+class MyMsgspecDecision(Decision):
     a: str
 
 
@@ -35,7 +35,7 @@ class TestDecision(TestCase):
 
 
 class TestTaggedEventMapperWithMsgspecTranscoder(TaggedEventMapperTestCase):
-    transcoder_class = MsgspecTranscoder
+    transcoder_class = Transcoder
 
     def test_tagged_event_mapper(self) -> None:
         super()._test_tagged_event_mapper()
@@ -45,7 +45,7 @@ class TestTaggedEventMapperWithMsgspecTranscoder(TaggedEventMapperTestCase):
 
 
 class TestMsgspecTranscoderWithAggregateEventMapper(AggregateEventMapperTestCase):
-    transcoder_class = MsgspecTranscoder
+    transcoder_class = Transcoder
 
     def test_aggregate_event_mapper(self) -> None:
         super()._test_aggregate_event_mapper()

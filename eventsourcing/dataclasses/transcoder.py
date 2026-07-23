@@ -7,11 +7,11 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from eventsourcing.dataclasses.immutable import TDataclassDecision
-from eventsourcing.persistence import Transcoder
+import eventsourcing.persistence
+from eventsourcing.dataclasses.immutable import Decision
 
 
-class DataclassTranscoder(Transcoder[TDataclassDecision]):
+class Transcoder(eventsourcing.persistence.Transcoder[Decision]):
     def __init__(self) -> None:
         self.encoder = json.JSONEncoder(
             default=self._dump_obj,
@@ -20,12 +20,10 @@ class DataclassTranscoder(Transcoder[TDataclassDecision]):
         )
         self.decoder = json.JSONDecoder()
 
-    def encode(self, decision: TDataclassDecision) -> bytes:
+    def encode(self, decision: Decision) -> bytes:
         return self.encoder.encode(decision).encode("utf8")
 
-    def decode(
-        self, data: bytes, decision_class: type[TDataclassDecision]
-    ) -> TDataclassDecision:
+    def decode(self, data: bytes, decision_class: type[Decision]) -> Decision:
         return decision_class(**(json.loads(data)))
 
     def _dump_obj(self, obj: Any) -> Any:

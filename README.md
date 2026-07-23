@@ -267,15 +267,16 @@ class DogSchoolWithSlices(DCBApplication):
 
 ### Tests and interfaces
 
-Here we have written an integration test exercises the command and query methods
-defined on the DCB applications. Since both present the same API, they can be
-exercised in the same way. You can see the enduring object and the slices
-generated exactly the same recorded events. This means an application can
-be refactored from using enduring objects to being implemented with vertical
+The integration test `test_dog_school()` exercises the command and query methods
+defined on the DCB applications. Since `DogSchool` and `DogSchoolWithSlices` present
+the same API, they can be exercised in the same way. You can see the enduring object
+and the slices generated exactly the same recorded events. This means an application
+can be refactored from using enduring objects to being implemented with vertical
 slices, and vice versa.
 
 ```python
 from datetime import datetime
+from uuid import UUID
 
 from eventsourcing.domain import put_metadata_in_context
 
@@ -311,23 +312,27 @@ def test_dog_school(
     events = list(app.events.read(after=head))
     assert len(events) == 3
 
-    # Check the events.
+    # Check the event decisions.
     print(f"Dog ID: {dog_id}")
-    assert events[0].tags == [dog_id]
-    assert events[1].tags == [dog_id]
-    assert events[2].tags == [dog_id]
     assert isinstance(events[0].decision, DogRegistered)
     assert isinstance(events[1].decision, TrickAdded)
     assert isinstance(events[2].decision, TrickAdded)
-    assert events[0].decision.dog_id, dog_id
-    assert events[0].decision.name, 'Fido'
-    assert events[1].decision.dog_id, dog_id
-    assert events[1].decision.trick, 'roll over'
-    assert events[2].decision.dog_id, dog_id
-    assert events[2].decision.trick, 'play deead'
+    assert events[0].decision.dog_id == dog_id
+    assert events[0].decision.name == 'Fido'
+    assert events[1].decision.dog_id == dog_id
+    assert events[1].decision.trick == 'roll over'
+    assert events[2].decision.dog_id == dog_id
+    assert events[2].decision.trick == 'play dead'
+
+    # Check the event envelopes.
+    assert events[0].uuid != events[1].uuid
+    assert events[1].uuid != events[2].uuid
     assert events[0].metadata == context_attributes
     assert events[1].metadata == context_attributes
     assert events[2].metadata == context_attributes
+    assert events[0].tags == [dog_id]
+    assert events[1].tags == [dog_id]
+    assert events[2].tags == [dog_id]
 
     # Print duration.
     duration = (datetime.now() - started).total_seconds()

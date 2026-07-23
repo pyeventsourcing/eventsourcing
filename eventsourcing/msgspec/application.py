@@ -1,21 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from eventsourcing.application import AggregatesApplication
-from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.msgspec.immutable import TMsgspecDecision
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
-
-if TYPE_CHECKING:
-    from eventsourcing.persistence import Transcoder
+import eventsourcing.application
+import eventsourcing.dcb.application
+from eventsourcing.msgspec.immutable import Decision
+from eventsourcing.msgspec.transcoder import Transcoder
 
 
-class MsgspecAggregatesApplication(AggregatesApplication[TMsgspecDecision]):
-    def construct_transcoder(self) -> Transcoder[TMsgspecDecision]:
-        return MsgspecTranscoder()
+class AggregatesApplication(eventsourcing.application.AggregatesApplication[Decision]):
+    def construct_transcoder(self) -> Transcoder:
+        return Transcoder()
 
 
-class MsgspecDCBApplication(DCBApplication[TMsgspecDecision]):
-    def construct_transcoder(self) -> Transcoder[TMsgspecDecision]:
-        return MsgspecTranscoder()
+class DCBApplication(eventsourcing.dcb.application.DCBApplication[Decision]):
+    def construct_transcoder(self) -> Transcoder:
+        return Transcoder()

@@ -27,6 +27,7 @@ from eventsourcing.msgspec import (
 )
 from eventsourcing.persistence import (
     IntegrityError,
+    ProcessRecorder,
     Tracking,
     TrackingRecorder,
 )
@@ -99,7 +100,10 @@ class EventCountersInterface(EventCountersView, ABC):
     pass
 
 
-class Counters(EventSourcedProjection[Decision], AggregatesApplication):
+class Counters(
+    AggregatesApplication,
+    EventSourcedProjection[Decision, ProcessRecorder, EventEnvelope[Decision]],
+):
     def policy(
         self,
         envelope: EventEnvelope[Decision],
@@ -217,7 +221,7 @@ class Thing(EnduringObject):
         self.id = thing_id
 
 
-class DecisionCountersProjection(Projection[EventCountersView]):
+class DecisionCountersProjection(Projection[EventCountersView, TaggedEvent[Decision]]):
     name = "eventcounters"
     topics: tuple[str, ...] = (
         get_topic(Thing.Created),
@@ -240,7 +244,9 @@ class DecisionCountersProjection(Projection[EventCountersView]):
                 self.view.insert_tracking(tracking)
 
 
-class StudentEventCountersProjection(Projection[EventCountersView]):
+class StudentEventCountersProjection(
+    Projection[EventCountersView, AggregateEvent[Decision]]
+):
     name = "eventcounters"
     topics: tuple[str, ...] = (
         get_topic(Student.Registered),
@@ -248,7 +254,9 @@ class StudentEventCountersProjection(Projection[EventCountersView]):
         get_topic(SpannerThrown),
     )
 
-    def process_event(self, envelope: EventEnvelope[Any], tracking: Tracking) -> None:
+    def process_event(
+        self, envelope: AggregateEvent[Decision], tracking: Tracking
+    ) -> None:
         match envelope.decision:
             case Student.Registered():
                 self.view.incr_student_registered_counter(tracking)
@@ -276,7 +284,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
 
             # Get "read" and "write" model instances from the runner.
             write_model = runner.app
-            read_model = runner.projection.view
+            read_model = runner.view
 
             # Write some events.
             aggregate = Student()
@@ -321,7 +329,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
             env=self.env,
         ) as runner:
             write_model = runner.app
-            read_model = runner.projection.view
+            read_model = runner.view
 
             # Write some events.
             aggregate = Student()
@@ -356,7 +364,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
 
             # Get "read" and "write" model instances from the runner.
             write_model = runner.app
-            read_model = runner.projection.view
+            read_model = runner.view
 
             # Write some events.
             perspective = Thing(thing_id=str("thing-" + str(uuid4())))
@@ -400,7 +408,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
             env=self.env,
         ) as runner:
             write_model = runner.app
-            read_model = runner.projection.view
+            read_model = runner.view
 
             # Write some events.
             perspective = Thing(thing_id=str("thing-" + str(uuid4())))

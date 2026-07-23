@@ -6,8 +6,7 @@ from unittest.case import TestCase
 from eventsourcing.application import ProcessingEvent
 from eventsourcing.domain import triggers
 from eventsourcing.persistence import Tracking
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic import Aggregate, Decision
 from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 
 if TYPE_CHECKING:
@@ -15,8 +14,8 @@ if TYPE_CHECKING:
 
 
 def policy(
-    envelope: AggregateEvent[PydanticDecision],
-    processing_event: ProcessingEvent[PydanticDecision],
+    envelope: AggregateEvent[Decision],
+    processing_event: ProcessingEvent[Decision],
 ) -> None:
     match envelope.decision:
         case BankAccountWithPydantic.Opened(
@@ -40,7 +39,7 @@ class TestProcessingPolicy(TestCase):
         events = account.collect_events()
         created_event = events[0]
 
-        processing_event = ProcessingEvent[PydanticDecision](
+        processing_event = ProcessingEvent[Decision](
             tracking=Tracking(
                 application_name="upstream_app",
                 notification_id=5,
@@ -56,8 +55,8 @@ class TestProcessingPolicy(TestCase):
         )
 
 
-class EmailNotification(PydanticAggregate):
-    class Created(PydanticDecision):
+class EmailNotification(Aggregate):
+    class Created(Decision):
         to: str
         subject: str
         message: str

@@ -1,21 +1,18 @@
 from unittest import TestCase
 
 from eventsourcing.domain import TaggedEvent
-from eventsourcing.msgspec.immutable import MsgspecDecision
-from eventsourcing.msgspec.transcoder import MsgspecTranscoder
+from eventsourcing.msgspec import Decision, Transcoder
 from eventsourcing.persistence import TaggedEventMapper
 
-# TODO: Actually test the event store independently of the example application.
 
-
-class StudentRegistered(MsgspecDecision):
+class StudentRegistered(Decision):
     name: str
     max_courses: int
 
 
-class TestMapper(TestCase):
+class TestTaggedEventMapper(TestCase):
     def test_mapper(self) -> None:
-        mapper = TaggedEventMapper[MsgspecDecision](MsgspecTranscoder())
+        mapper = TaggedEventMapper(Transcoder())
 
         event = TaggedEvent[StudentRegistered](
             tags=["student-1"],
@@ -30,7 +27,7 @@ class TestMapper(TestCase):
         self.assertTrue(dcb_event.type.endswith("StudentRegistered"), dcb_event.type)
         self.assertTrue(dcb_event.tags, dcb_event.type)
 
-        copy = mapper.to_domain_event(dcb_event)
+        copy = mapper.to_tagged_event(dcb_event)
         assert isinstance(copy, TaggedEvent)  # for mypy
         assert isinstance(copy.decision, StudentRegistered)  # for mypy
 

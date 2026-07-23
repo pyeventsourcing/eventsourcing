@@ -7,23 +7,18 @@ from abc import ABC, abstractmethod
 from queue import Queue
 from threading import Event
 from time import sleep
-from typing import TYPE_CHECKING, Any, Generic
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from unittest.case import TestCase
 from unittest.mock import MagicMock
 
-from typing_extensions import TypeVar
-
 from eventsourcing.application import ProcessingEvent  # noqa: TC001
 from eventsourcing.domain import (
-    Aggregate,
     AggregateEvent,
     EventEnvelope,
     triggers,
 )
 from eventsourcing.errors import ProgrammingError
-from eventsourcing.pydantic.application import PydanticAggregatesApplication
-from eventsourcing.pydantic.immutable import PydanticDecision
-from eventsourcing.pydantic.mutable import PydanticAggregate
+from eventsourcing.pydantic import Aggregate, AggregatesApplication, Decision
 from eventsourcing.system import (
     ConvertingThread,
     EventProcessingError,
@@ -64,11 +59,11 @@ TRunner = TypeVar(
 )
 
 
-class Command(PydanticAggregate):
-    class Created(PydanticDecision):
+class Command(Aggregate):
+    class Created(Decision):
         text: str
 
-    class Done(PydanticDecision):
+    class Done(Decision):
         output: str
         error: str
 
@@ -84,8 +79,8 @@ class Command(PydanticAggregate):
         self.error = error
 
 
-class Result(Aggregate[PydanticDecision]):
-    class Created(PydanticDecision):
+class Result(Aggregate):
+    class Created(Decision):
         command_id: str
         output: str
         error: str
@@ -203,9 +198,7 @@ class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
             self.assertEqual(len(section.items), 10)
 
     def test_system_with_processing_loop(self) -> None:
-        class Commands(
-            PydanticAggregatesApplication, ProcessApplication[PydanticDecision]
-        ):
+        class Commands(AggregatesApplication, ProcessApplication[Decision]):
             def create_command(self, text: str) -> str:
                 command = Command(text=text)
                 self.save(command)
@@ -213,8 +206,8 @@ class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
 
             def policy(
                 self,
-                envelope: EventEnvelope[PydanticDecision],
-                processing_event: ProcessingEvent[PydanticDecision],
+                envelope: EventEnvelope[Decision],
+                processing_event: ProcessingEvent[Decision],
             ) -> None:
                 match envelope.decision:
                     case Result.Created(
@@ -232,16 +225,14 @@ class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
                 command = self.repository.get(command_id, Command)
                 return command.output, command.error
 
-        class Results(
-            PydanticAggregatesApplication, ProcessApplication[PydanticDecision]
-        ):
+        class Results(AggregatesApplication, ProcessApplication[Decision]):
             def policy(
                 self,
-                envelope: EventEnvelope[PydanticDecision],
-                processing_event: ProcessingEvent[PydanticDecision],
+                envelope: AggregateEvent[Decision],
+                processing_event: ProcessingEvent[Decision],
             ) -> None:
-                match envelope:
-                    case AggregateEvent(decision=Command.Created(text=text)):
+                match envelope.decision:
+                    case Command.Created(text=text):
                         try:
                             openargs = shlex.split(text)
                             output = subprocess.check_output(openargs)  # noqa: S603
@@ -406,27 +397,23 @@ class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
 #
 
 
-class TestSingleThreadedRunner(RunnerTestCase[SingleThreadedRunner[PydanticDecision]]):
+class TestSingleThreadedRunner(RunnerTestCase[SingleThreadedRunner[Decision]]):
     def construct_runner(
         self, system: System, env: EnvType | None = None
-    ) -> SingleThreadedRunner[PydanticDecision]:
-        return SingleThreadedRunner[PydanticDecision](system, env)
+    ) -> SingleThreadedRunner[Decision]:
+        return SingleThreadedRunner[Decision](system, env)
 
-    def wait_for_runner(self, runner: SingleThreadedRunner[PydanticDecision]) -> None:
+    def wait_for_runner(self, runner: SingleThreadedRunner[Decision]) -> None:
         pass
 
 
-class TestNewSingleThreadedRunner(
-    RunnerTestCase[NewSingleThreadedRunner[PydanticDecision]]
-):
+class TestNewSingleThreadedRunner(RunnerTestCase[NewSingleThreadedRunner[Decision]]):
     def construct_runner(
         self, system: System, env: EnvType | None = None
-    ) -> NewSingleThreadedRunner[PydanticDecision]:
-        return NewSingleThreadedRunner[PydanticDecision](system=system, env=env)
+    ) -> NewSingleThreadedRunner[Decision]:
+        return NewSingleThreadedRunner[Decision](system=system, env=env)
 
-    def wait_for_runner(
-        self, runner: NewSingleThreadedRunner[PydanticDecision]
-    ) -> None:
+    def wait_for_runner(self, runner: NewSingleThreadedRunner[Decision]) -> None:
         pass
 
     def test_ignores_recording_event_if_seen_subsequent(self) -> None:
@@ -470,7 +457,7 @@ class TestNewSingleThreadedRunner(
 
 class TestPullingThread(TestCase):
     def test_receive_recording_event_does_not_block(self) -> None:
-        thread = PullingThread[PydanticDecision](
+        thread = PullingThread[Decision](
             converting_queue=Queue(),
             follower=MagicMock(),
             leader_name="BankAccountsWithPydantic",
@@ -498,7 +485,7 @@ class TestPullingThread(TestCase):
         self.assertTrue(thread.overflow_event.is_set())
 
     def test_stops_because_stopping_event_is_set(self) -> None:
-        thread = PullingThread[PydanticDecision](
+        thread = PullingThread[Decision](
             converting_queue=Queue(),
             follower=MagicMock(),
             leader_name="BankAccountsWithPydantic",
@@ -521,7 +508,7 @@ class TestPullingThread(TestCase):
         self.assertEqual(thread.recording_event_queue.qsize(), 2)
 
     def test_stops_because_recording_event_queue_was_poisoned(self) -> None:
-        thread = PullingThread[PydanticDecision](
+        thread = PullingThread[Decision](
             converting_queue=Queue(),
             follower=MagicMock(),
             leader_name="BankAccountsWithPydantic",
@@ -547,7 +534,7 @@ class BrokenInitialisation(EmailProcess):
 
 class BrokenProcessing(EmailProcess):
     def process_event(
-        self, envelope: EventEnvelope[PydanticDecision], tracking: Tracking
+        self, envelope: EventEnvelope[Decision], tracking: Tracking
     ) -> None:
         msg = "Just testing error handling when processing is broken"
         raise DeliberateError(msg)
@@ -701,11 +688,11 @@ class MultiThreadedRunnerTestCase(RunnerTestCase[TMultiThreadedRunner], ABC):
 
 
 class TestMultiThreadedRunner(
-    MultiThreadedRunnerTestCase[MultiThreadedRunner[PydanticDecision]]
+    MultiThreadedRunnerTestCase[MultiThreadedRunner[Decision]]
 ):
     def construct_runner(
         self, system: System, env: EnvType | None = None
-    ) -> MultiThreadedRunner[PydanticDecision]:
+    ) -> MultiThreadedRunner[Decision]:
         return MultiThreadedRunner(system=system, env=env)
 
 
@@ -805,19 +792,19 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
 
     def wait_for_runner(
         self,
-        runner: MultiThreadedRunner[PydanticDecision],
+        runner: MultiThreadedRunner[Decision],
     ) -> None:
         sleep(0.6)
         super().wait_for_runner(runner)
 
 
 class TestNewMultiThreadedRunner(
-    MultiThreadedRunnerTestCase[NewMultiThreadedRunner[PydanticDecision]]
+    MultiThreadedRunnerTestCase[NewMultiThreadedRunner[Decision]]
 ):
 
     def construct_runner(
         self, system: System, env: EnvType | None = None
-    ) -> NewMultiThreadedRunner[PydanticDecision]:
+    ) -> NewMultiThreadedRunner[Decision]:
         return NewMultiThreadedRunner(system=system, env=env)
 
     class BrokenPulling(EmailProcess):
@@ -835,7 +822,7 @@ class TestNewMultiThreadedRunner(
     class BrokenConverting(EmailProcess):
         def convert_notifications(
             self, leader_name: str, notifications: Iterable[Notification]
-        ) -> list[ProcessingJob[PydanticDecision]]:
+        ) -> list[ProcessingJob[Decision]]:
             msg = "Just testing error handling when converting is broken"
             raise ProgrammingError(msg)
 
