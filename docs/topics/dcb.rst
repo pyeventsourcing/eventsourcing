@@ -2,16 +2,16 @@
 :mod:`~eventsourcing.dcb` --- Dynamic consistency boundaries
 ============================================================
 
-From version 9.5, this library supports Dynamic Consistency Boundaries (DCB) by providing:
+From version 9.5, this library supports Dynamic Consistency Boundaries (Dcb) by providing:
 
 * an :ref:`implementation <DCB Objects>` in Python of the basic objects defined in the `specification <https://dcb.events/specification/>`_
 * a range of :ref:`event stores <DCB recorders>` that work in memory, with PostgreSQL, and with UmaDB
 * some :ref:`higher-level abstractions <Higher-level abstractions>` to make working with DCB easier
 * support in the :doc:`projections module </topics/projection>` for eventually-consistent materialized views
 
-.. _Introduction to DCB:
+.. _Introduction to Dcb:
 
-Introduction to DCB
+Introduction to Dcb
 ===================
 
 Dynamic Consistency Boundaries is a significant variant of event sourcing presented in a
@@ -93,7 +93,7 @@ DCB Objects
 ===========
 
 Here we present an implementation in Python of the basic objects for DCB that are
-described in the specification and discussed in the :ref:`introduction <Introduction to DCB>`
+described in the specification and discussed in the :ref:`introduction <Introduction to Dcb>`
 above.
 
 See :doc:`this example </topics/examples/dcb-enrolment-with-basic-objects>` of
@@ -104,16 +104,16 @@ using the basic DCB objects to meet the course subscriptions challenge.
 DCB Query Item
 --------------
 
-A :class:`~eventsourcing.dcb.api.DCBQueryItem` defines a criterion for matching events.
+A :class:`~eventsourcing.dcb.api.DcbQueryItem` defines a criterion for matching events.
 A query item will match an event if one of its types matches the event's type or the
 query item's types attribute is empty, and if all of its tags match one of the event's tags
 or the query item's tags attribute is empty.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.api import DCBQueryItem
+    from eventsourcing.dcb.api import DcbQueryItem
 
-    student_query_item = DCBQueryItem(
+    student_query_item = DcbQueryItem(
         types=["StudentRegistered"],
         tags=["student:123"],
     )
@@ -124,15 +124,15 @@ or the query item's tags attribute is empty.
 DCB Query
 ---------
 
-A :class:`~eventsourcing.dcb.api.DCBQuery` defines criteria for :ref:`selecting <DCB Recorders>` events in an event store.
+A :class:`~eventsourcing.dcb.api.DcbQuery` defines criteria for :ref:`selecting <DCB Recorders>` events in an event store.
 An :ref:`event <DCB Event>` is selected if it is matched by any :ref:`query item <DCB Query Item>` included in ``items`` attribute,
 or if the ``items`` attribute is empty.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.api import DCBQuery
+    from eventsourcing.dcb.api import DcbQuery
 
-    student_query = DCBQuery(
+    student_query = DcbQuery(
         items=[student_query_item],
     )
 
@@ -141,15 +141,15 @@ or if the ``items`` attribute is empty.
 DCB Event
 ---------
 
-A :class:`~eventsourcing.dcb.api.DCBEvent` represents a settled collection of facts to be appended, or
+A :class:`~eventsourcing.dcb.api.DcbEvent` represents a settled collection of facts to be appended, or
 that has already been recorded, in an :ref:`event store <DCB Recorders>`.
 
 .. code-block:: python
 
     from uuid import uuid4
-    from eventsourcing.dcb.api import DCBEvent
+    from eventsourcing.dcb.api import DcbEvent
 
-    student_registered = DCBEvent(
+    student_registered = DcbEvent(
         type="StudentRegistered",
         data=b'{"student_id": "student:123", "name": "Sara", "max_courses": 5}',
         tags=["student:123"],
@@ -157,7 +157,7 @@ that has already been recorded, in an :ref:`event store <DCB Recorders>`.
         metadata={},
     )
 
-    course_registered = DCBEvent(
+    course_registered = DcbEvent(
         type="CourseRegistered",
         data=b'{"course_id": "course:456", "name": "History", "max_students": 30}',
         tags=["course:456"],
@@ -171,19 +171,19 @@ that has already been recorded, in an :ref:`event store <DCB Recorders>`.
 DCB Sequenced Event
 -------------------
 
-A :class:`~eventsourcing.dcb.api.DCBSequencedEvent` represents a recorded :ref:`event <DCB Event>` along
+A :class:`~eventsourcing.dcb.api.DcbSequencedEvent` represents a recorded :ref:`event <DCB Event>` along
 with its assigned sequence number.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.api import DCBSequencedEvent
+    from eventsourcing.dcb.api import DcbSequencedEvent
 
-    DCBSequencedEvent(
+    DcbSequencedEvent(
         event=student_registered,
         position=56316,
     )
 
-    DCBSequencedEvent(
+    DcbSequencedEvent(
         event=course_registered,
         position=56317,
     )
@@ -194,15 +194,15 @@ with its assigned sequence number.
 DCB Append Condition
 --------------------
 
-A :class:`~eventsourcing.dcb.api.DCBAppendCondition` causes an :ref:`append <DCB Recorders>` request to fail if events
+A :class:`~eventsourcing.dcb.api.DcbAppendCondition` causes an :ref:`append <DCB Recorders>` request to fail if events
 match the :ref:`query <DCB Query>` value of its ``fail_if_events_match`` attribute, optionally
 after a sequence number.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.api import DCBAppendCondition
+    from eventsourcing.dcb.api import DcbAppendCondition
 
-    append_condition = DCBAppendCondition(
+    append_condition = DcbAppendCondition(
         fail_if_events_match=student_query,
         after=None,
     )
@@ -213,7 +213,7 @@ after a sequence number.
 DCB Recorders
 =============
 
-The term "recorder" here corresponds to the notion "event store" in the DCB
+The term "recorder" here corresponds to the notion "event store" in the Dcb
 specification, and refers to the notion of dealing with records. Following the
 terminology in this library, the term "recorder" is used for dealing with domain
 events that have been serialised into a common format, and the term "event store"
@@ -223,31 +223,31 @@ different types, and for specialist event store databases.
 Abstract base class
 -------------------
 
-The abstract base class :class:`~eventsourcing.dcb.api.DCBRecorder` defines the
-:func:`~eventsourcing.dcb.api.DCBRecorder.read` and :func:`~eventsourcing.dcb.api.DCBRecorder.append`
+The abstract base class :class:`~eventsourcing.dcb.api.DcbRecorder` defines the
+:func:`~eventsourcing.dcb.api.DcbRecorder.read` and :func:`~eventsourcing.dcb.api.DcbRecorder.append`
 method signatures described in the DCB specification for an "event store". These methods depend on
 the :ref:`DCB Objects` described above.
 
 .. literalinclude:: ../../eventsourcing/dcb/api.py
-    :pyobject: DCBRecorder
+    :pyobject: DcbRecorder
 
 We have made two enhancements that go beyond the DCB specification.
 
-The first enhancement is the standard idea to return :class:`int` from the :func:`~eventsourcing.dcb.api.DCBRecorder.append`
+The first enhancement is the standard idea to return :class:`int` from the :func:`~eventsourcing.dcb.api.DcbRecorder.append`
 method. This value represents the position of the last appended event. By returning this position, systems
 implemented with CQRS that transition from a "write" view to an eventually-consistent "read" view can
 wait for new events to be processed, by forwarding this value in the read request, avoiding the stale
 read model problem.
 
-The second enhancement is to support subscriptions, with the :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe`
+The second enhancement is to support subscriptions, with the :func:`~eventsourcing.dcb.api.DcbRecorder.subscribe`
 method, so that readers can continue receiving newly recorded events.
 
 Read response
 -------------
 
-The :func:`~eventsourcing.dcb.api.DCBRecorder.read` method returns a :class:`~eventsourcing.dcb.api.DCBReadResponse`,
-which is a Python iterator that returns :class:`~eventsourcing.dcb.api.DCBSequencedEvent` objects.
-It has a :data:`~eventsourcing.dcb.api.DCBReadResponse.head` property that allows a reader to obtain a
+The :func:`~eventsourcing.dcb.api.DcbRecorder.read` method returns a :class:`~eventsourcing.dcb.api.DcbReadResponse`,
+which is a Python iterator that returns :class:`~eventsourcing.dcb.api.DcbSequencedEvent` objects.
+It has a :data:`~eventsourcing.dcb.api.DcbReadResponse.head` property that allows a reader to obtain a
 "last known position" that corresponds to the last recorded event in the database at the time of reading,
 rather than the sequence number of the last event it receives. This gives a better value for subsequent
 append conditions.
@@ -255,25 +255,25 @@ append conditions.
 Subscription
 ------------
 
-The :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` method returns a :class:`~eventsourcing.dcb.api.DCBSubscription`
-object, which is a Python iterator that returns :class:`~eventsourcing.dcb.api.DCBSequencedEvent` objects. It
+The :func:`~eventsourcing.dcb.api.DcbRecorder.subscribe` method returns a :class:`~eventsourcing.dcb.api.DcbSubscription`
+object, which is a Python iterator that returns :class:`~eventsourcing.dcb.api.DcbSequencedEvent` objects. It
 can be used as a context manager.
 
-The following sections describe various implementations of the :class:`~eventsourcing.dcb.api.DCBRecorder` interface.
+The following sections describe various implementations of the :class:`~eventsourcing.dcb.api.DcbRecorder` interface.
 
 .. _In-memory DCB recorder:
 
 In-memory DCB recorder
 ----------------------
 
-The :class:`~eventsourcing.dcb.popo.InMemoryDCBRecorder` class implements the :class:`~eventsourcing.dcb.api.DCBRecorder`
+The :class:`~eventsourcing.dcb.popo.InMemoryDcbRecorder` class implements the :class:`~eventsourcing.dcb.api.DcbRecorder`
 interface using only Python objects.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.popo import InMemoryDCBRecorder
+    from eventsourcing.dcb.popo import InMemoryDcbRecorder
 
-    in_memory_recorder = InMemoryDCBRecorder()
+    in_memory_recorder = InMemoryDcbRecorder()
 
     # Conditionally append new events.
     in_memory_recorder.append(
@@ -298,8 +298,8 @@ relatively low volumes of events, and is ideal for use in unit test suites.
 Postgres DCB recorder
 ---------------------
 
-The :class:`~eventsourcing.dcb.postgres_tt.PostgresDCBRecorderTT` class implements
-:class:`~eventsourcing.dcb.api.DCBRecorder` in PostgreSQL using the following approach.
+The :class:`~eventsourcing.dcb.postgres_tt.PostgresDcbRecorderTT` class implements
+:class:`~eventsourcing.dcb.api.DcbRecorder` in PostgreSQL using the following approach.
 
 It can be used by a DCB application by setting the ``PERSISTENCE_MODULE`` environment
 variable to ``"eventsourcing.dcb.postgres_tt"``, along with other settings such as the database name
@@ -337,7 +337,7 @@ UmaDB DCB recorder
 ------------------
 
 UmaDB is a `specialist event store for DCB <https://umadb.io>`_ written in Rust. The `Python package <https://pypi.org/project/eventsourcing-umadb/>`_
-``eventsourcing_umadb`` implements :class:`~eventsourcing.dcb.api.DCBRecorder` by adapting the `Python client for UmaDB <https://pypi.org/project/umadb/>`_.
+``eventsourcing_umadb`` implements :class:`~eventsourcing.dcb.api.DcbRecorder` by adapting the `Python client for UmaDB <https://pypi.org/project/umadb/>`_.
 
 It can be used by a DCB application by setting the ``PERSISTENCE_MODULE`` environment variable to ``"eventsourcing_umadb"``.
 
@@ -351,7 +351,7 @@ See the :doc:`speedrun example for a comparative report and analysis of the perf
 Higher-level Abstractions
 =========================
 
-The following sections describe higher-level abstractions for event sourcing with DCB.
+The following sections describe higher-level abstractions for event sourcing with Dcb.
 
 The higher-level abstractions shown below introduces the notion "enduring object" which is quite
 like "event-sourced aggregate" but with some important differences, the notion
@@ -402,7 +402,7 @@ Decision
 --------
 
 The :class:`~eventsourcing.domain.Decision` class is defined as the root of
-the decision class hierarchy in domain models that uses DCB.
+the decision class hierarchy in domain models that uses Dcb.
 
 It represents the general notion of giving form to the settled production of new facts
 in a domain model. Concrete subclasses will each define a name and a collection of attributes,
@@ -496,14 +496,14 @@ attached to generated event, with the context reset after a command has executed
 Mapper
 ------
 
-The class :class:`~eventsourcing.dcb.persistence.DCBMapper` is an abstract base class that
+The class :class:`~eventsourcing.dcb.persistence.DcbMapper` is an abstract base class that
 defines an interface for converting between the higher-level :class:`~eventsourcing.domain.Event`
-and lower-level :class:`~eventsourcing.dcb.api.DCBEvent`.
+and lower-level :class:`~eventsourcing.dcb.api.DcbEvent`.
 
 The mapper used by your application will need to support your decision classes.
 
 .. literalinclude:: ../../eventsourcing/dcb/persistence.py
-    :pyobject: DCBMapper
+    :pyobject: DcbMapper
 
 Concrete subclasses will implement serialization and deserialization functionality for a subclass of
 :class:`~eventsourcing.domain.Decision`, with the base class implementing the getting and resolving
@@ -658,24 +658,24 @@ A list of selectors corresponds to the lower-level :ref:`query <DCB query>`.
 Event store
 -----------
 
-A :class:`~eventsourcing.dcb.persistence.DCBEventStore` encapsulates both a :ref:`mapper <DCB Mapper>` and a :ref:`recorder <DCB Recorders>`.
+A :class:`~eventsourcing.dcb.persistence.DcbEventStore` encapsulates both a :ref:`mapper <DCB Mapper>` and a :ref:`recorder <DCB Recorders>`.
 It has methods for reading and appending events.
 
-The :func:`~eventsourcing.dcb.persistence.DCBEventStore.read` method returns an iterator of matching
+The :func:`~eventsourcing.dcb.persistence.DcbEventStore.read` method returns an iterator of matching
 events. The optional ``cb`` parameter is a consistency boundary for selecting events.
 The argument can be either a list of selectors, or an individual selector. The optional ``after`` parameter
 is a sequence number after which events will be read.
 
-The :func:`~eventsourcing.dcb.persistence.DCBEventStore.append` method has an ``events`` parameter, which
+The :func:`~eventsourcing.dcb.persistence.DcbEventStore.append` method has an ``events`` parameter, which
 is a list of events. The optional ``cb`` parameter is a consistency boundary
 for detecting conflicting events. The argument can be either a list of selectors, or an individual selector.
 The optional ``after`` parameter represents a sequence number after which conflicting events will be detected.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.persistence import DCBEventStore
+    from eventsourcing.dcb.persistence import DcbEventStore
 
-    event_store = DCBEventStore(
+    event_store = DcbEventStore(
         mapper=mapper,
         recorder=in_memory_recorder,
     )
@@ -850,7 +850,7 @@ enduring objects, in preparation for the :ref:`group example <Group>` in the nex
 See the :doc:`DCB examples </topics/examples/dcb-enrolment-with-enduring-objects>` for a more complete example.
 
 The advantage of enduring objects is the conceptual unity of having everything together in one place.
-However, this aligns enduring objects with the central criticism of event-sourced aggregates motivating DCB:
+However, this aligns enduring objects with the central criticism of event-sourced aggregates motivating Dcb:
 that including all events in a consistency boundary, regardless of whether they are actually required for
 any particular operation, may increase contention unnecessarily. Following this comes the accumulation of all
 commands and queries in a single class, tending towards large units of code that are hard to understand.
@@ -909,7 +909,7 @@ the student and the course. Similarly, a ``student_leaves_course()`` method coul
     assert student.id in course.student_ids
     assert course.id in student.course_ids
 
-Using groups to trigger cross-cutting events like this demonstrates the "one fact magic" of DCB. However,
+Using groups to trigger cross-cutting events like this demonstrates the "one fact magic" of Dcb. However,
 because the consistency boundary for a group is the union of the consistency boundaries for the members of
 a group, the criticism of :ref:`enduring objects <Enduring object>` applies even more to groups: that
 including all events in the consistency boundary, regardless of whether they are actually required for
@@ -923,7 +923,7 @@ Slice
 -----
 
 The :class:`~eventsourcing.domain.Slice` class  extends the :ref:`perspective <Perspective>` class, and
-is designed to support "vertical slice architecture" with DCB. The idea of "vertical slices" is that individual
+is designed to support "vertical slice architecture" with Dcb. The idea of "vertical slices" is that individual
 use cases can be implemented with pieces of code that are entirely independent of each other.
 Slices can support both command and query use cases.
 
@@ -991,23 +991,23 @@ higher-level abstraction.
 Repository
 ----------
 
-The :class:`~eventsourcing.dcb.application.DCBRepository` class is provided to support working with
+The :class:`~eventsourcing.dcb.application.DcbRepository` class is provided to support working with
 :ref:`perspectives <perspective>` of different kinds.
 
 A repository is constructed with an :ref:`event store <DCB event store>`.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.application import DCBRepository
+    from eventsourcing.dcb.application import DcbRepository
 
-    repository = DCBRepository(
-        eventstore=DCBEventStore(
+    repository = DcbRepository(
+        eventstore=DcbEventStore(
             mapper=DataclassTranscoder(),
-            recorder=InMemoryDCBRecorder(),
+            recorder=InMemoryDcbRecorder(),
         ),
     )
 
-The :func:`~eventsourcing.dcb.application.DCBRepository.save` method collects and appends new decisions.
+The :func:`~eventsourcing.dcb.application.DcbRepository.save` method collects and appends new decisions.
 
 ..
     #include-when-testing
@@ -1032,7 +1032,7 @@ The :func:`~eventsourcing.dcb.application.DCBRepository.save` method collects an
     repository.save(course)
 
 
-The :func:`~eventsourcing.dcb.application.DCBRepository.get` method reconstructs an :ref:`enduring object <enduring object>`
+The :func:`~eventsourcing.dcb.application.DcbRepository.get` method reconstructs an :ref:`enduring object <enduring object>`
 for a given continuity ID.
 
 .. code-block:: python
@@ -1049,7 +1049,7 @@ for a given continuity ID.
     assert course.student_ids == []
 
 
-The :func:`~eventsourcing.dcb.application.DCBRepository.get_many` method reconstructs many enduring objects
+The :func:`~eventsourcing.dcb.application.DcbRepository.get_many` method reconstructs many enduring objects
 for a given sequence of continuity IDs.
 
 .. code-block:: python
@@ -1065,7 +1065,7 @@ for a given sequence of continuity IDs.
     assert course.student_ids == []
 
 
-The :func:`~eventsourcing.dcb.application.DCBRepository.get_group` method constructs a :ref:`group <group>`
+The :func:`~eventsourcing.dcb.application.DcbRepository.get_group` method constructs a :ref:`group <group>`
 and its enduring object for a given sequence of continuity IDs.
 
 .. code-block:: python
@@ -1082,7 +1082,7 @@ and its enduring object for a given sequence of continuity IDs.
     assert student.id in course.student_ids
 
 
-The :func:`~eventsourcing.dcb.application.DCBRepository.advance` method selects and applies
+The :func:`~eventsourcing.dcb.application.DcbRepository.advance` method selects and applies
 decisions to a perspective. It can be used to update a :ref:`slice <slice>` to its current
 state before calling its :ref:`execute <slice>` method.
 
@@ -1123,28 +1123,28 @@ An application object brings together a stand-alone domain model and supportive 
 and implements commands and queries that support user interfaces.
 
 Just like the library's original :ref:`application class <Application objects>`,
-:class:`~eventsourcing.dcb.application.DCBApplication` selects and constructs a
+:class:`~eventsourcing.dcb.application.DcbApplication` selects and constructs a
 DCB :ref:`recorder <DCB recorders>` at run-time, according to its environment variable configuration.
 This means we can define a DCB application independently of persistence infrastructure, and then run it
 in different ways at different times.
 
-The :class:`~eventsourcing.dcb.application.DCBApplication` class also supports the higher-level
+The :class:`~eventsourcing.dcb.application.DcbApplication` class also supports the higher-level
 abstractions described above. It has a :ref:`repository <DCB repository>` to support working
-with perspectives. It also has a method :func:`~eventsourcing.dcb.application.DCBApplication.do`
+with perspectives. It also has a method :func:`~eventsourcing.dcb.application.DcbApplication.do`
 which supports working with :ref:`slices <Slice>` by advancing and executing a slice, then saving new decisions.
 
 It is also possible to use the :ref:`basic DCB objects <DCB objects>` directly with an application, and to extend
-:class:`~eventsourcing.dcb.application.DCBApplication` to support any other higher-level style you may wish to invent.
+:class:`~eventsourcing.dcb.application.DcbApplication` to support any other higher-level style you may wish to invent.
 
 The example below shows how to write command and query methods using :ref:`enduring objects <enduring object>`,
 :ref:`groups <group>`, and :ref:`slices <slice>`.
 
 .. code-block:: python
 
-    from eventsourcing.dcb.application import DCBApplication
+    from eventsourcing.dcb.application import DcbApplication
 
 
-    class CourseSubscriptions(DCBApplication):
+    class CourseSubscriptions(DcbApplication):
         def register_student(self, name: str) -> str:
             student = Student(student_id=f"student-{uuid4()}", name=name, max_courses=5)
             self.repository.save(student)
@@ -1192,7 +1192,7 @@ The example below shows how to write command and query methods using :ref:`endur
     assert "Sara P" in app.list_students_for_course(course_id)
     assert "History" in app.list_courses_for_student(student_id)
 
-Read :ref:`the examples pages <Dynamic Consistency Boundaries>` for more discussion and examples of DCB.
+Read :ref:`the examples pages <Dynamic Consistency Boundaries>` for more discussion and examples of Dcb.
 
 
 Code reference

@@ -103,22 +103,22 @@ method which can be used to stop the subscription to the application recorder in
             subscription.stop()  # ...so we can continue with the examples
 
 
-The :class:`~eventsourcing.projection.DCBApplicationSubscription` class is the equivalent for
+The :class:`~eventsourcing.projection.DcbApplicationSubscription` class is the equivalent for
 :ref:`DCB applications <DCB application>`. It returns :ref:`event objects <DCB Domain Event>`.
-Please note, the :ref:`DCB recorders <DCB recorders>` :class:`~eventsourcing.dcb.popo.InMemoryDCBRecorder`,
-:class:`~eventsourcing.dcb.postgres_tt.PostgresDCBRecorderTT` and the ``eventsourcing_umadb`` extension
-all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` method.
+Please note, the :ref:`DCB recorders <DCB recorders>` :class:`~eventsourcing.dcb.popo.InMemoryDcbRecorder`,
+:class:`~eventsourcing.dcb.postgres_tt.PostgresDcbRecorderTT` and the ``eventsourcing_umadb`` extension
+all implement the required :func:`~eventsourcing.dcb.api.DcbRecorder.subscribe` method.
 
 .. code-block:: python
 
     from dataclasses import dataclass
     from uuid import UUID, uuid4
 
-    from eventsourcing.dcb.application import DCBApplication
+    from eventsourcing.dcb.application import DcbApplication
     from eventsourcing.domain import EnduringObject
     from eventsourcing.dcb.msgspec import Decision, MsgspecMapper
     from eventsourcing.domain import event
-    from eventsourcing.projection import DCBApplicationSubscription
+    from eventsourcing.projection import DcbApplicationSubscription
     from eventsourcing.utils import get_topic
 
 
@@ -133,7 +133,7 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
 
 
     # Construct an application object.
-    app = DCBApplication(env={"MAPPER_TOPIC": get_topic(MsgspecMapper)})
+    app = DcbApplication(env={"MAPPER_TOPIC": get_topic(MsgspecMapper)})
 
     # Record an event.
     perspective = Thing(thing_id=str(uuid4()))
@@ -142,7 +142,7 @@ all implement the required :func:`~eventsourcing.dcb.api.DCBRecorder.subscribe` 
     # Position in application sequence from which to subscribe.
     max_tracking_id = 0
 
-    with DCBApplicationSubscription(app, gt=max_tracking_id, topics=()) as subscription:
+    with DcbApplicationSubscription(app, gt=max_tracking_id, topics=()) as subscription:
         for event, tracking in subscription:
             # Process the event and record new state with tracking information.
             subscription.stop()  # ...so we can continue with the examples
@@ -362,7 +362,7 @@ The projection runner supports :ref:`DCB application classes <DCB application>`.
 
     # Run projection as a context manager.
     with ProjectionRunner(
-        application_class=DCBApplication,
+        application_class=DcbApplication,
         view_class=MyPOPOMaterialisedView,
         projection_class=EventDecisionProjection,
         env={"MAPPER_TOPIC": get_topic(MsgspecMapper)},

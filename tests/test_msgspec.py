@@ -18,10 +18,10 @@ class MyMsgspecDecision(Decision):
 class TestDecision(TestCase):
     def test_my_decision(self) -> None:
         # Trying to isolate segmentation violation in Python3.13 with
-        # projection using DCB application with ImMemoryDCBRecorder and
+        # projection using DCB application with ImMemoryDcbRecorder and
         # eventsourcing.dcb.msgspec.Decision. One suspect is deepcopy of
         # msgspec.Struct subclasses, perhaps when crossing threads. This
-        # test tries to replicate what InMemoryDCBRecorder does with a
+        # test tries to replicate what InMemoryDcbRecorder does with a
         # subscription (deepcopy on a different thread). However, no segv.
         m = MyMsgspecDecision(a="a")
         self.assertEqual(deepcopy(m), m)

@@ -21,7 +21,7 @@ from eventsourcing.domain import (
 from eventsourcing.msgspec import (
     Aggregate,
     AggregatesApplication,
-    DCBApplication,
+    DcbApplication,
     Decision,
     EnduringObject,
 )
@@ -201,7 +201,7 @@ class SpannerThrownError(Exception):
     pass
 
 
-class DCBSpannerThrown(Decision):
+class DcbSpannerThrown(Decision):
     # Avoid segmentation violation with Python 3.13
     # and MsgStruct instances with zero attributes.
     thing_id: str
@@ -226,7 +226,7 @@ class DecisionCountersProjection(Projection[EventCountersView, TaggedEvent[Decis
     topics: tuple[str, ...] = (
         get_topic(Thing.Created),
         get_topic(Thing.Next),
-        get_topic(DCBSpannerThrown),
+        get_topic(DcbSpannerThrown),
     )
 
     def process_event(
@@ -235,7 +235,7 @@ class DecisionCountersProjection(Projection[EventCountersView, TaggedEvent[Decis
         match envelope.decision:
             case Thing.Created():
                 self.view.incr_student_registered_counter(tracking)
-            case DCBSpannerThrown():
+            case DcbSpannerThrown():
                 msg = "This is a deliberate bug"
                 raise SpannerThrownError(msg)
             case Thing.Next():
@@ -356,7 +356,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
 
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
-            application_class=DCBApplication,
+            application_class=DcbApplication,
             projection_class=DecisionCountersProjection,
             view_class=self.view_class,
             env=self.env,
@@ -402,7 +402,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
     def test_run_forever_raises_projection_error(self) -> None:
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
-            application_class=DCBApplication,
+            application_class=DcbApplication,
             projection_class=DecisionCountersProjection,
             view_class=self.view_class,
             env=self.env,
@@ -412,7 +412,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
 
             # Write some events.
             perspective = Thing(thing_id=str("thing-" + str(uuid4())))
-            perspective.trigger_event(DCBSpannerThrown, a="", thing_id=perspective.id)
+            perspective.trigger_event(DcbSpannerThrown, a="", thing_id=perspective.id)
             position = write_model.repository.save(perspective)
 
             # Projection runner terminates with projection error.

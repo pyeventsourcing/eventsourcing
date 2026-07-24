@@ -9,14 +9,14 @@ from uuid import uuid4
 import pytest
 
 from eventsourcing.dcb.api import (
-    DCBAppendCondition,
-    DCBEvent,
-    DCBQuery,
-    DCBQueryItem,
-    DCBReadResponse,
-    DCBRecorder,
-    DCBSequencedEvent,
-    DCBSubscription,
+    DcbAppendCondition,
+    DcbEvent,
+    DcbQuery,
+    DcbQueryItem,
+    DcbReadResponse,
+    DcbRecorder,
+    DcbSequencedEvent,
+    DcbSubscription,
 )
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError
@@ -24,8 +24,8 @@ from eventsourcing.postgres import PostgresDatastore, PostgresRecorder
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import Environment
 from examples.dcb_enrolment_with_basic_objects.postgres_ts import (
-    PostgresDCBRecorderTS,
-    PostgresTSDCBFactory,
+    PostgresDcbRecorderTS,
+    PostgresTSDcbFactory,
 )
 
 if TYPE_CHECKING:
@@ -33,53 +33,53 @@ if TYPE_CHECKING:
 
     from pytest_benchmark.fixture import BenchmarkFixture
 
-    from eventsourcing.dcb.postgres_tt import PostgresDCBRecorderTT
+    from eventsourcing.dcb.postgres_tt import PostgresDcbRecorderTT
 
 # https://dcb.events/specification/
 
 
-class TestDCBObjects(TestCase):
+class TestDcbObjects(TestCase):
     def test_query_item(self) -> None:
         # Can have zero tags and zero items.
-        item = DCBQueryItem()
+        item = DcbQueryItem()
         self.assertEqual([], item.types)
         self.assertEqual([], item.tags)
 
         # Can have more than zero types.
-        item = DCBQueryItem(types=["EventType1", "EventType2"])
+        item = DcbQueryItem(types=["EventType1", "EventType2"])
         self.assertEqual(["EventType1", "EventType2"], item.types)
         self.assertEqual([], item.tags)
 
         # Can have more than zero tags.
-        item = DCBQueryItem(tags=["tag1", "tag2"])
+        item = DcbQueryItem(tags=["tag1", "tag2"])
         self.assertEqual([], item.types)
         self.assertEqual(["tag1", "tag2"], item.tags)
 
     def test_query(self) -> None:
         # Can have zero items.
-        query = DCBQuery()
+        query = DcbQuery()
         self.assertEqual(0, len(query.items))
 
         # Can have more than zero items.
-        query = DCBQuery(items=[DCBQueryItem(), DCBQueryItem()])
+        query = DcbQuery(items=[DcbQueryItem(), DcbQueryItem()])
         self.assertEqual(2, len(query.items))
 
     def test_append_condition(self) -> None:
-        query = DCBQuery()
+        query = DcbQuery()
         # Must have one "fail if events match" query.
-        condition = DCBAppendCondition(fail_if_events_match=query)
+        condition = DcbAppendCondition(fail_if_events_match=query)
         self.assertEqual(query, condition.fail_if_events_match)
         self.assertEqual(None, condition.after)
 
         # May have an integer "after" value.
-        condition = DCBAppendCondition(fail_if_events_match=query, after=12)
+        condition = DcbAppendCondition(fail_if_events_match=query, after=12)
         self.assertEqual(query, condition.fail_if_events_match)
         self.assertEqual(12, condition.after)
 
     def test_event(self) -> None:
         # Must contain "type" and "data".
         uuid = uuid4()
-        event = DCBEvent(type="EventType1", data=b"data", uuid=uuid, metadata={})
+        event = DcbEvent(type="EventType1", data=b"data", uuid=uuid, metadata={})
         self.assertEqual("EventType1", event.type)
         self.assertEqual(b"data", event.data)
         self.assertEqual([], event.tags)
@@ -87,7 +87,7 @@ class TestDCBObjects(TestCase):
         self.assertEqual({}, event.metadata)
 
         # May contain tags.
-        event = DCBEvent(
+        event = DcbEvent(
             type="EventType1",
             data=b"data",
             tags=["tag1", "tag2"],
@@ -99,8 +99,8 @@ class TestDCBObjects(TestCase):
         self.assertEqual(["tag1", "tag2"], event.tags)
 
     def test_sequenced_event(self) -> None:
-        sequenced_event = DCBSequencedEvent(
-            event=DCBEvent(type="EventType1", data=b"data", uuid=uuid4(), metadata={}),
+        sequenced_event = DcbSequencedEvent(
+            event=DcbEvent(type="EventType1", data=b"data", uuid=uuid4(), metadata={}),
             position=3,
         )
         self.assertEqual("EventType1", sequenced_event.event.type)
@@ -108,36 +108,36 @@ class TestDCBObjects(TestCase):
         self.assertEqual(3, sequenced_event.position)
 
 
-class TestDCBSubscription(TestCase):
+class TestDcbSubscription(TestCase):
     def test(self) -> None:
-        class MyRecorder(DCBRecorder):
+        class MyRecorder(DcbRecorder):
 
             def subscribe(
-                self, query: DCBQuery | None = None, *, after: int | None = None
-            ) -> DCBSubscription[MyRecorder]:
+                self, query: DcbQuery | None = None, *, after: int | None = None
+            ) -> DcbSubscription[MyRecorder]:
                 raise NotImplementedError
 
             def append(
                 self,
-                events: Sequence[DCBEvent],
-                condition: DCBAppendCondition | None = None,
+                events: Sequence[DcbEvent],
+                condition: DcbAppendCondition | None = None,
             ) -> int:
                 raise NotImplementedError
 
             def read(
                 self,
-                query: DCBQuery | None = None,
+                query: DcbQuery | None = None,
                 *,
                 after: int | None = None,
                 limit: int | None = None,
-            ) -> DCBReadResponse:
+            ) -> DcbReadResponse:
                 raise NotImplementedError
 
             def head(self) -> int | None:
                 raise NotImplementedError
 
-        class MySubscription(DCBSubscription[MyRecorder]):
-            def __next__(self) -> DCBSequencedEvent:
+        class MySubscription(DcbSubscription[MyRecorder]):
+            def __next__(self) -> DcbSequencedEvent:
                 raise NotImplementedError
 
         s = MySubscription(
@@ -157,7 +157,7 @@ class TestDCBSubscription(TestCase):
 
 
 class WithPostgres(TestCase):
-    postgres_dcb_recorder_class: type[PostgresDCBRecorderTT | PostgresDCBRecorderTS]
+    postgres_dcb_recorder_class: type[PostgresDcbRecorderTT | PostgresDcbRecorderTS]
     pool_size: int = 1
 
     def setUp(self) -> None:
@@ -179,10 +179,10 @@ class WithPostgres(TestCase):
         drop_tables()
 
 
-class TestDCBPostgresFactory(TestCase):
+class TestDcbPostgresFactory(TestCase):
     def test(self) -> None:
         # For now, just cover the case of not creating a table.
-        factory = PostgresTSDCBFactory(
+        factory = PostgresTSDcbFactory(
             Environment(
                 name="test",
                 env={
@@ -202,7 +202,7 @@ class TestDCBPostgresFactory(TestCase):
 class ConcurrentAppendTestCase(TestCase):
     insert_num = 10000
 
-    def _test_commit_vs_insert_order(self, event_store: DCBRecorder) -> None:
+    def _test_commit_vs_insert_order(self, event_store: DcbRecorder) -> None:
         race_started = Event()
 
         tag1 = str(uuid4())
@@ -213,7 +213,7 @@ class ConcurrentAppendTestCase(TestCase):
 
         errors = []
 
-        def append_stack(stack: list[DCBEvent]) -> None:
+        def append_stack(stack: list[DcbEvent]) -> None:
             try:
                 race_started.wait()
                 event_store.append(stack)
@@ -257,7 +257,7 @@ class ConcurrentAppendTestCase(TestCase):
         else:
             self.assertGreater(min_position_for_tag2, max_position_for_tag1)
 
-    def _test_fail_condition_is_effective(self, event_store: DCBRecorder) -> None:
+    def _test_fail_condition_is_effective(self, event_store: DcbRecorder) -> None:
         race_started = Event()
 
         tag1 = str(uuid4())
@@ -268,10 +268,10 @@ class ConcurrentAppendTestCase(TestCase):
 
         errors = []
 
-        def append_stack(stack: list[DCBEvent]) -> None:
+        def append_stack(stack: list[DcbEvent]) -> None:
             try:
                 race_started.wait()
-                event_store.append(stack, DCBAppendCondition(after=0))
+                event_store.append(stack, DcbAppendCondition(after=0))
             except Exception as e:
                 errors.append(e)
 
@@ -309,9 +309,9 @@ class ConcurrentAppendTestCase(TestCase):
                 f"and {len(positions_for_tag2)} for tag2"
             )
 
-    def create_stack(self, tag: str) -> list[DCBEvent]:
+    def create_stack(self, tag: str) -> list[DcbEvent]:
         return [
-            DCBEvent(
+            DcbEvent(
                 type="CommitOrderTest",
                 data=b"",
                 tags=[tag],
@@ -323,7 +323,7 @@ class ConcurrentAppendTestCase(TestCase):
 
 
 @pytest.fixture
-def eventstore() -> Iterator[DCBRecorder]:
+def eventstore() -> Iterator[DcbRecorder]:
     datastore = PostgresDatastore(
         dbname="eventsourcing",
         host="127.0.0.1",
@@ -331,7 +331,7 @@ def eventstore() -> Iterator[DCBRecorder]:
         user="eventsourcing",
         password="eventsourcing",  # noqa:  S106
     )
-    recorder = PostgresDCBRecorderTS(datastore)
+    recorder = PostgresDcbRecorderTS(datastore)
     recorder.create_table()
     yield recorder
 
@@ -340,7 +340,7 @@ def eventstore() -> Iterator[DCBRecorder]:
 
 @pytest.mark.benchmark(group="dcb-append-one-event")
 def test_recorder_append_one_event(
-    eventstore: DCBRecorder, benchmark: BenchmarkFixture
+    eventstore: DcbRecorder, benchmark: BenchmarkFixture
 ) -> None:
 
     def setup() -> Any:
@@ -350,12 +350,12 @@ def test_recorder_append_one_event(
     class Context:
         position: int = 0
 
-    def func(events: list[DCBEvent]) -> None:
+    def func(events: list[DcbEvent]) -> None:
         Context.position = eventstore.append(
             events,
-            DCBAppendCondition(
-                fail_if_events_match=DCBQuery(
-                    items=[DCBQueryItem(tags=events[0].tags)]
+            DcbAppendCondition(
+                fail_if_events_match=DcbQuery(
+                    items=[DcbQueryItem(tags=events[0].tags)]
                 ),
                 after=Context.position,
             ),
@@ -366,7 +366,7 @@ def test_recorder_append_one_event(
 
 @pytest.mark.benchmark(group="dcb-append-ten-events")
 def test_recorder_append_ten_events(
-    eventstore: DCBRecorder, benchmark: BenchmarkFixture
+    eventstore: DcbRecorder, benchmark: BenchmarkFixture
 ) -> None:
 
     def setup() -> Any:
@@ -376,12 +376,12 @@ def test_recorder_append_ten_events(
     class Context:
         position: int = 0
 
-    def func(events: list[DCBEvent]) -> None:
+    def func(events: list[DcbEvent]) -> None:
         Context.position = eventstore.append(
             events,
-            DCBAppendCondition(
-                fail_if_events_match=DCBQuery(
-                    items=[DCBQueryItem(tags=events[0].tags)]
+            DcbAppendCondition(
+                fail_if_events_match=DcbQuery(
+                    items=[DcbQueryItem(tags=events[0].tags)]
                 ),
                 after=Context.position,
             ),
@@ -392,7 +392,7 @@ def test_recorder_append_ten_events(
 
 @pytest.mark.benchmark(group="dcb-read-events-no-query-limit-ten")
 def test_recorder_read_events_no_query_limit_ten(
-    eventstore: DCBRecorder, benchmark: BenchmarkFixture
+    eventstore: DcbRecorder, benchmark: BenchmarkFixture
 ) -> None:
     events = generate_events(50000)
     eventstore.append(events)
@@ -406,7 +406,7 @@ def test_recorder_read_events_no_query_limit_ten(
 
 @pytest.mark.benchmark(group="dcb-read-events-no-query-after-thousand-limit-ten")
 def test_recorder_read_events_no_query_after_thousand_limit_ten(
-    eventstore: DCBRecorder, benchmark: BenchmarkFixture
+    eventstore: DcbRecorder, benchmark: BenchmarkFixture
 ) -> None:
     events = generate_events(50000)
     eventstore.append(events)
@@ -420,12 +420,12 @@ def test_recorder_read_events_no_query_after_thousand_limit_ten(
 
 @pytest.mark.benchmark(group="dcb-read-events-one-query-one-type")
 def test_recorder_read_events_one_query_one_type(
-    eventstore: DCBRecorder, benchmark: BenchmarkFixture
+    eventstore: DcbRecorder, benchmark: BenchmarkFixture
 ) -> None:
     events = generate_events(50000)
     eventstore.append(events)
 
-    query = DCBQuery(items=[DCBQueryItem(types=[events[-1].type])])
+    query = DcbQuery(items=[DcbQueryItem(types=[events[-1].type])])
 
     def func() -> None:
         results = eventstore.read(query)
@@ -436,15 +436,15 @@ def test_recorder_read_events_one_query_one_type(
 
 @pytest.mark.benchmark(group="dcb-read-events-two-queries-one-type")
 def test_recorder_read_events_two_queries_one_type(
-    eventstore: DCBRecorder, benchmark: BenchmarkFixture
+    eventstore: DcbRecorder, benchmark: BenchmarkFixture
 ) -> None:
     events = generate_events(50000)
     eventstore.append(events)
 
-    query = DCBQuery(
+    query = DcbQuery(
         items=[
-            DCBQueryItem(types=[events[0].type]),
-            DCBQueryItem(types=[events[-1].type]),
+            DcbQueryItem(types=[events[0].type]),
+            DcbQueryItem(types=[events[-1].type]),
         ],
     )
 
@@ -457,14 +457,14 @@ def test_recorder_read_events_two_queries_one_type(
 
 @pytest.mark.benchmark(group="dcb-read-events-one-query-two-types")
 def test_recorder_read_events_one_query_two_types(
-    eventstore: DCBRecorder, benchmark: BenchmarkFixture
+    eventstore: DcbRecorder, benchmark: BenchmarkFixture
 ) -> None:
     events = generate_events(50000)
     eventstore.append(events)
 
-    query = DCBQuery(
+    query = DcbQuery(
         items=[
-            DCBQueryItem(
+            DcbQueryItem(
                 types=[
                     events[0].type,
                     events[-1].type,
@@ -482,11 +482,11 @@ def test_recorder_read_events_one_query_two_types(
 
 @pytest.mark.benchmark(group="dcb-read-events-one-query-one-tag")
 def test_recorder_read_events_one_query_one_tag(
-    eventstore: DCBRecorder, benchmark: BenchmarkFixture
+    eventstore: DcbRecorder, benchmark: BenchmarkFixture
 ) -> None:
     events = generate_events(50000)
     eventstore.append(events)
-    query = DCBQuery(items=[DCBQueryItem(tags=events[-1].tags)])
+    query = DcbQuery(items=[DcbQueryItem(tags=events[-1].tags)])
 
     def func() -> None:
         results = eventstore.read(query)
@@ -497,14 +497,14 @@ def test_recorder_read_events_one_query_one_tag(
 
 @pytest.mark.benchmark(group="dcb-read-events-two-queries-one-tag")
 def test_recorder_read_events_two_queries_one_tag(
-    eventstore: DCBRecorder, benchmark: BenchmarkFixture
+    eventstore: DcbRecorder, benchmark: BenchmarkFixture
 ) -> None:
     events = generate_events(50000)
     eventstore.append(events)
-    query = DCBQuery(
+    query = DcbQuery(
         items=[
-            DCBQueryItem(tags=events[0].tags),
-            DCBQueryItem(tags=events[-1].tags),
+            DcbQueryItem(tags=events[0].tags),
+            DcbQueryItem(tags=events[-1].tags),
         ]
     )
 
@@ -517,13 +517,13 @@ def test_recorder_read_events_two_queries_one_tag(
 
 @pytest.mark.benchmark(group="dcb-read-events-one-query-two-tags")
 def test_recorder_read_events_one_query_two_tags(
-    eventstore: DCBRecorder, benchmark: BenchmarkFixture
+    eventstore: DcbRecorder, benchmark: BenchmarkFixture
 ) -> None:
     events = generate_events(50000)
     eventstore.append(events)
-    query = DCBQuery(
+    query = DcbQuery(
         items=[
-            DCBQueryItem(tags=events[0].tags + events[-1].tags),
+            DcbQueryItem(tags=events[0].tags + events[-1].tags),
         ]
     )
 
@@ -542,9 +542,9 @@ def test_recorder_read_events_one_query_two_tags(
 #             port=5432,
 #             user="eventsourcing",
 #             password="eventsourcing",  # no qa:  S106
-#             after_connect=PostgresDCBEventStoreTS.register_pg_composite_type_adapters,
+#             after_connect=PostgresDcbEventStoreTS.register_pg_composite_type_adapters,
 #         )
-#         self.eventstore = PostgresDCBEventStoreTS(datastore)
+#         self.eventstore = PostgresDcbEventStoreTS(datastore)
 #         self.eventstore.create_table()
 #
 #     def test(self):
@@ -557,9 +557,9 @@ def test_recorder_read_events_one_query_two_tags(
 #         drop_tables()
 
 
-def generate_events(num_events: int) -> list[DCBEvent]:
+def generate_events(num_events: int) -> list[DcbEvent]:
     return [
-        DCBEvent(
+        DcbEvent(
             type=f"topic{i}",
             data=b"state{i}",
             tags=[str(uuid4())],

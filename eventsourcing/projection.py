@@ -16,7 +16,7 @@ from eventsourcing.application import (
     AggregatesApplication,
     ProcessingEvent,
 )
-from eventsourcing.dcb.application import DCBApplication
+from eventsourcing.dcb.application import DcbApplication
 from eventsourcing.domain import (
     TDecision,
     TEnvelope,
@@ -41,7 +41,7 @@ TApplication = TypeVar("TApplication", bound=AbstractApplication[Any, Any])
 TAggregatesApplication = TypeVar(
     "TAggregatesApplication", bound=AggregatesApplication[Any]
 )
-TDCBApplication = TypeVar("TDCBApplication", bound=DCBApplication[Any])
+TDcbApplication = TypeVar("TDcbApplication", bound=DcbApplication[Any])
 
 
 class AbstractProjection(AbstractContextManager[Any], Generic[TEnvelope]):

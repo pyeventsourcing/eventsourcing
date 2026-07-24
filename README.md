@@ -42,7 +42,7 @@ You can start the UmaDB server with `uv run umadb`.
 ## Introduction
 
 Version 10 of this library still supports traditional event-sourced aggregates. In these
-examples we have chosen to foreground the library's support for DCB, to showcase the
+examples we have chosen to foreground the library's support for Dcb, to showcase the
 new official support for modeling and serialising events with Pydantic, and to demonstrate
 the capabilities of UmaDB.
 
@@ -118,7 +118,7 @@ In this example, the commands and queries are defined with object methods. If yo
 can define module-level functions that have an application object argument, or alternatively
 define equivalent command handler and query handler classes.
 
-The `eventsourcing.pydantic.DCBApplication` class works with the Pydantic `EnduringObject` and
+The `eventsourcing.pydantic.DcbApplication` class works with the Pydantic `EnduringObject` and
 `Decision` classes. The `save()` and `get()` methods of the application's repository are
 designed to work with enduring objects. One collects and stores new events, the other
 reconstructs an enduring object from stored events.
@@ -129,7 +129,7 @@ used by interfaces and integration tests.
 ```python
 from typing import TypedDict
 
-from eventsourcing.pydantic import DCBApplication
+from eventsourcing.pydantic import DcbApplication
 
 
 class DogSummary(TypedDict):
@@ -137,7 +137,7 @@ class DogSummary(TypedDict):
     tricks: tuple[str, ...]
 
 
-class DogSchool(DCBApplication):
+class DogSchool(DcbApplication):
     def register_dog(self, name: str) -> str:
         dog = Dog(name=name)
         self.repository.save(dog)
@@ -267,11 +267,11 @@ class DogView(Slice):
 As we did for the `Dog` object above, let's also define an application class that encapsulates the
 slices and persistence infrastructure, presenting an API that can be used from tests and interfaces.
 
-The `eventsourcing.pydantic.DCBApplication` class also works with the `Slice` class
+The `eventsourcing.pydantic.DcbApplication` class also works with the `Slice` class
 and provides a `do()` method especially for vertical slices.
 
 ```python
-class DogSchoolWithSlices(DCBApplication):
+class DogSchoolWithSlices(DcbApplication):
     def register_dog(self, name: str) -> str:
         return self.do(RegisterDog(name=name)).dog_id
 

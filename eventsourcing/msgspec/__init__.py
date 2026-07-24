@@ -1,5 +1,5 @@
 import eventsourcing.domain
-from eventsourcing.msgspec.application import AggregatesApplication, DCBApplication
+from eventsourcing.msgspec.application import AggregatesApplication, DcbApplication
 from eventsourcing.msgspec.immutable import (
     Decision,
     Immutable,
@@ -26,7 +26,7 @@ __all__ = [
     "AggregateSnapshot",
     "AggregateState",
     "AggregatesApplication",
-    "DCBApplication",
+    "DcbApplication",
     "Decision",
     "EnduringObject",
     "Group",

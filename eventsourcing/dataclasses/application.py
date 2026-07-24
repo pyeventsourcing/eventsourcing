@@ -11,6 +11,6 @@ class AggregatesApplication(eventsourcing.application.AggregatesApplication[Deci
         return Transcoder()
 
 
-class DCBApplication(eventsourcing.dcb.application.DCBApplication[Decision]):
+class DcbApplication(eventsourcing.dcb.application.DcbApplication[Decision]):
     def construct_transcoder(self) -> eventsourcing.persistence.Transcoder[Decision]:
         return Transcoder()

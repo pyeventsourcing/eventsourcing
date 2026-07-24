@@ -7,7 +7,7 @@ from uuid import uuid4
 from eventsourcing import msgspec
 from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.cryptography import AESCipher
-from eventsourcing.dcb.application import DCBApplication
+from eventsourcing.dcb.application import DcbApplication
 from eventsourcing.domain import (
     EnduringObject,
     event,
@@ -17,29 +17,29 @@ from eventsourcing.domain import (
 from eventsourcing.utils import Environment, get_topic
 
 
-class TestDCBApplication(TestCase):
+class TestDcbApplication(TestCase):
     def test_as_context_manager(self) -> None:
-        with DCBApplication[msgspec.Decision]():
+        with DcbApplication[msgspec.Decision]():
             pass
 
     def test_construct_with_env(self) -> None:
-        with DCBApplication[msgspec.Decision](env={"NAME": "value"}) as app:
+        with DcbApplication[msgspec.Decision](env={"NAME": "value"}) as app:
             self.assertIn("NAME", app.env)
 
     def test_construct_with_name(self) -> None:
-        with DCBApplication[msgspec.Decision](context_name="my_context") as app:
+        with DcbApplication[msgspec.Decision](context_name="my_context") as app:
             self.assertEqual(app.context_name, "my_context")
             self.assertIn(cast(Environment, app.env).name, "my_context")
 
     def test_can_subclass(self) -> None:
 
-        class MyApp1(DCBApplication[msgspec.Decision]):
+        class MyApp1(DcbApplication[msgspec.Decision]):
             pass
 
         app1 = MyApp1()
         self.assertEqual("MyApp1", app1.context_name)
 
-        class MyApp2(DCBApplication[msgspec.Decision]):
+        class MyApp2(DcbApplication[msgspec.Decision]):
             context_name = "name1"
 
         app2 = MyApp2()
@@ -59,7 +59,7 @@ class TestDCBApplication(TestCase):
                 self.created_by = ""
 
         metadata = {"user_id": "user-1"}
-        with msgspec.DCBApplication() as app:
+        with msgspec.DcbApplication() as app:
             with put_metadata_in_context(metadata):
                 obj = MyEnduringObject(my_enduring_object_id=str(uuid4()))
 
@@ -84,7 +84,7 @@ class TestDCBApplication(TestCase):
             "COMPRESSOR_TOPIC": get_topic(ZlibCompressor),
         }
 
-        with msgspec.DCBApplication(env=env) as app:
+        with msgspec.DcbApplication(env=env) as app:
             self.assertTrue(app.mapper.compressor)
 
     def test_supports_encryption(self) -> None:
@@ -93,5 +93,5 @@ class TestDCBApplication(TestCase):
             "CIPHER_KEY": AESCipher.create_key(16),
         }
 
-        with msgspec.DCBApplication(env=env) as app:
+        with msgspec.DcbApplication(env=env) as app:
             self.assertTrue(app.mapper.cipher)

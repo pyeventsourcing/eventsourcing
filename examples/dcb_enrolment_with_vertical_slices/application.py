@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 from eventsourcing.domain import event
-from eventsourcing.pydantic import DCBApplication, Decision, Selector, Slice
+from eventsourcing.pydantic import DcbApplication, Decision, Selector, Slice
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseNotFoundError,
@@ -493,7 +493,7 @@ class Course(Slice):
         self.student_ids.remove(student_id)
 
 
-class EnrolmentWithVerticalSlices(DCBApplication, EnrolmentInterface):
+class EnrolmentWithVerticalSlices(DcbApplication, EnrolmentInterface):
     def register_student(self, name: str, max_courses: int) -> str:
         return self.do(RegisterStudent(name, max_courses)).student_id
 

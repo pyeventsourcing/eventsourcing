@@ -6,7 +6,7 @@ from eventsourcing.domain import (
     event,
 )
 from eventsourcing.pydantic import (
-    DCBApplication,
+    DcbApplication,
     Decision,
     EnduringObject,
     Group,
@@ -153,7 +153,7 @@ class StudentAndCourse(Group):
         )
 
 
-class EnrolmentWithEnduringObjects(DCBApplication, EnrolmentInterface):
+class EnrolmentWithEnduringObjects(DcbApplication, EnrolmentInterface):
     def register_student(self, name: str, max_courses: int) -> str:
         student = Student(name=name, max_courses=max_courses)
         self.repository.save(student)

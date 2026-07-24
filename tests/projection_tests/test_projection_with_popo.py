@@ -61,7 +61,7 @@ class TestAggregateEventCountersProjectionWithPOPO(
 
 # TODO: Figure out actually what is causing segmentation violations with Python3.13.
 #  - is happening in this test when whole test suite is run, but not when run alone
-#  - was happening when run alone when DCBSpannerThrown has no attributes
+#  - was happening when run alone when DcbSpannerThrown has no attributes
 #  - maybe something to do with deepcopy() in InMemoryRecorder?
 @skipIf(sys.version_info[0:2] == (3, 13), "Weird occasional segmentation violation")
 class TestTaggedEventCountersProjectionWithPOPO(DecisionCountersProjectionTestCase):

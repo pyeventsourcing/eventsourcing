@@ -6,22 +6,22 @@ from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing.dcb.api import (
-    DCBAppendCondition,
-    DCBEvent,
-    DCBQuery,
-    DCBQueryItem,
-    DCBRecorder,
-    DCBSequencedEvent,
-    DCBSubscription,
-    TDCBRecorder_co,
+    DcbAppendCondition,
+    DcbEvent,
+    DcbQuery,
+    DcbQueryItem,
+    DcbRecorder,
+    DcbSequencedEvent,
+    DcbSubscription,
+    TDcbRecorder_co,
 )
 from eventsourcing.persistence import IntegrityError
 
 
-class DCBRecorderTestCase(TestCase):
+class DcbRecorderTestCase(TestCase):
 
     def _test_append_read(
-        self, recorder: DCBRecorder, initial_position: int = 0
+        self, recorder: DcbRecorder, initial_position: int = 0
     ) -> None:
         # Read all, expect no results.
         read_response = recorder.read()
@@ -32,7 +32,7 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(read_response.head, recorder.head())
 
         # Append one event.
-        event1 = DCBEvent(
+        event1 = DcbEvent(
             type="type1",
             data=b"data1",
             tags=["tagX"],
@@ -77,7 +77,7 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(None, read_response.head)
 
         # Read events with type1, expect 1 event.
-        query_type1 = DCBQuery(items=[DCBQueryItem(types=["type1"])])
+        query_type1 = DcbQuery(items=[DcbQueryItem(types=["type1"])])
         read_response = recorder.read(query_type1, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
@@ -87,14 +87,14 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Read events with type2, expect no events.
-        query_type2 = DCBQuery(items=[DCBQueryItem(types=["type2"])])
+        query_type2 = DcbQuery(items=[DcbQueryItem(types=["type2"])])
         read_response = recorder.read(query_type2, after=initial_position)
         result = list(read_response)
         self.assertEqual(0, len(result))
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Read events with tagX, expect one event.
-        query_tag_x = DCBQuery(items=[DCBQueryItem(tags=["tagX"])])
+        query_tag_x = DcbQuery(items=[DcbQueryItem(tags=["tagX"])])
         read_response = recorder.read(query_tag_x, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
@@ -104,15 +104,15 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Read events with tagY, expect no events.
-        query_tag_y = DCBQuery(items=[DCBQueryItem(tags=["tagY"])])
+        query_tag_y = DcbQuery(items=[DcbQueryItem(tags=["tagY"])])
         read_response = recorder.read(query=query_tag_y, after=initial_position)
         result = list(read_response)
         self.assertEqual(0, len(result), result)
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Read events with type1 and tagX, expect one event.
-        query_type1_tag_x = DCBQuery(
-            items=[DCBQueryItem(types=["type1"], tags=["tagX"])]
+        query_type1_tag_x = DcbQuery(
+            items=[DcbQueryItem(types=["type1"], tags=["tagX"])]
         )
         read_response = recorder.read(query_type1_tag_x, after=initial_position)
         result = list(read_response)
@@ -120,8 +120,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Read events with type1 and tagY, expect no events.
-        query_type1_tag_y = DCBQuery(
-            items=[DCBQueryItem(types=["type1"], tags=["tagY"])]
+        query_type1_tag_y = DcbQuery(
+            items=[DcbQueryItem(types=["type1"], tags=["tagY"])]
         )
         read_response = recorder.read(query_type1_tag_y, after=initial_position)
         result = list(read_response)
@@ -129,8 +129,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Read events with type2 and tagX, expect no events.
-        query_type2_tag_x = DCBQuery(
-            items=[DCBQueryItem(types=["type2"], tags=["tagX"])]
+        query_type2_tag_x = DcbQuery(
+            items=[DcbQueryItem(types=["type2"], tags=["tagX"])]
         )
         read_response = recorder.read(query_type2_tag_x, after=initial_position)
         result = list(read_response)
@@ -138,14 +138,14 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(1 + initial_position, read_response.head)
 
         # Append two more events.
-        event2 = DCBEvent(
+        event2 = DcbEvent(
             type="type2",
             data=b"data2",
             tags=["tagA", "tagB"],
             uuid=uuid4(),
             metadata={},
         )
-        event3 = DCBEvent(
+        event3 = DcbEvent(
             type="type3",
             data=b"data3",
             tags=["tagA", "tagC"],
@@ -221,7 +221,7 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with tagA, expect two events.
-        query_tag_a = DCBQuery(items=[DCBQueryItem(tags=["tagA"])])
+        query_tag_a = DcbQuery(items=[DcbQueryItem(tags=["tagA"])])
         read_response = recorder.read(query_tag_a, after=initial_position)
         result = list(read_response)
         self.assertEqual(2, len(result))
@@ -234,7 +234,7 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with tagA and tagB, expect one event.
-        query_tag_a_and_b = DCBQuery(items=[DCBQueryItem(tags=["tagA", "tagB"])])
+        query_tag_a_and_b = DcbQuery(items=[DcbQueryItem(tags=["tagA", "tagB"])])
         read_response = recorder.read(query_tag_a_and_b, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
@@ -244,10 +244,10 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with tagB or tagC, expect two events.
-        query_tag_b_or_c = DCBQuery(
+        query_tag_b_or_c = DcbQuery(
             items=[
-                DCBQueryItem(tags=["tagB"]),
-                DCBQueryItem(tags=["tagC"]),
+                DcbQueryItem(tags=["tagB"]),
+                DcbQueryItem(tags=["tagC"]),
             ]
         )
         read_response = recorder.read(query_tag_b_or_c, after=initial_position)
@@ -262,10 +262,10 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with tagX or tagY, expect one event.
-        query_tag_x_or_y = DCBQuery(
+        query_tag_x_or_y = DcbQuery(
             items=[
-                DCBQueryItem(tags=["tagX"]),
-                DCBQueryItem(tags=["tagY"]),
+                DcbQueryItem(tags=["tagX"]),
+                DcbQueryItem(tags=["tagY"]),
             ]
         )
         read_response = recorder.read(query_tag_x_or_y, after=initial_position)
@@ -277,8 +277,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with type2 and tagA, expect one event.
-        query_type2_tag_a = DCBQuery(
-            items=[DCBQueryItem(types=["type2"], tags=["tagA"])]
+        query_type2_tag_a = DcbQuery(
+            items=[DcbQueryItem(types=["type2"], tags=["tagA"])]
         )
         read_response = recorder.read(query_type2_tag_a, after=initial_position)
         result = list(read_response)
@@ -289,8 +289,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with type2 and tagA after 2, expect no events.
-        query_type2_tag_a = DCBQuery(
-            items=[DCBQueryItem(types=["type2"], tags=["tagA"])]
+        query_type2_tag_a = DcbQuery(
+            items=[DcbQueryItem(types=["type2"], tags=["tagA"])]
         )
         read_response = recorder.read(query_type2_tag_a, after=2 + initial_position)
         result = list(read_response)
@@ -298,8 +298,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with type2 and tagA, expect one event.
-        query_type2_tag_a = DCBQuery(
-            items=[DCBQueryItem(types=["type2"], tags=["tagA"])]
+        query_type2_tag_a = DcbQuery(
+            items=[DcbQueryItem(types=["type2"], tags=["tagA"])]
         )
         read_response = recorder.read(query_type2_tag_a, after=initial_position)
         result = list(read_response)
@@ -310,10 +310,10 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Read events with type2 and tagB, or with type3 and tagC, expect two events.
-        query_type2_tag_b_or_type3_tagc = DCBQuery(
+        query_type2_tag_b_or_type3_tagc = DcbQuery(
             items=[
-                DCBQueryItem(types=["type2"], tags=["tagB"]),
-                DCBQueryItem(types=["type3"], tags=["tagC"]),
+                DcbQueryItem(types=["type2"], tags=["tagB"]),
+                DcbQueryItem(types=["type3"], tags=["tagC"]),
             ]
         )
         read_response = recorder.read(
@@ -330,10 +330,10 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Repeat with query items in different order, expect events in ascending order.
-        query_type3_tag_c_or_type2_tag_b = DCBQuery(
+        query_type3_tag_c_or_type2_tag_b = DcbQuery(
             items=[
-                DCBQueryItem(types=["type3"], tags=["tagC"]),
-                DCBQueryItem(types=["type2"], tags=["tagB"]),
+                DcbQueryItem(types=["type3"], tags=["tagC"]),
+                DcbQueryItem(types=["type2"], tags=["tagB"]),
             ]
         )
         read_response = recorder.read(
@@ -350,90 +350,90 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Append must fail if recorded events match condition.
-        event4 = DCBEvent(type="type4", data=b"data4", uuid=uuid4(), metadata={})
+        event4 = DcbEvent(type="type4", data=b"data4", uuid=uuid4(), metadata={})
 
         # Fail because condition matches all.
         new = [event4]
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition())
+            recorder.append(new, DcbAppendCondition())
 
         # Fail because condition matches all after 1.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(after=1))
+            recorder.append(new, DcbAppendCondition(after=1))
 
         # Fail because condition matches type1.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(query_type1))
+            recorder.append(new, DcbAppendCondition(query_type1))
 
         # Fail because condition matches type2 after 1.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(query_type2, after=1))
+            recorder.append(new, DcbAppendCondition(query_type2, after=1))
 
         # Fail because condition matches tagX.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(query_tag_x))
+            recorder.append(new, DcbAppendCondition(query_tag_x))
 
         # Fail because condition matches tagA after 1.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(query_tag_a, after=1))
+            recorder.append(new, DcbAppendCondition(query_tag_a, after=1))
 
         # Fail because condition matches type1 and tagX.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(query_type1_tag_x))
+            recorder.append(new, DcbAppendCondition(query_type1_tag_x))
 
         # Fail because condition matches type2 and tagA after 1.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(query_type2_tag_a, after=1))
+            recorder.append(new, DcbAppendCondition(query_type2_tag_a, after=1))
 
         # Fail because condition matches tagA and tagB.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(query_tag_a_and_b))
+            recorder.append(new, DcbAppendCondition(query_tag_a_and_b))
 
         # Fail because condition matches tagB or tagC.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(query_tag_b_or_c))
+            recorder.append(new, DcbAppendCondition(query_tag_b_or_c))
 
         # Fail because condition matches tagX or tagY.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(query_tag_x_or_y))
+            recorder.append(new, DcbAppendCondition(query_tag_x_or_y))
 
         # Fail because condition matches with type2 and tagB, or with type3 and tagC.
         with self.assertRaises(IntegrityError):
-            recorder.append(new, DCBAppendCondition(query_type2_tag_b_or_type3_tagc))
+            recorder.append(new, DcbAppendCondition(query_type2_tag_b_or_type3_tagc))
 
         # Can append after 3.
         recorder.append(new)
 
         # Can append match type_n.
-        query_type_n = DCBQuery(items=[DCBQueryItem(types=["typeN"])])
-        recorder.append(new, DCBAppendCondition(query_type_n))
+        query_type_n = DcbQuery(items=[DcbQueryItem(types=["typeN"])])
+        recorder.append(new, DcbAppendCondition(query_type_n))
 
         # Can append match tagY.
-        recorder.append(new, DCBAppendCondition(query_tag_y))
+        recorder.append(new, DcbAppendCondition(query_tag_y))
 
         # Can append match type1 after 1.
         recorder.append(
-            new, DCBAppendCondition(query_type1, after=1 + initial_position)
+            new, DcbAppendCondition(query_type1, after=1 + initial_position)
         )
 
         # Can append match tagX after 1.
         recorder.append(
-            new, DCBAppendCondition(query_tag_x, after=1 + initial_position)
+            new, DcbAppendCondition(query_tag_x, after=1 + initial_position)
         )
 
         # Can append match type1 and tagX after 1.
         recorder.append(
-            new, DCBAppendCondition(query_type1_tag_x, after=1 + initial_position)
+            new, DcbAppendCondition(query_type1_tag_x, after=1 + initial_position)
         )
 
         # Can append match tagX, after 1.
         recorder.append(
-            new, DCBAppendCondition(query_tag_x, after=1 + initial_position)
+            new, DcbAppendCondition(query_tag_x, after=1 + initial_position)
         )
 
         # Check it works with course subscription consistency boundaries and events.
         student_id = f"student1-{uuid4()}"
-        student_registered = DCBEvent(
+        student_registered = DcbEvent(
             type="StudentRegistered",
             data=json.dumps({"name": "Student1", "max_courses": 10}).encode(),
             tags=[student_id],
@@ -441,14 +441,14 @@ class DCBRecorderTestCase(TestCase):
             metadata={},
         )
         course_id = f"course1-{uuid4()}"
-        course_registered = DCBEvent(
+        course_registered = DcbEvent(
             type="CourseRegistered",
             data=json.dumps({"name": "Course1", "places": 10}).encode(),
             tags=[course_id],
             uuid=uuid4(),
             metadata={},
         )
-        student_joined_course = DCBEvent(
+        student_joined_course = DcbEvent(
             type="StudentJoinedCourse",
             data=json.dumps(
                 {"student_id": student_id, "course_id": course_id}
@@ -460,10 +460,10 @@ class DCBRecorderTestCase(TestCase):
 
         recorder.append(
             events=[student_registered],
-            condition=DCBAppendCondition(
-                fail_if_events_match=DCBQuery(
+            condition=DcbAppendCondition(
+                fail_if_events_match=DcbQuery(
                     items=[
-                        DCBQueryItem(
+                        DcbQueryItem(
                             tags=student_registered.tags, types=["StudentRegistered"]
                         )
                     ],
@@ -473,18 +473,18 @@ class DCBRecorderTestCase(TestCase):
         )
         recorder.append(
             events=[course_registered],
-            condition=DCBAppendCondition(
-                fail_if_events_match=DCBQuery(
-                    items=[DCBQueryItem(tags=course_registered.tags)],
+            condition=DcbAppendCondition(
+                fail_if_events_match=DcbQuery(
+                    items=[DcbQueryItem(tags=course_registered.tags)],
                 ),
                 after=3,
             ),
         )
         recorder.append(
             events=[student_joined_course],
-            condition=DCBAppendCondition(
-                fail_if_events_match=DCBQuery(
-                    items=[DCBQueryItem(tags=student_joined_course.tags)],
+            condition=DcbAppendCondition(
+                fail_if_events_match=DcbQuery(
+                    items=[DcbQueryItem(tags=student_joined_course.tags)],
                 ),
                 after=3,
             ),
@@ -505,8 +505,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(13 + initial_position, read_response.head)
 
         read_response = recorder.read(
-            query=DCBQuery(
-                items=[DCBQueryItem(tags=student_registered.tags)],
+            query=DcbQuery(
+                items=[DcbQueryItem(tags=student_registered.tags)],
             ),
             after=initial_position,
         )
@@ -514,8 +514,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(13 + initial_position, read_response.head)
 
         read_response = recorder.read(
-            query=DCBQuery(
-                items=[DCBQueryItem(tags=course_registered.tags)],
+            query=DcbQuery(
+                items=[DcbQueryItem(tags=course_registered.tags)],
             ),
             after=initial_position,
         )
@@ -523,8 +523,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(13 + initial_position, read_response.head)
 
         read_response = recorder.read(
-            query=DCBQuery(
-                items=[DCBQueryItem(tags=student_joined_course.tags)],
+            query=DcbQuery(
+                items=[DcbQueryItem(tags=student_joined_course.tags)],
             ),
             after=initial_position,
         )
@@ -532,8 +532,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(13 + initial_position, read_response.head)
 
         read_response = recorder.read(
-            query=DCBQuery(
-                items=[DCBQueryItem(tags=student_registered.tags)],
+            query=DcbQuery(
+                items=[DcbQueryItem(tags=student_registered.tags)],
             ),
             after=2 + initial_position,
         )
@@ -541,8 +541,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(13 + initial_position, read_response.head)
 
         read_response = recorder.read(
-            query=DCBQuery(
-                items=[DCBQueryItem(tags=course_registered.tags)],
+            query=DcbQuery(
+                items=[DcbQueryItem(tags=course_registered.tags)],
             ),
             after=2 + initial_position,
         )
@@ -550,8 +550,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(13 + initial_position, read_response.head)
 
         read_response = recorder.read(
-            query=DCBQuery(
-                items=[DCBQueryItem(tags=student_joined_course.tags)],
+            query=DcbQuery(
+                items=[DcbQueryItem(tags=student_joined_course.tags)],
             ),
             after=2 + initial_position,
         )
@@ -559,8 +559,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(13 + initial_position, read_response.head)
 
         read_response = recorder.read(
-            query=DCBQuery(
-                items=[DCBQueryItem(tags=student_registered.tags)],
+            query=DcbQuery(
+                items=[DcbQueryItem(tags=student_registered.tags)],
             ),
             after=2 + initial_position,
             limit=1,
@@ -569,8 +569,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(11 + initial_position, read_response.head)
 
         read_response = recorder.read(
-            query=DCBQuery(
-                items=[DCBQueryItem(tags=course_registered.tags)],
+            query=DcbQuery(
+                items=[DcbQueryItem(tags=course_registered.tags)],
             ),
             after=2 + initial_position,
             limit=1,
@@ -579,8 +579,8 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(12 + initial_position, read_response.head)
 
         read_response = recorder.read(
-            query=DCBQuery(
-                items=[DCBQueryItem(tags=student_joined_course.tags)],
+            query=DcbQuery(
+                items=[DcbQueryItem(tags=student_joined_course.tags)],
             ),
             after=2 + initial_position,
             limit=1,
@@ -588,13 +588,13 @@ class DCBRecorderTestCase(TestCase):
         self.assertEqual(1, len(list(read_response)))
         self.assertEqual(13 + initial_position, read_response.head)
 
-        consistency_boundary = DCBQuery(
+        consistency_boundary = DcbQuery(
             items=[
-                DCBQueryItem(
+                DcbQueryItem(
                     types=["StudentRegistered", "StudentJoinedCourse"],
                     tags=[student_id],
                 ),
-                DCBQueryItem(
+                DcbQueryItem(
                     types=["CourseRegistered", "StudentJoinedCourse"],
                     tags=[course_id],
                 ),
@@ -614,7 +614,7 @@ class DCBRecorderTestCase(TestCase):
         #     for hour in range(13, 18)
         #     for minute in range(0, 60)
         # ]
-        # appointment_scheduled = DCBEvent(
+        # appointment_scheduled = DcbEvent(
         #     type="AppointmentSchedules",
         #     data=json.dumps({"name": "ABC"}).encode(),
         #     tags=tags,
@@ -622,9 +622,9 @@ class DCBRecorderTestCase(TestCase):
         # started = datetime.datetime.now()
         # eventstore.append(
         #     events=[appointment_scheduled],
-        #     condition=DCBAppendCondition(
-        #         fail_if_events_match=DCBQuery(
-        #             items=[DCBQueryItem(tags=tags)],
+        #     condition=DcbAppendCondition(
+        #         fail_if_events_match=DcbQuery(
+        #             items=[DcbQueryItem(tags=tags)],
         #         ),
         #     ),
         # )
@@ -633,19 +633,19 @@ class DCBRecorderTestCase(TestCase):
         # with self.assertRaises(IntegrityError):
         #     eventstore.append(
         #         events=[appointment_scheduled],
-        #         condition=DCBAppendCondition(
-        #             fail_if_events_match=DCBQuery(
-        #                 items=[DCBQueryItem(tags=tags)],
+        #         condition=DcbAppendCondition(
+        #             fail_if_events_match=DcbQuery(
+        #                 items=[DcbQueryItem(tags=tags)],
         #             ),
         #         ),
         #     )
         # print("Conflict detected:", datetime.datetime.now() - started)
 
     def _test_append_subscribe(
-        self, recorder: DCBRecorder, initial_position: int = 0
+        self, recorder: DcbRecorder, initial_position: int = 0
     ) -> None:
         # Append one event.
-        event1 = DCBEvent(
+        event1 = DcbEvent(
             type="type1",
             data=b"data1",
             tags=["tagX"],
@@ -667,7 +667,7 @@ class DCBRecorderTestCase(TestCase):
             self.assertFalse(thread.has_received.wait(timeout=0.5))
 
             # Append one more event.
-            event2 = DCBEvent(
+            event2 = DcbEvent(
                 type="type1",
                 data=b"data1",
                 tags=["tagX"],
@@ -683,12 +683,12 @@ class DCBRecorderTestCase(TestCase):
 
 
 class EnsureSubscriptionBlockAndReceive(threading.Thread):
-    def __init__(self, subscription: DCBSubscription[TDCBRecorder_co]):
+    def __init__(self, subscription: DcbSubscription[TDcbRecorder_co]):
         super().__init__()
         self.subscription = subscription
         self.has_blocked = threading.Event()
         self.has_received = threading.Event()
-        self.received_event: DCBSequencedEvent | None = None
+        self.received_event: DcbSequencedEvent | None = None
         self.start()
 
     def run(self) -> None:

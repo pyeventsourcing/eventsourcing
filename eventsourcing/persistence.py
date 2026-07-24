@@ -12,7 +12,7 @@ from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
 from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 
-from eventsourcing.dcb.api import DCBEvent
+from eventsourcing.dcb.api import DcbEvent
 from eventsourcing.domain import (
     NIL_UUID,
     AggregateEvent,
@@ -1403,13 +1403,13 @@ class TaggedEventMapper(Generic[TDecision]):
         self.compressor = compressor
         self.cipher = cipher
 
-    def to_dcb_event(self, event: TaggedEvent[TDecision]) -> DCBEvent:
+    def to_dcb_event(self, event: TaggedEvent[TDecision]) -> DcbEvent:
         data = self.transcoder.encode(event.decision)
         if self.compressor:
             data = self.compressor.compress(data)
         if self.cipher:
             data = self.cipher.encrypt(data)
-        return DCBEvent(
+        return DcbEvent(
             type=get_topic(type(event.decision)),
             data=data,
             tags=event.tags,
@@ -1417,7 +1417,7 @@ class TaggedEventMapper(Generic[TDecision]):
             metadata=event.metadata,
         )
 
-    def to_tagged_event(self, event: DCBEvent) -> TaggedEvent[TDecision]:
+    def to_tagged_event(self, event: DcbEvent) -> TaggedEvent[TDecision]:
         data = event.data
         if self.cipher:
             data = self.cipher.decrypt(data)

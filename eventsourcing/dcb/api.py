@@ -14,24 +14,24 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class DCBQueryItem:
+class DcbQueryItem:
     types: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
 
 
 @dataclass
-class DCBQuery:
-    items: list[DCBQueryItem] = field(default_factory=list)
+class DcbQuery:
+    items: list[DcbQueryItem] = field(default_factory=list)
 
 
 @dataclass
-class DCBAppendCondition:
-    fail_if_events_match: DCBQuery = field(default_factory=DCBQuery)
+class DcbAppendCondition:
+    fail_if_events_match: DcbQuery = field(default_factory=DcbQuery)
     after: int | None = None
 
 
 @dataclass(kw_only=True)
-class DCBEvent:
+class DcbEvent:
     type: str
     data: bytes
     tags: list[str] = field(default_factory=list)
@@ -40,30 +40,30 @@ class DCBEvent:
 
 
 @dataclass
-class DCBSequencedEvent:
-    event: DCBEvent
+class DcbSequencedEvent:
+    event: DcbEvent
     position: int
 
 
-class DCBReadResponse(Iterator[DCBSequencedEvent], ABC):
+class DcbReadResponse(Iterator[DcbSequencedEvent], ABC):
     @property
     @abstractmethod
     def head(self) -> int | None:
         pass  # pragma: no cover
 
     @abstractmethod
-    def __next__(self) -> DCBSequencedEvent:
+    def __next__(self) -> DcbSequencedEvent:
         pass  # pragma: no cover
 
     # @abstractmethod
-    # def next_batch(self) -> list[DCBSequencedEvent]:
+    # def next_batch(self) -> list[DcbSequencedEvent]:
     #     """
     #     Returns a batch of events as a list.
     #     Updates the head position similar to __next__.
     #     """
 
 
-class DCBRecorder(ABC):
+class DcbRecorder(ABC):
     @abstractmethod
     def head(self) -> int | None:
         """
@@ -74,11 +74,11 @@ class DCBRecorder(ABC):
     @abstractmethod
     def read(
         self,
-        query: DCBQuery | None = None,
+        query: DcbQuery | None = None,
         *,
         after: int | None = None,
         limit: int | None = None,
-    ) -> DCBReadResponse:
+    ) -> DcbReadResponse:
         """
         Returns all events, unless 'after' is given then only those with position
         greater than 'after', and unless any query items are given, then only those
@@ -89,7 +89,7 @@ class DCBRecorder(ABC):
 
     @abstractmethod
     def append(
-        self, events: Sequence[DCBEvent], condition: DCBAppendCondition | None = None
+        self, events: Sequence[DcbEvent], condition: DcbAppendCondition | None = None
     ) -> int:
         """
         Appends given events to the event store, unless the condition fails.
@@ -98,10 +98,10 @@ class DCBRecorder(ABC):
     @abstractmethod
     def subscribe(
         self,
-        query: DCBQuery | None = None,
+        query: DcbQuery | None = None,
         *,
         after: int | None = None,
-    ) -> DCBSubscription[Self]:
+    ) -> DcbSubscription[Self]:
         """
         Returns all events, unless 'after' is given then only those with position
         greater than 'after', and unless any query items are given, then only those
@@ -112,14 +112,14 @@ class DCBRecorder(ABC):
         """
 
 
-TDCBRecorder_co = TypeVar("TDCBRecorder_co", bound=DCBRecorder, covariant=True)
+TDcbRecorder_co = TypeVar("TDcbRecorder_co", bound=DcbRecorder, covariant=True)
 
 
-class DCBSubscription(Iterator[DCBSequencedEvent], Generic[TDCBRecorder_co]):
+class DcbSubscription(Iterator[DcbSequencedEvent], Generic[TDcbRecorder_co]):
     def __init__(
         self,
-        recorder: TDCBRecorder_co,
-        query: DCBQuery | None = None,
+        recorder: TDcbRecorder_co,
+        query: DcbQuery | None = None,
         after: int | None = None,
     ) -> None:
         self._recorder = recorder
@@ -149,5 +149,5 @@ class DCBSubscription(Iterator[DCBSequencedEvent], Generic[TDCBRecorder_co]):
         return self
 
     @abstractmethod
-    def __next__(self) -> DCBSequencedEvent:
-        """Returns the next DCBEvent in the sequence."""
+    def __next__(self) -> DcbSequencedEvent:
+        """Returns the next DcbEvent in the sequence."""

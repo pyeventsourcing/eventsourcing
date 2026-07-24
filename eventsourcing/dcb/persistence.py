@@ -6,14 +6,14 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, Generic
 
 from eventsourcing.dcb.api import (
-    DCBAppendCondition,
-    DCBQuery,
-    DCBQueryItem,
-    DCBReadResponse,
-    DCBRecorder,
-    DCBSequencedEvent,
-    DCBSubscription,
-    TDCBRecorder_co,
+    DcbAppendCondition,
+    DcbQuery,
+    DcbQueryItem,
+    DcbReadResponse,
+    DcbRecorder,
+    DcbSequencedEvent,
+    DcbSubscription,
+    TDcbRecorder_co,
 )
 from eventsourcing.domain import (
     Selector,
@@ -34,8 +34,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class DCBEventStore(Generic[TDecision]):
-    def __init__(self, mapper: TaggedEventMapper[TDecision], recorder: DCBRecorder):
+class DcbEventStore(Generic[TDecision]):
+    def __init__(self, mapper: TaggedEventMapper[TDecision], recorder: DcbRecorder):
         self.mapper = mapper
         self.recorder = recorder
 
@@ -50,7 +50,7 @@ class DCBEventStore(Generic[TDecision]):
         condition = (
             None
             if cb is None and after is None
-            else DCBAppendCondition(
+            else DcbAppendCondition(
                 fail_if_events_match=self._cb_to_dcb_query(cb),
                 after=after,
             )
@@ -65,22 +65,22 @@ class DCBEventStore(Generic[TDecision]):
         cb: Selector[TDecision] | Sequence[Selector[TDecision]] | None = None,
         *,
         after: int | None = None,
-    ) -> DCBEventStoreReadResponse[TDecision]:
+    ) -> DcbEventStoreReadResponse[TDecision]:
         query = self._cb_to_dcb_query(cb)
         read_response = self.recorder.read(
             query=query,
             after=after,
         )
-        return DCBEventStoreReadResponse(read_response, self.mapper)
+        return DcbEventStoreReadResponse(read_response, self.mapper)
 
     @staticmethod
     def _cb_to_dcb_query(
         cb: Selector[TDecision] | Sequence[Selector[TDecision]] | None = None,
-    ) -> DCBQuery:
+    ) -> DcbQuery:
         cb = [cb] if isinstance(cb, Selector) else cb or []
-        return DCBQuery(
+        return DcbQuery(
             items=[
-                DCBQueryItem(
+                DcbQueryItem(
                     types=[get_topic(t) for t in s.types],
                     tags=list(s.tags),
                 )
@@ -89,9 +89,9 @@ class DCBEventStore(Generic[TDecision]):
         )
 
 
-class DCBEventStoreReadResponse(Iterator[TaggedEvent[TDecision]]):
+class DcbEventStoreReadResponse(Iterator[TaggedEvent[TDecision]]):
     def __init__(
-        self, dcb_read_response: DCBReadResponse, mapper: TaggedEventMapper[TDecision]
+        self, dcb_read_response: DcbReadResponse, mapper: TaggedEventMapper[TDecision]
     ):
         self._dcb_read_response = dcb_read_response
         self._mapper = mapper
@@ -110,24 +110,24 @@ class NotFoundError(Exception):
     pass
 
 
-class DCBInfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder], ABC):
+class DcbInfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder], ABC):
     @abstractmethod
-    def dcb_recorder(self) -> DCBRecorder:
+    def dcb_recorder(self) -> DcbRecorder:
         pass  # pragma: no cover
 
 
-class DCBListenNotifySubscription(DCBSubscription[TDCBRecorder_co]):
+class DcbListenNotifySubscription(DcbSubscription[TDcbRecorder_co]):
     def __init__(
         self,
-        recorder: TDCBRecorder_co,
-        query: DCBQuery | None = None,
+        recorder: TDcbRecorder_co,
+        query: DcbQuery | None = None,
         after: int | None = None,
     ) -> None:
         super().__init__(recorder=recorder, query=query, after=after)
         self.select_limit = 500
-        self._events: Sequence[DCBSequencedEvent] = []
+        self._events: Sequence[DcbSequencedEvent] = []
         self._events_index: int = 0
-        self._events_queue: Queue[Sequence[DCBSequencedEvent]] = Queue(maxsize=10)
+        self._events_queue: Queue[Sequence[DcbSequencedEvent]] = Queue(maxsize=10)
         self._has_been_notified = threading.Event()
         self._thread_error: BaseException | None = None
         self._pull_thread = threading.Thread(target=self._loop_on_pull)
@@ -145,7 +145,7 @@ class DCBListenNotifySubscription(DCBSubscription[TDCBRecorder_co]):
         )
         self._has_been_notified.set()
 
-    def __next__(self) -> DCBSequencedEvent:
+    def __next__(self) -> DcbSequencedEvent:
         # If necessary, get a new list of events from the recorder.
         if self._events_index == len(self._events) and not self._has_been_stopped:
             try:

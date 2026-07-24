@@ -6,19 +6,19 @@ from psycopg.sql import SQL, Identifier
 from psycopg.types.json import Jsonb
 
 from eventsourcing.dcb.api import (
-    DCBAppendCondition,
-    DCBEvent,
-    DCBQuery,
-    DCBQueryItem,
-    DCBReadResponse,
-    DCBRecorder,
-    DCBSequencedEvent,
-    DCBSubscription,
+    DcbAppendCondition,
+    DcbEvent,
+    DcbQuery,
+    DcbQueryItem,
+    DcbReadResponse,
+    DcbRecorder,
+    DcbSequencedEvent,
+    DcbSubscription,
 )
 from eventsourcing.dcb.persistence import (
-    DCBInfrastructureFactory,
+    DcbInfrastructureFactory,
 )
-from eventsourcing.dcb.popo import SimpleDCBReadResponse
+from eventsourcing.dcb.popo import SimpleDcbReadResponse
 from eventsourcing.domain import NIL_UUID
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError
@@ -254,7 +254,7 @@ $BODY$
 """)
 
 
-class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
+class PostgresDcbRecorderTS(DcbRecorder, PostgresRecorder):
     def __init__(
         self,
         datastore: PostgresDatastore,
@@ -336,11 +336,11 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
 
     def read(
         self,
-        query: DCBQuery | None = None,
+        query: DcbQuery | None = None,
         *,
         after: int | None = None,
         limit: int | None = None,
-    ) -> DCBReadResponse:
+    ) -> DcbReadResponse:
         # Prepare arguments and invoke pg function.
         if not query or not query.items:
             text_query = ""
@@ -355,8 +355,8 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
 
             max_position = result[0]["sequence_position"]
             events = [
-                DCBSequencedEvent(
-                    event=DCBEvent(
+                DcbSequencedEvent(
+                    event=DcbEvent(
                         type=row["type"],
                         data=row["data"],
                         tags=row["tags"],
@@ -372,18 +372,18 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
             else:
                 head = events[-1].position if events else None
 
-            return SimpleDCBReadResponse(iter(events), head)
+            return SimpleDcbReadResponse(iter(events), head)
 
     def subscribe(
         self,
-        query: DCBQuery | None = None,
+        query: DcbQuery | None = None,
         *,
         after: int | None = None,
-    ) -> DCBSubscription[Self]:
+    ) -> DcbSubscription[Self]:
         raise NotImplementedError  # pragma: no cover
 
     def append(
-        self, events: Sequence[DCBEvent], condition: DCBAppendCondition | None = None
+        self, events: Sequence[DcbEvent], condition: DcbAppendCondition | None = None
     ) -> int:
         if len(events) == 0:
             msg = "Should be at least one event. Avoid this elsewhere"
@@ -426,14 +426,14 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
                 raise IntegrityError
             return max_position
 
-    def construct_text_query(self, query_items: list[DCBQueryItem]) -> str:
+    def construct_text_query(self, query_items: list[DcbQueryItem]) -> str:
         text_queries = [
             self.construct_text_query_from_query_item(query_item)
             for query_item in query_items
         ]
         return " | ".join([f"({t})" for t in text_queries])
 
-    def construct_text_query_from_query_item(self, query_item: DCBQueryItem) -> str:
+    def construct_text_query_from_query_item(self, query_item: DcbQueryItem) -> str:
         types = self.prefix_types(self.replace_reserved_chars(query_item.types))
         tags = self.prefix_tags(self.replace_reserved_chars(query_item.tags))
         types_tq = " | ".join(types)
@@ -470,7 +470,7 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
         tags: list[str],
         uuid: UUID,
         metadata: dict[str, str],
-    ) -> PgDCBEvent:
+    ) -> PgDcbEvent:
         return self.datastore.psycopg_python_types[PG_TYPE_NAME_DCB_EVENT_TS](
             type,
             data,
@@ -481,7 +481,7 @@ class PostgresDCBRecorderTS(DCBRecorder, PostgresRecorder):
         )
 
 
-class PgDCBEvent(NamedTuple):
+class PgDcbEvent(NamedTuple):
     type: str
     data: bytes
     tags: list[str]
@@ -490,7 +490,7 @@ class PgDCBEvent(NamedTuple):
     metadata: dict[str, str]
 
 
-class PgDCBEventRow(TypedDict):
+class PgDcbEventRow(TypedDict):
     sequence_position: int
     type: str
     data: bytes
@@ -499,15 +499,15 @@ class PgDCBEventRow(TypedDict):
     metadata: dict[str, str]
 
 
-class PostgresTSDCBFactory(
+class PostgresTSDcbFactory(
     BasePostgresFactory[PostgresTrackingRecorder],
-    DCBInfrastructureFactory[PostgresTrackingRecorder],
+    DcbInfrastructureFactory[PostgresTrackingRecorder],
 ):
-    def dcb_recorder(self) -> DCBRecorder:
+    def dcb_recorder(self) -> DcbRecorder:
         prefix = self.env.name.lower() or "dcb"
 
         dcb_table_name = prefix + "_events"
-        recorder = PostgresDCBRecorderTS(
+        recorder = PostgresDcbRecorderTS(
             datastore=self.datastore,
             events_table_name=dcb_table_name,
         )

@@ -8,7 +8,7 @@ It iterates over a sequence of operations using the :ref:`enrolment interface <E
 all the students are enrolled on all the courses. That gives 120 operations per iteration. It prints the number of
 operations completed in each second, alongside the total number of operations completed so far.
 
-We wil firstly baseline the performance by using :ref:`event-sourced aggregates <Aggregates and DCB>`
+We wil firstly baseline the performance by using :ref:`event-sourced aggregates <Aggregates and Dcb>`
 and then trial the different persistence infrastructure we have developed for our :doc:`DCB application </topics/examples/dcb-enrolment-with-basic-objects>`.
 
 Whilst this "speedrun" does not give an indication of the performance under concurrent load or the performance
@@ -18,7 +18,7 @@ period of time does measure the performance of the basic and essential operation
 Event-sourced aggregates
 ------------------------
 
-Firstly, let's baseline performance benchmarks by running the example :ref:`Aggregates and DCB <Aggregates and DCB>`.
+Firstly, let's baseline performance benchmarks by running the example :ref:`Aggregates and DCB <Aggregates and Dcb>`.
 
 .. code-block::
 
@@ -67,13 +67,13 @@ Firstly, let's baseline performance benchmarks by running the example :ref:`Aggr
  Events in database at end:  115,060 events  (115,060 new, 5,745/s)
 
 The performance report for event-sourced aggregates accomplished 62,760 operations in 20s.
-That gives an average of 0.319 milliseconds per operation, and a target for implementing DCB.
+That gives an average of 0.319 milliseconds per operation, and a target for implementing Dcb.
 
 PostgreSQL with GIN index
 -------------------------
 
 
-The :class:`~examples.coursebookingdcb.postgres_ts.PostgresDCBRecorderTS` was our second attempt to
+The :class:`~examples.coursebookingdcb.postgres_ts.PostgresDcbRecorderTS` was our second attempt to
 implement the challenging DCB query logic in way that is performant. The first attempt used an array
 column for tags, and array operators to search for types and tags. It simply didn't work very well,
 grinding to a virtual halt after only a modest volume of recorded events.
@@ -81,7 +81,7 @@ grinding to a virtual halt after only a modest volume of recorded events.
 In this implementation, the complex DCB query logic is implemented using PostgreSQL's "full text search"
 (FTS) functionality, ``tsvector`` and ``tsquery``, and a GIN index.
 
-Types and tags of a DCB event are prefixed and concatenated into a ``tsvector`` string. A set of DCB
+Types and tags of a DCB event are prefixed and concatenated into a ``tsvector`` string. A set of Dcb
 query items is similarly compounded into a ``tsquery`` that expresses the DCB query logic. Database
 functions for appending and selecting events are defined, and a custom composite type is defined for
 efficiently sending an array of DCB events to the database.
@@ -98,7 +98,7 @@ The performance of the Postgres implementation using "full text search" is shown
 
  Per iteration: 10 courses, 10 students (120 ops)
 
- Running 'dcb-pg-ts' mode: EnrolmentWithDCB
+ Running 'dcb-pg-ts' mode: EnrolmentWithDcb
      PERSISTENCE_MODULE: examples.coursebookingdcb.postgres_ts
      POSTGRES_DBNAME: course_subscriptions_speedrun
      POSTGRES_HOST: 127.0.0.1
@@ -171,7 +171,7 @@ The performance of the :ref:`Postgres DCB recorder <Postgres DCB recorder>` is r
 
  Per iteration: 10 courses, 10 students (120 ops)
 
- Running 'dcb-pg-tt' mode: EnrolmentWithDCB
+ Running 'dcb-pg-tt' mode: EnrolmentWithDcb
      PERSISTENCE_MODULE: eventsourcing.dcb.postgres_tt
      POSTGRES_DBNAME: course_subscriptions_speedrun
      POSTGRES_HOST: 127.0.0.1
@@ -225,7 +225,7 @@ The performance of the :ref:`UmaDB DCB recorder <UmaDB DCB recorder>` is reporte
 
  Per iteration: 10 courses, 10 students (120 ops)
 
- Running 'dcb-umadb' mode: EnrolmentWithDCB
+ Running 'dcb-umadb' mode: EnrolmentWithDcb
      PERSISTENCE_MODULE: eventsourcing_umadb
      UMADB_URI: http://127.0.0.1:50051
 
@@ -261,7 +261,7 @@ marginally out-performs event-sourced aggregates for the single-threaded scenari
 large volumes of data, and with high-concurrency, UmaDB out-performs PostgreSQL by several
 factors.
 
-Having successfully addressed the technical challenge of implementing the complex query logic of DCB,
+Having successfully addressed the technical challenge of implementing the complex query logic of Dcb,
 we feel confident in recommending DCB as a strong alternative to the "traditional" event-sourced aggregates.
 
 However, it should be remembered that aggregates were originally introduced because of the conceptual

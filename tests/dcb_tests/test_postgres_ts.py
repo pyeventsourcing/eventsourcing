@@ -5,14 +5,14 @@ from uuid import uuid4
 
 from psycopg.types.json import Jsonb
 
-from eventsourcing.dcb.tests import DCBRecorderTestCase
+from eventsourcing.dcb.tests import DcbRecorderTestCase
 from eventsourcing.errors import ProgrammingError
-from examples.dcb_enrolment_with_basic_objects.postgres_ts import PostgresDCBRecorderTS
+from examples.dcb_enrolment_with_basic_objects.postgres_ts import PostgresDcbRecorderTS
 from tests.dcb_tests.test_dcb import ConcurrentAppendTestCase, WithPostgres
 
 
-class TestPostgresDCBRecorderTS(DCBRecorderTestCase, WithPostgres):
-    postgres_dcb_recorder_class = PostgresDCBRecorderTS
+class TestPostgresDcbRecorderTS(DcbRecorderTestCase, WithPostgres):
+    postgres_dcb_recorder_class = PostgresDcbRecorderTS
 
     def test_append_read(self) -> None:
         self._test_append_read(self.recorder)
@@ -21,7 +21,7 @@ class TestPostgresDCBRecorderTS(DCBRecorderTestCase, WithPostgres):
         # Check "dcb_event" type.
         uuid = uuid4()
         metadata = {"correlation_id": str(uuid4())}
-        event = cast(PostgresDCBRecorderTS, self.recorder).construct_pg_dcb_event(
+        event = cast(PostgresDcbRecorderTS, self.recorder).construct_pg_dcb_event(
             type="EventType1",
             data=b"data",
             tags=["tag1", "tag2"],
@@ -75,10 +75,10 @@ class TestPostgresDCBRecorderTS(DCBRecorderTestCase, WithPostgres):
         )
 
 
-class TestPostgresDCBRecorderStoreTSCommitOrderVsInsertOrder(
+class TestPostgresDcbRecorderStoreTSCommitOrderVsInsertOrder(
     ConcurrentAppendTestCase, WithPostgres
 ):
-    postgres_dcb_recorder_class = PostgresDCBRecorderTS
+    postgres_dcb_recorder_class = PostgresDcbRecorderTS
 
     def test_commit_vs_insert_order(self) -> None:
         self._test_commit_vs_insert_order(self.recorder)

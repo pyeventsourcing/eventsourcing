@@ -6,29 +6,29 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, Any, cast
 
-from eventsourcing_umadb.recorders import UmaDbDCBRecorder
+from eventsourcing_umadb.recorders import UmaDbDcbRecorder
 from psycopg.sql import SQL, Identifier
 
 from eventsourcing.application import AggregatesApplication
-from eventsourcing.dcb.application import DCBApplication
-from eventsourcing.dcb.popo import InMemoryDCBRecorder
+from eventsourcing.dcb.application import DcbApplication
+from eventsourcing.dcb.popo import InMemoryDcbRecorder
 from eventsourcing.dcb.postgres_tt import (
     DB_FUNCTION_NAME_DCB_CONDITIONAL_APPEND_TT,
     DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT,
-    PostgresDCBRecorderTT,
+    PostgresDcbRecorderTT,
 )
 from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.popo import POPOApplicationRecorder
 from eventsourcing.postgres import PostgresApplicationRecorder, PostgresDatastore
 from examples.dcb_enrolment.application import EnrolmentWithAggregates
-from examples.dcb_enrolment_with_basic_objects.application import EnrolmentWithDCB
+from examples.dcb_enrolment_with_basic_objects.application import EnrolmentWithDcb
 from examples.dcb_enrolment_with_basic_objects.postgres_ts import (
     PG_FUNCTION_NAME_DCB_CHECK_APPEND_CONDITION_TS,
     PG_FUNCTION_NAME_DCB_INSERT_EVENTS_TS,
     PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS,
     PG_PROCEDURE_NAME_DCB_APPEND_EVENTS_TS,
-    PostgresDCBRecorderTS,
+    PostgresDcbRecorderTS,
 )
 from examples.dcb_enrolment_with_enduring_objects.application import (
     EnrolmentWithEnduringObjects,
@@ -65,7 +65,7 @@ def inf_range() -> Iterator[int]:
 
 config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
     "dcb-pg-ts": (
-        EnrolmentWithDCB,
+        EnrolmentWithDcb,
         # EnrolmentWithEnduringObjects,
         10,
         {
@@ -81,7 +81,7 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
         },
     ),
     "dcb-pg-tt": (
-        EnrolmentWithDCB,
+        EnrolmentWithDcb,
         # EnrolmentWithEnduringObjects,
         10,
         {
@@ -112,7 +112,7 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
         },
     ),
     "dcb-umadb": (
-        EnrolmentWithDCB,
+        EnrolmentWithDcb,
         # EnrolmentWithEnduringObjects,
         10,
         {
@@ -198,10 +198,10 @@ def count_events(app: EnrolmentInterface) -> int:
 
     elif isinstance(
         app,
-        (EnrolmentWithDCB, EnrolmentWithEnduringObjects, EnrolmentWithVerticalSlices),
+        (EnrolmentWithDcb, EnrolmentWithEnduringObjects, EnrolmentWithVerticalSlices),
     ):
         recorder = app.recorder
-        if isinstance(recorder, (PostgresDCBRecorderTS, PostgresDCBRecorderTT)):
+        if isinstance(recorder, (PostgresDcbRecorderTS, PostgresDcbRecorderTT)):
             datastore = recorder.datastore
             statement = SQL_SELECT_COUNT_ROWS.format(
                 schema=Identifier(datastore.schema),
@@ -210,10 +210,10 @@ def count_events(app: EnrolmentInterface) -> int:
             with datastore.get_connection() as conn:
                 result = conn.execute(statement).fetchone()
                 count = result["count"] if result is not None else 0
-        elif isinstance(recorder, UmaDbDCBRecorder):
+        elif isinstance(recorder, UmaDbDcbRecorder):
             count = recorder.umadb.head() or 0
         else:
-            assert isinstance(recorder, InMemoryDCBRecorder)
+            assert isinstance(recorder, InMemoryDcbRecorder)
             count = len(recorder.events)
     else:
         msg = f"TODO implement counting rows for app type: {type(app)}"
@@ -367,7 +367,7 @@ if __name__ == "__main__":
     # print(f"Reporting interval: every {reporting_interval} iterations...")
     # print()
 
-    assert issubclass(cls, AggregatesApplication | DCBApplication)
+    assert issubclass(cls, AggregatesApplication | DcbApplication)
     with cls(env=env) as app:
 
         started_event_count = count_events(app)

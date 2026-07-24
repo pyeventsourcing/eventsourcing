@@ -8,10 +8,10 @@ from eventsourcing.application import (
     AbstractApplication,
     AbstractApplicationSubscription,
 )
-from eventsourcing.dcb.api import DCBQuery, DCBQueryItem
+from eventsourcing.dcb.api import DcbQuery, DcbQueryItem
 from eventsourcing.dcb.persistence import (
-    DCBEventStore,
-    DCBInfrastructureFactory,
+    DcbEventStore,
+    DcbInfrastructureFactory,
     NotFoundError,
 )
 from eventsourcing.domain import (
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from eventsourcing.utils import EnvType
 
 
-class DCBApplicationSubscription(
+class DcbApplicationSubscription(
     AbstractApplicationSubscription[TaggedEvent[TDecision]]
 ):
     """An iterator that yields all events recorded in an application
@@ -52,7 +52,7 @@ class DCBApplicationSubscription(
 
     def __init__(
         self,
-        app: DCBApplication[TDecision],
+        app: DcbApplication[TDecision],
         gt: int | None = None,
         topics: Sequence[str] = (),
     ):
@@ -63,7 +63,7 @@ class DCBApplicationSubscription(
         self.recorder = app.recorder
         self.mapper = app.mapper
         self.subscription = self.recorder.subscribe(
-            query=DCBQuery(items=[DCBQueryItem(types=list(topics))]),
+            query=DcbQuery(items=[DcbQueryItem(types=list(topics))]),
             after=gt,
         )
 
@@ -103,15 +103,15 @@ class DCBApplicationSubscription(
             self.stop()
 
 
-class DCBApplication(
-    AbstractApplication[TDecision, DCBApplicationSubscription[TDecision]],
+class DcbApplication(
+    AbstractApplication[TDecision, DcbApplicationSubscription[TDecision]],
 ):
     env: ClassVar[dict[str, str]] = {"PERSISTENCE_MODULE": "eventsourcing.dcb.popo"}
 
     def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
         super().__init__(env=env, context_name=context_name)
-        self.factory: DCBInfrastructureFactory[TrackingRecorder] = (
-            DCBInfrastructureFactory.construct(self.env)
+        self.factory: DcbInfrastructureFactory[TrackingRecorder] = (
+            DcbInfrastructureFactory.construct(self.env)
         )
         self.recorder = self.factory.dcb_recorder()
         transcoder = self.construct_transcoder()
@@ -123,8 +123,8 @@ class DCBApplication(
                 compressor=self.factory.compressor(),
                 cipher=self.factory.cipher(),
             )
-            self.events = DCBEventStore[TDecision](self.mapper, self.recorder)
-            self.repository = DCBRepository[TDecision](self.events)
+            self.events = DcbEventStore[TDecision](self.mapper, self.recorder)
+            self.repository = DcbRepository[TDecision](self.events)
 
     def construct_transcoder(self) -> Transcoder[TDecision] | None:
         return self.factory.transcoder() if "TRANSCODER_TOPIC" in self.env else None
@@ -144,8 +144,8 @@ class DCBApplication(
         self,
         gt: int | None = None,
         topics: Sequence[str] = (),
-    ) -> DCBApplicationSubscription[TDecision]:
-        return DCBApplicationSubscription(
+    ) -> DcbApplicationSubscription[TDecision]:
+        return DcbApplicationSubscription(
             app=self,
             gt=gt,
             topics=topics,
@@ -171,8 +171,8 @@ class DCBApplication(
 TEnduringObject = TypeVar("TEnduringObject", bound=EnduringObject[Any])
 
 
-class DCBRepository(Generic[TDecision]):
-    def __init__(self, eventstore: DCBEventStore[TDecision]):
+class DcbRepository(Generic[TDecision]):
+    def __init__(self, eventstore: DcbEventStore[TDecision]):
         self.eventstore = eventstore
 
     def save(self, p: Perspective[TDecision]) -> int:

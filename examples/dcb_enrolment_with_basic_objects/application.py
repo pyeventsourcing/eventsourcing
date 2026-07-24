@@ -4,8 +4,8 @@ import json
 from typing import Any, cast
 from uuid import uuid4
 
-from eventsourcing.dcb.api import DCBAppendCondition, DCBEvent, DCBQuery, DCBQueryItem
-from eventsourcing.dcb.application import DCBApplication
+from eventsourcing.dcb.api import DcbAppendCondition, DcbEvent, DcbQuery, DcbQueryItem
+from eventsourcing.dcb.application import DcbApplication
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseNotFoundError,
@@ -16,13 +16,13 @@ from examples.dcb_enrolment.interface import (
 )
 
 
-class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
+class EnrolmentWithDcb(DcbApplication[Any], EnrolmentInterface):
     def register_student(self, name: str, max_courses: int) -> str:
         student_id = f"student-{uuid4()}"
-        consistency_boundary = DCBQuery(
-            items=[DCBQueryItem(tags=[student_id])],
+        consistency_boundary = DcbQuery(
+            items=[DcbQueryItem(tags=[student_id])],
         )
-        student_registered = DCBEvent(
+        student_registered = DcbEvent(
             type="StudentRegistered",
             data=json.dumps({"name": name, "max_courses": max_courses}).encode(),
             tags=[student_id],
@@ -31,7 +31,7 @@ class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
         )
         self.recorder.append(
             events=[student_registered],
-            condition=DCBAppendCondition(
+            condition=DcbAppendCondition(
                 fail_if_events_match=consistency_boundary,
             ),
         )
@@ -39,19 +39,19 @@ class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
 
     def register_course(self, name: str, places: int) -> str:
         course_id = f"course-{uuid4()}"
-        course_registered = DCBEvent(
+        course_registered = DcbEvent(
             type="CourseRegistered",
             data=json.dumps({"name": name, "places": places}).encode(),
             tags=[course_id],
             uuid=uuid4(),
             metadata={},
         )
-        consistency_boundary = DCBQuery(
-            items=[DCBQueryItem(tags=[course_id])],
+        consistency_boundary = DcbQuery(
+            items=[DcbQueryItem(tags=[course_id])],
         )
         self.recorder.append(
             events=[course_registered],
-            condition=DCBAppendCondition(
+            condition=DcbAppendCondition(
                 fail_if_events_match=consistency_boundary,
             ),
         )
@@ -59,13 +59,13 @@ class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
 
     def join_course(self, student_id: str, course_id: str) -> None:
         # Decide the consistency boundary.
-        consistency_boundary = DCBQuery(
+        consistency_boundary = DcbQuery(
             items=[
-                DCBQueryItem(
+                DcbQueryItem(
                     types=["StudentRegistered", "StudentJoinedCourse"],
                     tags=[student_id],
                 ),
-                DCBQueryItem(
+                DcbQueryItem(
                     types=["CourseRegistered", "StudentJoinedCourse"],
                     tags=[course_id],
                 ),
@@ -110,7 +110,7 @@ class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
             raise FullyBookedError
 
         # The DCB magic: one event for "one fact".
-        student_joined_course = DCBEvent(
+        student_joined_course = DcbEvent(
             type="StudentJoinedCourse",
             data=b"",
             tags=[student_id, course_id],
@@ -121,7 +121,7 @@ class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
         # Append using the same consistency boundary as the fail condition.
         self.recorder.append(
             events=[student_joined_course],
-            condition=DCBAppendCondition(
+            condition=DcbAppendCondition(
                 fail_if_events_match=consistency_boundary,
                 after=read_response.head,
             ),
@@ -129,9 +129,9 @@ class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
 
     def list_students_for_course(self, course_id: str) -> list[str]:
         # Get events relevant for a list of course student IDs.
-        course_students_consistency_boundary = DCBQuery(
+        course_students_consistency_boundary = DcbQuery(
             items=[
-                DCBQueryItem(
+                DcbQueryItem(
                     types=["StudentJoinedCourse"],
                     tags=[course_id],
                 ),
@@ -148,9 +148,9 @@ class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
                         student_names[tag] = ""
 
         # Get events relevant for the student names.
-        student_names_consistency_boundary = DCBQuery(
+        student_names_consistency_boundary = DcbQuery(
             items=[
-                DCBQueryItem(
+                DcbQueryItem(
                     types=["StudentRegistered"],
                     tags=[student_id],
                 )
@@ -169,9 +169,9 @@ class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
 
     def list_courses_for_student(self, student_id: str) -> list[str]:
         # Get events relevant for a list of course student IDs.
-        student_courses_consistency_boundary = DCBQuery(
+        student_courses_consistency_boundary = DcbQuery(
             items=[
-                DCBQueryItem(
+                DcbQueryItem(
                     types=["StudentJoinedCourse"],
                     tags=[student_id],
                 ),
@@ -188,9 +188,9 @@ class EnrolmentWithDCB(DCBApplication[Any], EnrolmentInterface):
                         course_names[tag] = ""
 
         # Get events relevant for the course names.
-        course_names_consistency_boundary = DCBQuery(
+        course_names_consistency_boundary = DcbQuery(
             items=[
-                DCBQueryItem(
+                DcbQueryItem(
                     types=["CourseRegistered"],
                     tags=[course_id],
                 )

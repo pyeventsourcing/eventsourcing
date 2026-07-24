@@ -8,7 +8,7 @@ by this library for "dynamic consistency boundaries".
 
 We will define and validate a test case and an interface for the course subscriptions challenge. Over
 the next few pages, we will explore the basic objects and methods described in the "dynamic consistency
-boundaries" specification, and then look at some higher-level styles for DCB. Alongside these developments,
+boundaries" specification, and then look at some higher-level styles for Dcb. Alongside these developments,
 we will also present an assessment of successively better support for the technical challenge of
 implementing a DCB event store.
 
@@ -22,7 +22,7 @@ than a given number of courses, and no course can accept more than a given numbe
 The idea is that this is either difficult or impossible with "traditional" event-sourced aggregates
 without much accidental complexity, and that DCB allows more straightforward implementations.
 
-In the section :ref:`Aggregates and DCB <Aggregates and DCB>` we can see how to implement the course
+In the section :ref:`Aggregates and DCB <Aggregates and Dcb>` we can see how to implement the course
 subscriptions challenge using "traditional" event-sourced aggregates, by extending the consistency
 boundary to include more than one aggregate. In the :doc:`Basic DCB Objects example </topics/examples/dcb-enrolment-with-basic-objects>`, you can see how to
 implement the "course subscriptions" challenge in Python using these basic :ref:`DCB objects <DCB objects>`. Whilst the
@@ -59,12 +59,12 @@ a course, and for listing courses for a student, along with some exception class
 .. literalinclude:: ../../../examples/dcb_enrolment/interface.py
 
 
-.. _Aggregates and DCB:
+.. _Aggregates and Dcb:
 
-Aggregates and DCB
+Aggregates and Dcb
 ------------------
 
-Before we continue with DCB, let's implement the course subscriptions challenge with "traditional" event-sourced
+Before we continue with Dcb, let's implement the course subscriptions challenge with "traditional" event-sourced
 aggregates. This will allow us to validate the interface and to demonstrate the test case is effective.
 
 The central critique motivating DCB is that the aggregates of DDD establish strict and rigid consistency

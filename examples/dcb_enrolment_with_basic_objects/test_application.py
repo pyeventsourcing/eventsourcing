@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from eventsourcing.tests.postgres_utils import drop_tables
 from examples.dcb_enrolment.test_enrolment import EnrolmentTestCase
-from examples.dcb_enrolment_with_basic_objects.application import EnrolmentWithDCB
+from examples.dcb_enrolment_with_basic_objects.application import EnrolmentWithDcb
 
 
-class TestEnrolmentWithDCB(EnrolmentTestCase):
+class TestEnrolmentWithDcb(EnrolmentTestCase):
     def test_enrolment_in_memory(self) -> None:
-        self.assert_implementation(EnrolmentWithDCB())
+        self.assert_implementation(EnrolmentWithDcb())
 
     def test_enrolment_with_postgres(self) -> None:
         env = {
@@ -21,7 +21,7 @@ class TestEnrolmentWithDCB(EnrolmentTestCase):
             "POSTGRES_PASSWORD": "eventsourcing",
         }
         try:
-            self.assert_implementation(EnrolmentWithDCB(env=env))
+            self.assert_implementation(EnrolmentWithDcb(env=env))
         finally:
             drop_tables()
 
@@ -30,7 +30,7 @@ class TestEnrolmentWithDCB(EnrolmentTestCase):
             "PERSISTENCE_MODULE": "eventsourcing_umadb",
             "UMADB_URI": "http://127.0.0.1:50051",
         }
-        self.assert_implementation(EnrolmentWithDCB(env=env))
+        self.assert_implementation(EnrolmentWithDcb(env=env))
 
 
 del EnrolmentTestCase
