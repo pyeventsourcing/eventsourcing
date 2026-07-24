@@ -614,18 +614,18 @@ files = [
 
 [[package]]
 name = "eventsourcing-umadb"
-version = "0.4.0"
+version = "0.4.2"
 description = "Python package for eventsourcing with UmaDB"
 optional = false
 python-versions = ">=3.11"
 groups = ["main", "dev"]
 files = [
-    {file = "eventsourcing_umadb-0.4.0-py3-none-any.whl", hash = "sha256:3eb8178397619db07412109b885f2a98679cf1925e363fd060b80c39fd65debd"},
-    {file = "eventsourcing_umadb-0.4.0.tar.gz", hash = "sha256:fe771a90185445fedc3e2a4293bf83d6887f006bcaf85ceaa48205280930253c"},
+    {file = "eventsourcing_umadb-0.4.2-py3-none-any.whl", hash = "sha256:1f4b025b3564226abfb42046b0c264d6adf8be4a2eadaf2200771992fda89480"},
+    {file = "eventsourcing_umadb-0.4.2.tar.gz", hash = "sha256:d3cdc00a3f11b57f9060936bce188edbd20c3bcea85223e138be5fecaf9245fe"},
 ]
 
 [package.dependencies]
-eventsourcing = ">=10.0.0a1"
+eventsourcing = ">=10.0.0a3"
 umadb = ">=0.6.5"
 
 [[package]]
