@@ -5,7 +5,7 @@ from unittest import TestCase
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from eventsourcing.application import EventSourcedLog
-from eventsourcing.dataclasses import AggregatesApplication, Decision
+from eventsourcing.dataclasses import AggregatesApplication, Decision, Transcoder
 from eventsourcing.dataclasses.legacy import (
     DatetimeAsISO,
     DecimalAsStr,
@@ -20,7 +20,6 @@ from eventsourcing.persistence import (
 from eventsourcing.popo import POPOAggregateRecorder
 
 if TYPE_CHECKING:
-    import eventsourcing.persistence
     from eventsourcing.utils import EnvType
 
 
@@ -119,7 +118,7 @@ class TestEventSourcedLog(TestCase):
 
             def construct_transcoder(
                 self,
-            ) -> eventsourcing.persistence.Transcoder[Decision]:
+            ) -> Transcoder:
                 transcoder = LegacyJSONTranscoder()
                 transcoder.register(UUIDAsHex())
                 transcoder.register(DecimalAsStr())

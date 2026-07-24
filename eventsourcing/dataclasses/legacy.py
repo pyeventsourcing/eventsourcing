@@ -7,9 +7,8 @@ from decimal import Decimal
 from typing import Any, cast
 from uuid import UUID
 
-from eventsourcing.dataclasses import Decision
+from eventsourcing.dataclasses import Decision, Transcoder
 from eventsourcing.errors import TranscodingNotRegisteredError
-from eventsourcing.persistence import Transcoder
 
 
 class Transcoding(ABC):
@@ -27,17 +26,14 @@ class Transcoding(ABC):
         """Decodes encoded object."""
 
 
-class LegacyJSONTranscoder(Transcoder[Decision]):
+class LegacyJSONTranscoder(Transcoder):
     """Extensible transcoder that uses the Python :mod:`json` module."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.types: dict[type, Transcoding] = {}
         self.names: dict[str, Transcoding] = {}
-        self.encoder = json.JSONEncoder(
-            default=self._encode_obj,
-            separators=(",", ":"),
-            ensure_ascii=False,
-        )
+        # Need to reconstruct this because simply setting object_hook is not effective.
         self.decoder = json.JSONDecoder(object_hook=self._decode_obj)
 
     def register(self, transcoding: Transcoding) -> None:
@@ -53,12 +49,12 @@ class LegacyJSONTranscoder(Transcoder[Decision]):
         """Decodes bytes array as previously encoded object."""
         return decision_class(**self.decoder.decode(data.decode("utf8")))
 
-    def _encode_obj(self, o: Any) -> dict[str, Any]:
+    def _dump_obj(self, obj: Any) -> dict[str, Any]:
         try:
-            transcoding = self.types[type(o)]
+            transcoding = self.types[type(obj)]
         except KeyError:
             msg = (
-                f"Object of type {type(o)} is not "
+                f"Object of type {type(obj)} is not "
                 "serializable. Please define and register "
                 "a custom transcoding for this type."
             )
@@ -66,7 +62,7 @@ class LegacyJSONTranscoder(Transcoder[Decision]):
         else:
             return {
                 "_type_": transcoding.name,
-                "_data_": transcoding.encode(o),
+                "_data_": transcoding.encode(obj),
             }
 
     def _decode_obj(self, d: dict[str, Any]) -> Any:

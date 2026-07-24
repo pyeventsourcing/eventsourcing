@@ -7,10 +7,10 @@ from eventsourcing.dataclasses.transcoder import Transcoder
 
 
 class AggregatesApplication(eventsourcing.application.AggregatesApplication[Decision]):
-    def construct_transcoder(self) -> eventsourcing.persistence.Transcoder[Decision]:
+    def construct_transcoder(self) -> Transcoder:
         return Transcoder()
 
 
 class DcbApplication(eventsourcing.dcb.application.DcbApplication[Decision]):
-    def construct_transcoder(self) -> eventsourcing.persistence.Transcoder[Decision]:
+    def construct_transcoder(self) -> Transcoder:
         return Transcoder()
