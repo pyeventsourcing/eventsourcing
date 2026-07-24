@@ -25,9 +25,9 @@ experience. Please [read the docs](https://eventsourcing.readthedocs.io/). See a
 
 Add the Python `eventsourcing` package to your project. Run `uv init` to start a new project.
 
-    uv add "eventsourcing[pydantic,postgres,umadb]~=10.0.0a3"
+    uv add "eventsourcing[pydantic,postgres,umadb]~= 10.0.0a5"
 
-Alternatively, install directly into a Python virtual environment from the [Python Package Index](https://pypi.org/project/eventsourcing/10.0.0a3/).
+Alternatively, install directly into a Python virtual environment from the [Python Package Index](https://pypi.org/project/eventsourcing/ 10.0.0a5/).
 We recommended installing version 10 with the optional extras `pydantic`, `postgres`, `umadb`.
 
 * `pydantic` - modeling events with [Pydantic](https://pydantic.dev/docs/validation/latest/get-started).

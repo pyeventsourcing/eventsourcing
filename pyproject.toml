@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "eventsourcing"
-version = "10.0.0a4"
+version = "10.0.0a5"
 description = "Event sourcing in Python"
 license = "BSD-3-Clause"
 readme = "README.md"
