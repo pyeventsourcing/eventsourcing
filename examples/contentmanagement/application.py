@@ -26,7 +26,7 @@ class ContentManagement(AggregatesApplication):
 
     def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
         super().__init__(env=env, context_name=context_name)
-        self.page_log: EventSourcedLog[PageLogged] = EventSourcedLog(
+        self.page_log = EventSourcedLog(
             self.events, str(uuid5(NAMESPACE_URL, "/page_log")), PageLogged
         )
 

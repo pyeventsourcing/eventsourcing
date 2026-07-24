@@ -39,7 +39,7 @@ class TestEventSourcedLog(TestCase):
             recorder=event_recorder,
         )
 
-        log: EventSourcedLog[LoggedID] = EventSourcedLog(
+        log = EventSourcedLog(
             events=event_store,
             originator_id=str(uuid5(NAMESPACE_URL, "/aggregates")),
             event_cls=LoggedID,
@@ -164,7 +164,7 @@ class TestEventSourcedLog(TestCase):
             pass
 
         # Subclass EventSourcedLog.
-        class TransactionLog(EventSourcedLog[TransactionLogEvent]):
+        class TransactionLog(EventSourcedLog[Decision, TransactionLogEvent]):
             def account_credited(self) -> AggregateEvent[Decision]:
                 return self._trigger_event(logged_cls=AccountCredited)
 

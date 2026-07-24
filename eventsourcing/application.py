@@ -1092,7 +1092,10 @@ class AggregateNotFoundError(EventSourcingError):
     """
 
 
-class EventSourcedLog(Generic[TDecision]):
+SDecision = TypeVar("SDecision", bound=AbstractDecision)
+
+
+class EventSourcedLog(Generic[TDecision, SDecision]):
     """Constructs a sequence of domain events, like an aggregate.
     But unlike an aggregate the events can be triggered
     and selected for use in an application without
@@ -1108,9 +1111,9 @@ class EventSourcedLog(Generic[TDecision]):
 
     def __init__(
         self,
-        events: EventStore[Any],
+        events: EventStore[TDecision],
         originator_id: str,
-        event_cls: type[TDecision],
+        event_cls: type[SDecision],
     ):
         self.events = events
         self.originator_id = originator_id
@@ -1120,7 +1123,7 @@ class EventSourcedLog(Generic[TDecision]):
         self,
         next_originator_version: int | None = None,
         **kwargs: Any,
-    ) -> AggregateEvent[TDecision]:
+    ) -> AggregateEvent[SDecision]:
         """Constructs and returns a new log event."""
         return self._trigger_event(
             logged_cls=self.event_cls,
@@ -1130,10 +1133,10 @@ class EventSourcedLog(Generic[TDecision]):
 
     def _trigger_event(
         self,
-        logged_cls: type[TDecision],
+        logged_cls: type[SDecision],
         next_originator_version: int | None = None,
         **kwargs: Any,
-    ) -> AggregateEvent[TDecision]:
+    ) -> AggregateEvent[SDecision]:
         """Constructs and returns a new log event."""
         if next_originator_version is None:
             last_logged = self.get_last()
@@ -1145,20 +1148,17 @@ class EventSourcedLog(Generic[TDecision]):
         return AggregateEvent(
             originator_id=self.originator_id,
             originator_version=next_originator_version,
-            decision=logged_cls(
-                # timestamp=datetime_now_with_tzinfo(),
-                **kwargs,
-            ),
+            decision=logged_cls(**kwargs),
         )
 
-    def get_first(self) -> AggregateEvent[TDecision] | None:
+    def get_first(self) -> AggregateEvent[SDecision] | None:
         """Selects the first logged event."""
         try:
             return next(self.get(limit=1))
         except StopIteration:
             return None
 
-    def get_last(self) -> AggregateEvent[TDecision] | None:
+    def get_last(self) -> AggregateEvent[SDecision] | None:
         """Selects the last logged event."""
         try:
             return next(self.get(desc=True, limit=1))
@@ -1172,14 +1172,17 @@ class EventSourcedLog(Generic[TDecision]):
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> Iterator[AggregateEvent[TDecision]]:
+    ) -> Iterator[AggregateEvent[SDecision]]:
         """Selects a range of logged events with limit,
         with ascending or descending order.
         """
-        return self.events.get(
-            originator_id=self.originator_id,
-            gt=gt,
-            lte=lte,
-            desc=desc,
-            limit=limit,
+        return cast(
+            Iterator[AggregateEvent[SDecision]],
+            self.events.get(
+                originator_id=self.originator_id,
+                gt=gt,
+                lte=lte,
+                desc=desc,
+                limit=limit,
+            ),
         )
