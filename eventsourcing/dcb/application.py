@@ -5,8 +5,9 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 from eventsourcing.application import (
-    AbstractApplication,
     AbstractApplicationSubscription,
+    BoundedContext,
+    SupportsApplicationSubscriptions,
 )
 from eventsourcing.dcb.api import DcbQuery, DcbQueryItem
 from eventsourcing.dcb.persistence import (
@@ -103,8 +104,8 @@ class DcbApplicationSubscription(
             self.stop()
 
 
-class DcbApplication(
-    AbstractApplication[TDecision, DcbApplicationSubscription[TDecision]],
+class BasicDcbApplication(
+    BoundedContext,
 ):
     env: ClassVar[dict[str, str]] = {"PERSISTENCE_MODULE": "eventsourcing.dcb.popo"}
 
@@ -114,20 +115,28 @@ class DcbApplication(
             DcbInfrastructureFactory.construct(self.env)
         )
         self.recorder = self.factory.dcb_recorder()
-        transcoder = self.construct_transcoder()
-        if transcoder is not None:
-            # Only need a mapper, event store, and repository
-            # if we are using the higher-level abstractions.
-            self.mapper = TaggedEventMapper[TDecision](
-                transcoder=transcoder,
-                compressor=self.factory.compressor(),
-                cipher=self.factory.cipher(),
-            )
-            self.events = DcbEventStore[TDecision](self.mapper, self.recorder)
-            self.repository = DcbRepository[TDecision](self.events)
 
-    def construct_transcoder(self) -> Transcoder[TDecision] | None:
-        return self.factory.transcoder() if "TRANSCODER_TOPIC" in self.env else None
+
+class DcbApplication(
+    BasicDcbApplication,
+    SupportsApplicationSubscriptions[
+        TDecision,
+        DcbApplicationSubscription[TDecision],
+    ],
+):
+    def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
+        super().__init__(env=env, context_name=context_name)
+        transcoder = self.construct_transcoder()
+        self.mapper = TaggedEventMapper[TDecision](
+            transcoder=transcoder,
+            compressor=self.factory.compressor(),
+            cipher=self.factory.cipher(),
+        )
+        self.events = DcbEventStore[TDecision](self.mapper, self.recorder)
+        self.repository = DcbRepository[TDecision](self.events)
+
+    def construct_transcoder(self) -> Transcoder[TDecision]:
+        return self.factory.transcoder()
 
     def do(self, s: TSlice) -> TSlice:
         """

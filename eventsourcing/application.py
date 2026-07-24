@@ -21,6 +21,7 @@ from typing import (
 
 from eventsourcing.domain import (
     NIL_UUID_STR,
+    AbstractDecision,
     Aggregate,
     AggregateEvent,
     CanMutateProtocol,
@@ -630,9 +631,7 @@ TApplicationSubscription = TypeVar(
 )
 
 
-class AbstractApplication(
-    WorksWithDecisions[TDecision], Generic[TDecision, TApplicationSubscription]
-):
+class BoundedContext:
     context_name: str
     env: ClassVar[dict[str, str]] = {}
 
@@ -646,12 +645,14 @@ class AbstractApplication(
         self.env = self.construct_env(name=self.context_name, env=env)  # type: ignore[misc]
 
     def construct_env(self, *, name: str, env: EnvType | None = None) -> Environment:
-        """Constructs environment from which application will be configured."""
-
+        """
+        Gathers environment attributes, prioritising given attributes over operating
+        system environment variables over environment attributes defined on the class.
+        """
         # Start with environment variables defined on the class.
         _env = dict(type(self).env)
 
-        # Override with environment variabled defined in the OS environment.
+        # Override with environment variables defined in the OS environment.
         _env.update(os.environ)
 
         # Override with the given environment variables.
@@ -662,6 +663,24 @@ class AbstractApplication(
         if env is not None:
             _env.update(env)
         return Environment(name, _env)
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        pass
+
+
+class SupportsApplicationSubscriptions(
+    BoundedContext,
+    WorksWithDecisions[TDecision],
+    Generic[TDecision, TApplicationSubscription],
+):
 
     @abstractmethod
     def application_subscription(
@@ -736,7 +755,9 @@ class AggregatesApplicationSubscription(
 
 
 class AggregatesApplication(
-    AbstractApplication[TDecision, AggregatesApplicationSubscription[TDecision]],
+    SupportsApplicationSubscriptions[
+        TDecision, AggregatesApplicationSubscription[TDecision]
+    ],
 ):
     """Base class for event-sourced applications."""
 

@@ -22,7 +22,9 @@ from eventsourcing.errors import ProgrammingError
 from eventsourcing.popo import POPOApplicationRecorder
 from eventsourcing.postgres import PostgresApplicationRecorder, PostgresDatastore
 from examples.dcb_enrolment.application import EnrolmentWithAggregates
-from examples.dcb_enrolment_with_basic_objects.application import EnrolmentWithDcb
+from examples.dcb_enrolment_with_basic_objects.application import (
+    EnrolmentWithBasicDcbObjects,
+)
 from examples.dcb_enrolment_with_basic_objects.postgres_ts import (
     PG_FUNCTION_NAME_DCB_CHECK_APPEND_CONDITION_TS,
     PG_FUNCTION_NAME_DCB_INSERT_EVENTS_TS,
@@ -65,7 +67,7 @@ def inf_range() -> Iterator[int]:
 
 config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
     "dcb-pg-ts": (
-        EnrolmentWithDcb,
+        EnrolmentWithBasicDcbObjects,
         # EnrolmentWithEnduringObjects,
         10,
         {
@@ -81,7 +83,7 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
         },
     ),
     "dcb-pg-tt": (
-        EnrolmentWithDcb,
+        EnrolmentWithBasicDcbObjects,
         # EnrolmentWithEnduringObjects,
         10,
         {
@@ -112,7 +114,7 @@ config: dict[str, tuple[type[EnrolmentInterface], int, dict[str, str]]] = {
         },
     ),
     "dcb-umadb": (
-        EnrolmentWithDcb,
+        EnrolmentWithBasicDcbObjects,
         # EnrolmentWithEnduringObjects,
         10,
         {
@@ -198,7 +200,11 @@ def count_events(app: EnrolmentInterface) -> int:
 
     elif isinstance(
         app,
-        (EnrolmentWithDcb, EnrolmentWithEnduringObjects, EnrolmentWithVerticalSlices),
+        (
+            EnrolmentWithBasicDcbObjects,
+            EnrolmentWithEnduringObjects,
+            EnrolmentWithVerticalSlices,
+        ),
     ):
         recorder = app.recorder
         if isinstance(recorder, (PostgresDcbRecorderTS, PostgresDcbRecorderTT)):

@@ -7,7 +7,7 @@ from uuid import uuid4
 from eventsourcing import msgspec
 from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.cryptography import AESCipher
-from eventsourcing.dcb.application import DcbApplication
+from eventsourcing.dcb.application import BasicDcbApplication
 from eventsourcing.domain import (
     EnduringObject,
     event,
@@ -19,27 +19,27 @@ from eventsourcing.utils import Environment, get_topic
 
 class TestDcbApplication(TestCase):
     def test_as_context_manager(self) -> None:
-        with DcbApplication[msgspec.Decision]():
+        with BasicDcbApplication():
             pass
 
     def test_construct_with_env(self) -> None:
-        with DcbApplication[msgspec.Decision](env={"NAME": "value"}) as app:
+        with BasicDcbApplication(env={"NAME": "value"}) as app:
             self.assertIn("NAME", app.env)
 
     def test_construct_with_name(self) -> None:
-        with DcbApplication[msgspec.Decision](context_name="my_context") as app:
+        with BasicDcbApplication(context_name="my_context") as app:
             self.assertEqual(app.context_name, "my_context")
             self.assertIn(cast(Environment, app.env).name, "my_context")
 
     def test_can_subclass(self) -> None:
 
-        class MyApp1(DcbApplication[msgspec.Decision]):
+        class MyApp1(BasicDcbApplication):
             pass
 
         app1 = MyApp1()
         self.assertEqual("MyApp1", app1.context_name)
 
-        class MyApp2(DcbApplication[msgspec.Decision]):
+        class MyApp2(BasicDcbApplication):
             context_name = "name1"
 
         app2 = MyApp2()

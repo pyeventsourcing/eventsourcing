@@ -98,7 +98,7 @@ The performance of the Postgres implementation using "full text search" is shown
 
  Per iteration: 10 courses, 10 students (120 ops)
 
- Running 'dcb-pg-ts' mode: EnrolmentWithDcb
+ Running 'dcb-pg-ts' mode: EnrolmentWithBasicDcbObjects
      PERSISTENCE_MODULE: examples.coursebookingdcb.postgres_ts
      POSTGRES_DBNAME: course_subscriptions_speedrun
      POSTGRES_HOST: 127.0.0.1
@@ -171,7 +171,7 @@ The performance of the :ref:`Postgres DCB recorder <Postgres DCB recorder>` is r
 
  Per iteration: 10 courses, 10 students (120 ops)
 
- Running 'dcb-pg-tt' mode: EnrolmentWithDcb
+ Running 'dcb-pg-tt' mode: EnrolmentWithBasicDcbObjects
      PERSISTENCE_MODULE: eventsourcing.dcb.postgres_tt
      POSTGRES_DBNAME: course_subscriptions_speedrun
      POSTGRES_HOST: 127.0.0.1
@@ -225,7 +225,7 @@ The performance of the :ref:`UmaDB DCB recorder <UmaDB DCB recorder>` is reporte
 
  Per iteration: 10 courses, 10 students (120 ops)
 
- Running 'dcb-umadb' mode: EnrolmentWithDcb
+ Running 'dcb-umadb' mode: EnrolmentWithBasicDcbObjects
      PERSISTENCE_MODULE: eventsourcing_umadb
      UMADB_URI: http://127.0.0.1:50051
 

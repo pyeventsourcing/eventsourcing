@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import json
-from typing import Any, cast
 from uuid import uuid4
 
 from eventsourcing.dcb.api import DcbAppendCondition, DcbEvent, DcbQuery, DcbQueryItem
-from eventsourcing.dcb.application import DcbApplication
+from eventsourcing.dcb.application import BasicDcbApplication
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseNotFoundError,
@@ -16,7 +15,7 @@ from examples.dcb_enrolment.interface import (
 )
 
 
-class EnrolmentWithDcb(DcbApplication[Any], EnrolmentInterface):
+class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
     def register_student(self, name: str, max_courses: int) -> str:
         student_id = f"student-{uuid4()}"
         consistency_boundary = DcbQuery(
@@ -83,10 +82,10 @@ class EnrolmentWithDcb(DcbApplication[Any], EnrolmentInterface):
         for sequenced in read_response:
             if sequenced.event.type == "CourseRegistered":
                 data = json.loads(sequenced.event.data.decode())
-                places = cast(int, data["places"])
+                places = int(data["places"])
             elif sequenced.event.type == "StudentRegistered":
                 data = json.loads(sequenced.event.data.decode())
-                max_courses = cast(int, data["max_courses"])
+                max_courses = int(data["max_courses"])
             elif sequenced.event.type == "StudentJoinedCourse":
                 if (
                     student_id in sequenced.event.tags
@@ -161,7 +160,7 @@ class EnrolmentWithDcb(DcbApplication[Any], EnrolmentInterface):
         # Project the events into the mapping of IDs to names.
         for sequenced in self.recorder.read(query=student_names_consistency_boundary):
             if sequenced.event.type == "StudentRegistered":
-                name = cast(str, json.loads(sequenced.event.data.decode())["name"])
+                name = str(json.loads(sequenced.event.data.decode())["name"])
                 student_names[sequenced.event.tags[0]] = name
 
         # Return the names.
@@ -201,7 +200,7 @@ class EnrolmentWithDcb(DcbApplication[Any], EnrolmentInterface):
         # Project the events into the mapping of IDs to names.
         for sequenced in self.recorder.read(query=course_names_consistency_boundary):
             if sequenced.event.type == "CourseRegistered":
-                name = cast(str, json.loads(sequenced.event.data.decode())["name"])
+                name = str(json.loads(sequenced.event.data.decode())["name"])
                 course_names[sequenced.event.tags[0]] = name
 
         # Return the names.

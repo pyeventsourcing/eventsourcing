@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 from warnings import warn
 
 from eventsourcing.application import (
-    AbstractApplication,
     AbstractApplicationSubscription,
     AggregatesApplication,
     ProcessingEvent,
+    SupportsApplicationSubscriptions,
 )
 from eventsourcing.dcb.application import DcbApplication
 from eventsourcing.domain import (
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from types import TracebackType
 
 
-TApplication = TypeVar("TApplication", bound=AbstractApplication[Any, Any])
+TApplication = TypeVar("TApplication", bound=SupportsApplicationSubscriptions[Any, Any])
 TAggregatesApplication = TypeVar(
     "TAggregatesApplication", bound=AggregatesApplication[Any]
 )
