@@ -199,7 +199,7 @@ class POPOTrackingRecorder(POPORecorder, TrackingRecorder):
         self._max_tracking_ids: dict[str, int | None] = defaultdict(lambda: None)
 
     def _assert_tracking_uniqueness(self, tracking: Tracking) -> None:
-        max_tracking_id = self._max_tracking_ids[tracking.application_name]
+        max_tracking_id = self._max_tracking_ids[tracking.context_name]
         if max_tracking_id is not None and max_tracking_id >= tracking.notification_id:
             msg = (
                 f"Tracking notification ID {tracking.notification_id} "
@@ -213,11 +213,11 @@ class POPOTrackingRecorder(POPORecorder, TrackingRecorder):
             self._insert_tracking(tracking)
 
     def _insert_tracking(self, tracking: Tracking) -> None:
-        self._max_tracking_ids[tracking.application_name] = tracking.notification_id
+        self._max_tracking_ids[tracking.context_name] = tracking.notification_id
 
-    def max_tracking_id(self, application_name: str) -> int | None:
+    def max_tracking_id(self, context_name: str) -> int | None:
         with self._database_lock:
-            return self._max_tracking_ids[application_name]
+            return self._max_tracking_ids[context_name]
 
 
 class POPOProcessRecorder(

@@ -446,26 +446,24 @@ class TrackingRecorder(Recorder, ABC):
         """Records a tracking object."""
 
     @abstractmethod
-    def max_tracking_id(self, application_name: str) -> int | None:
+    def max_tracking_id(self, context_name: str) -> int | None:
         """Returns the largest notification ID across all recorded tracking objects
         for the named application, or None if no tracking objects have been recorded.
         """
 
-    def has_tracking_id(
-        self, application_name: str, notification_id: int | None
-    ) -> bool:
+    def has_tracking_id(self, context_name: str, notification_id: int | None) -> bool:
         """Returns True if given notification_id is None or a tracking
-        object with the given application_name and a notification ID greater
+        object with the given context_name and a notification ID greater
         than or equal to the given notification_id has been recorded.
         """
         if notification_id is None:
             return True
-        max_tracking_id = self.max_tracking_id(application_name)
+        max_tracking_id = self.max_tracking_id(context_name)
         return max_tracking_id is not None and max_tracking_id >= notification_id
 
     def wait(
         self,
-        application_name: str,
+        context_name: str,
         notification_id: int | None,
         timeout: float = 1.0,
         interrupt: Event | None = None,
@@ -488,7 +486,7 @@ class TrackingRecorder(Recorder, ABC):
         sleep_interval_ms = 100.0
         max_sleep_interval_ms = 800.0
         while True:
-            if self.has_tracking_id(application_name, notification_id):
+            if self.has_tracking_id(context_name, notification_id):
                 break
             if interrupt:
                 if interrupt.wait(timeout=sleep_interval_ms / 1000):
@@ -499,7 +497,7 @@ class TrackingRecorder(Recorder, ABC):
             if remaining < 0:
                 msg = (
                     f"Timed out waiting for notification {notification_id} "
-                    f"from application '{application_name}' to be processed"
+                    f"from application '{context_name}' to be processed"
                 )
                 raise TimeoutError(msg)
             sleep_interval_ms = min(
@@ -810,7 +808,7 @@ class Tracking:
     event :class:`Notification` in an application's notification log.
     """
 
-    application_name: str
+    context_name: str
     notification_id: int
 
 

@@ -32,7 +32,7 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
             "POSTGRES_PASSWORD": "eventsourcing",
         }
         try:
-            self.assert_implementation(EnrolmentWithVerticalSlices(env))
+            self.assert_implementation(EnrolmentWithVerticalSlices(env=env))
         finally:
             drop_tables()
 
@@ -41,7 +41,7 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
             "PERSISTENCE_MODULE": "eventsourcing_umadb",
             "UMADB_URI": "http://127.0.0.1:50051",
         }
-        self.assert_implementation(EnrolmentWithVerticalSlices(env))
+        self.assert_implementation(EnrolmentWithVerticalSlices(env=env))
 
     def assert_implementation(self, app: EnrolmentInterface) -> None:
         super().assert_implementation(app)

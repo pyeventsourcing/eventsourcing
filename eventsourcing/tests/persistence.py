@@ -797,7 +797,7 @@ class TrackingRecorderTestCase(TestCase, ABC):
         tracking_recorder.insert_tracking(tracking=tracking2)
         tracking_recorder.insert_tracking(tracking=tracking3)
 
-        # raise Exception(tracking_recorder.max_tracking_id(tracking1.application_name))
+        # raise Exception(tracking_recorder.max_tracking_id(tracking1.context_name))
 
         # Fail to insert same tracking object twice.
         with self.assertRaises(IntegrityError):
@@ -847,7 +847,7 @@ class TrackingRecorderTestCase(TestCase, ABC):
         with self.assertRaises(TimeoutError):
             tracking_recorder.wait("upstream1", 21, timeout=0.1)
 
-        tracking1 = Tracking(notification_id=21, application_name="upstream1")
+        tracking1 = Tracking(notification_id=21, context_name="upstream1")
         tracking_recorder.insert_tracking(tracking=tracking1)
         tracking_recorder.wait("upstream1", None)
         tracking_recorder.wait("upstream1", 10)
@@ -901,11 +901,11 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
             state=b"state4",
         )
         tracking1 = Tracking(
-            application_name="upstream_app",
+            context_name="upstream_app",
             notification_id=1,
         )
         tracking2 = Tracking(
-            application_name="upstream_app",
+            context_name="upstream_app",
             notification_id=2,
         )
 
@@ -978,11 +978,11 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
         self.assertFalse(recorder.has_tracking_id("upstream_app", 4))
 
         tracking1 = Tracking(
-            application_name="upstream_app",
+            context_name="upstream_app",
             notification_id=1,
         )
         tracking3 = Tracking(
-            application_name="upstream_app",
+            context_name="upstream_app",
             notification_id=3,
         )
 
@@ -1011,11 +1011,11 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
         recorder = self.create_recorder()
 
         tracking1 = Tracking(
-            application_name="upstream_app",
+            context_name="upstream_app",
             notification_id=1,
         )
         tracking2 = Tracking(
-            application_name="upstream_app",
+            context_name="upstream_app",
             notification_id=2,
         )
 
@@ -1062,7 +1062,7 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
                 state=b"state1",
             )
             tracking1 = Tracking(
-                application_name="upstream_app",
+                context_name="upstream_app",
                 notification_id=next(notification_ids),
             )
 

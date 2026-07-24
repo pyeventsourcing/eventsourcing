@@ -756,14 +756,14 @@ is a Python frozen data class.
 The :class:`~eventsourcing.persistence.Tracking` class has a ``notification_id``
 attribute which in a Python :data:`int` that indicates the position in an application
 sequence of an event notification that has been processed. And it has an
-``application_name`` attribute which is a Python :class:`str` that identifies
+``context_name`` attribute which is a Python :class:`str` that identifies
 the name of that application.
 
 .. code-block:: python
 
     tracking = Tracking(
         notification_id=123,
-        application_name="bounded_context1",
+        context_name="bounded_context1",
     )
 
 By recording, with uniqueness constraints, a tracking object that represents the position
@@ -999,7 +999,7 @@ by extending :class:`~eventsourcing.popo.POPOApplicationRecorder`.
     process_recorder = POPOProcessRecorder()
 
     # Define a tracking object.
-    tracking = Tracking(notification_id=21, application_name="upstream")
+    tracking = Tracking(notification_id=21, context_name="upstream")
 
     # Insert stored events atomically with a tracking object.
     process_recorder.insert_events([stored_event], tracking=tracking)
@@ -1103,7 +1103,7 @@ a method to create a database table for tracking records.
     tracking_recorder.create_table()
 
     # Construct tracking object.
-    tracking = Tracking(notification_id=21, application_name="upstream")
+    tracking = Tracking(notification_id=21, context_name="upstream")
 
     # Insert tracking object.
     tracking_recorder.insert_tracking(tracking=tracking)
@@ -1131,7 +1131,7 @@ by extending :class:`~eventsourcing.sqlite.SQLiteApplicationRecorder`.
     process_recorder.create_table()
 
     # Construct a tracking object.
-    tracking = Tracking(notification_id=21, application_name="upstream")
+    tracking = Tracking(notification_id=21, context_name="upstream")
 
     # Insert stored events atomically with a tracking object.
     process_recorder.insert_events([stored_event], tracking=tracking)
@@ -1263,7 +1263,7 @@ a method to create a database table for tracking records.
     tracking_recorder.create_table()
 
     # Construct tracking object.
-    tracking = Tracking(notification_id=21, application_name="upstream")
+    tracking = Tracking(notification_id=21, context_name="upstream")
 
     # Insert tracking object.
     tracking_recorder.insert_tracking(tracking=tracking)
@@ -1299,7 +1299,7 @@ by combining and extending :class:`~eventsourcing.postgres.PostgresApplicationRe
     process_recorder.create_table()
 
     # Construct tracking object.
-    tracking = Tracking(notification_id=21, application_name="upstream")
+    tracking = Tracking(notification_id=21, context_name="upstream")
 
     # Insert stored events atomically with tracking object.
     process_recorder.insert_events([stored_event], tracking=tracking)

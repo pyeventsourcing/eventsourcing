@@ -467,7 +467,7 @@ class TestPullingThread(TestCase):
         self.assertEqual(thread.recording_event_queue.qsize(), 0)
         thread.receive_recording_event(
             RecordingEvent(
-                application_name="BankAccountsWithPydantic",
+                context_name="BankAccountsWithPydantic",
                 recordings=[],
                 previous_max_notification_id=None,
             )
@@ -476,7 +476,7 @@ class TestPullingThread(TestCase):
         self.assertFalse(thread.overflow_event.is_set())
         thread.receive_recording_event(
             RecordingEvent(
-                application_name="BankAccountsWithPydantic",
+                context_name="BankAccountsWithPydantic",
                 recordings=[],
                 previous_max_notification_id=1,
             )
@@ -494,7 +494,7 @@ class TestPullingThread(TestCase):
         self.assertEqual(thread.recording_event_queue.qsize(), 0)
         thread.receive_recording_event(
             RecordingEvent(
-                application_name="BankAccountsWithPydantic",
+                context_name="BankAccountsWithPydantic",
                 recordings=[],
                 previous_max_notification_id=None,
             )
@@ -527,7 +527,8 @@ class DeliberateError(Exception):
 
 
 class BrokenInitialisation(EmailProcess):
-    def __init__(self, *_: Any, **__: Any) -> None:
+    def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
+        super().__init__(env=env, context_name=context_name)
         msg = "Just testing error handling when initialisation is broken"
         raise DeliberateError(msg)
 
@@ -701,27 +702,29 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
         super().setUp()
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
         uris = tmpfile_uris()
-        os.environ[f"{BankAccountsWithPydantic.name.upper()}_SQLITE_DBNAME"] = next(
-            uris
+        os.environ[f"{BankAccountsWithPydantic.context_name.upper()}_SQLITE_DBNAME"] = (
+            next(uris)
         )
-        os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"] = next(uris)
-        os.environ[f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"] = next(uris)
-        os.environ[f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"] = next(uris)
+        os.environ[f"{EmailProcess.context_name.upper()}_SQLITE_DBNAME"] = next(uris)
+        os.environ[f"{EmailProcess.context_name.upper()}2_SQLITE_DBNAME"] = next(uris)
+        os.environ[f"MY{EmailProcess.context_name.upper()}_SQLITE_DBNAME"] = next(uris)
         os.environ["BROKENPROCESSING_SQLITE_DBNAME"] = next(uris)
         os.environ["BROKENCONVERTING_SQLITE_DBNAME"] = next(uris)
         os.environ["BROKENPULLING_SQLITE_DBNAME"] = next(uris)
+        os.environ["BROKENINITIALISATION_SQLITE_DBNAME"] = next(uris)
         os.environ["COMMANDS_SQLITE_DBNAME"] = next(uris)
         os.environ["RESULTS_SQLITE_DBNAME"] = next(uris)
 
     def tearDown(self) -> None:
         del os.environ["PERSISTENCE_MODULE"]
-        del os.environ[f"{BankAccountsWithPydantic.name.upper()}_SQLITE_DBNAME"]
-        del os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"]
-        del os.environ[f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"]
-        del os.environ[f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"]
+        del os.environ[f"{BankAccountsWithPydantic.context_name.upper()}_SQLITE_DBNAME"]
+        del os.environ[f"{EmailProcess.context_name.upper()}_SQLITE_DBNAME"]
+        del os.environ[f"MY{EmailProcess.context_name.upper()}_SQLITE_DBNAME"]
+        del os.environ[f"{EmailProcess.context_name.upper()}2_SQLITE_DBNAME"]
         del os.environ["BROKENPROCESSING_SQLITE_DBNAME"]
         del os.environ["BROKENCONVERTING_SQLITE_DBNAME"]
         del os.environ["BROKENPULLING_SQLITE_DBNAME"]
+        del os.environ["BROKENINITIALISATION_SQLITE_DBNAME"]
         del os.environ["COMMANDS_SQLITE_DBNAME"]
         del os.environ["RESULTS_SQLITE_DBNAME"]
         super().tearDown()
@@ -731,17 +734,17 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
     def setUp(self) -> None:
         super().setUp()
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
-        os.environ[f"{BankAccountsWithPydantic.name.upper()}_SQLITE_DBNAME"] = (
-            f"file:{BankAccountsWithPydantic.name.lower()}?mode=memory&cache=shared"
+        os.environ[f"{BankAccountsWithPydantic.context_name.upper()}_SQLITE_DBNAME"] = (
+            f"file:{BankAccountsWithPydantic.context_name.lower()}?mode=memory&cache=shared"
         )
-        os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"] = (
-            f"file:{EmailProcess.name.lower()}?mode=memory&cache=shared"
+        os.environ[f"{EmailProcess.context_name.upper()}_SQLITE_DBNAME"] = (
+            f"file:{EmailProcess.context_name.lower()}?mode=memory&cache=shared"
         )
-        os.environ[f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"] = (
-            f"file:{EmailProcess.name.lower()}?mode=memory&cache=shared"
+        os.environ[f"MY{EmailProcess.context_name.upper()}_SQLITE_DBNAME"] = (
+            f"file:{EmailProcess.context_name.lower()}?mode=memory&cache=shared"
         )
-        os.environ[f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"] = (
-            f"file:{EmailProcess.name.lower()}2?mode=memory&cache=shared"
+        os.environ[f"{EmailProcess.context_name.upper()}2_SQLITE_DBNAME"] = (
+            f"file:{EmailProcess.context_name.lower()}2?mode=memory&cache=shared"
         )
         os.environ["BROKENPROCESSING_SQLITE_DBNAME"] = (
             "file:brokenprocessing?mode=memory&cache=shared"
@@ -752,18 +755,22 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
         os.environ["BROKENPULLING_SQLITE_DBNAME"] = (
             "file:brokenprocessing?mode=memory&cache=shared"
         )
+        os.environ["BROKENINITIALISATION_SQLITE_DBNAME"] = (
+            "file:brokeninitialisation?mode=memory&cache=shared"
+        )
         os.environ["COMMANDS_SQLITE_DBNAME"] = "file:commands?mode=memory&cache=shared"
         os.environ["RESULTS_SQLITE_DBNAME"] = "file:results?mode=memory&cache=shared"
 
     def tearDown(self) -> None:
         del os.environ["PERSISTENCE_MODULE"]
-        del os.environ[f"{BankAccountsWithPydantic.name.upper()}_SQLITE_DBNAME"]
-        del os.environ[f"MY{EmailProcess.name.upper()}_SQLITE_DBNAME"]
-        del os.environ[f"{EmailProcess.name.upper()}_SQLITE_DBNAME"]
-        del os.environ[f"{EmailProcess.name.upper()}2_SQLITE_DBNAME"]
+        del os.environ[f"{BankAccountsWithPydantic.context_name.upper()}_SQLITE_DBNAME"]
+        del os.environ[f"MY{EmailProcess.context_name.upper()}_SQLITE_DBNAME"]
+        del os.environ[f"{EmailProcess.context_name.upper()}_SQLITE_DBNAME"]
+        del os.environ[f"{EmailProcess.context_name.upper()}2_SQLITE_DBNAME"]
         del os.environ["BROKENPROCESSING_SQLITE_DBNAME"]
         del os.environ["BROKENCONVERTING_SQLITE_DBNAME"]
         del os.environ["BROKENPULLING_SQLITE_DBNAME"]
+        del os.environ["BROKENINITIALISATION_SQLITE_DBNAME"]
         del os.environ["COMMANDS_SQLITE_DBNAME"]
         del os.environ["RESULTS_SQLITE_DBNAME"]
         super().tearDown()

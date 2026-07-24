@@ -107,8 +107,8 @@ class EventSourcedProjection(
 
     recorder: ProcessRecorder
 
-    def __init__(self, env: EnvType | None = None) -> None:
-        super().__init__(env)
+    def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
+        super().__init__(env=env, context_name=context_name)
         self.processing_lock = threading.Lock()
 
     def construct_recorder(self) -> ProcessRecorder:
@@ -183,7 +183,7 @@ class BaseProjectionRunner(Generic[TApplication]):
 
         # Subscribe to the application.
         self._subscription = app.application_subscription(
-            gt=tracking_recorder.max_tracking_id(app.name),
+            gt=tracking_recorder.max_tracking_id(app.context_name),
             topics=topics,
         )
 
@@ -286,7 +286,7 @@ class BaseProjectionRunner(Generic[TApplication]):
         """
         try:
             self._tracking_recorder.wait(
-                application_name=self.app.name,
+                context_name=self.app.context_name,
                 notification_id=notification_id,
                 timeout=timeout,
                 interrupt=self._is_interrupted,
@@ -379,7 +379,7 @@ class EventSourcedProjectionRunner(
         env: EnvType | None = None,
     ):
         self.projection = projection_class(
-            env=self._construct_env(name=projection_class.name, env=env)
+            env=self._construct_env(name=projection_class.context_name, env=env)
         )
 
         super().__init__(

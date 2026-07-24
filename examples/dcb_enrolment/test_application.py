@@ -20,7 +20,7 @@ class TestEnrolmentWithAggregates(EnrolmentTestCase):
             "POSTGRES_PASSWORD": "eventsourcing",
         }
         try:
-            app = EnrolmentWithAggregates(env)
+            app = EnrolmentWithAggregates(env=env)
             self.assert_implementation(app)
         finally:
             drop_tables()

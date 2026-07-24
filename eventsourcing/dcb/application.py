@@ -59,7 +59,7 @@ class DCBApplicationSubscription(
         """
         Starts a subscription to application's recorder.
         """
-        self.name = app.name
+        self.name = app.context_name
         self.recorder = app.recorder
         self.mapper = app.mapper
         self.subscription = self.recorder.subscribe(
@@ -108,8 +108,8 @@ class DCBApplication(
 ):
     env: ClassVar[dict[str, str]] = {"PERSISTENCE_MODULE": "eventsourcing.dcb.popo"}
 
-    def __init__(self, env: EnvType | None = None):
-        super().__init__(env=env)
+    def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
+        super().__init__(env=env, context_name=context_name)
         self.factory: DCBInfrastructureFactory[TrackingRecorder] = (
             DCBInfrastructureFactory.construct(self.env)
         )

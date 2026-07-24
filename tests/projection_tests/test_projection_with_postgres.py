@@ -158,7 +158,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
         ):
 
             # Construct separate instance of "write model".
-            write_model = AggregatesApplication(self.env)
+            write_model = AggregatesApplication(env=self.env)
 
             # Construct separate instance of "read model".
             factory: InfrastructureFactory[EventCountersView] = (
@@ -178,7 +178,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
             # Wait for events to be processed.
             read_model.wait(
-                application_name=write_model.name,
+                context_name=write_model.context_name,
                 notification_id=recordings[-1].notification.id,
             )
 
@@ -194,7 +194,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
 
             # Wait for events to be processed.
             read_model.wait(
-                application_name=write_model.name,
+                context_name=write_model.context_name,
                 notification_id=recordings[-1].notification.id,
             )
 
@@ -214,13 +214,13 @@ class TestAggregateEventCountersProjectionWithPostgres(
         ) as runner:
 
             # Construct separate instance of "write model".
-            write_model = AggregatesApplication(self.env)
+            write_model = AggregatesApplication(env=self.env)
 
             # Construct separate instance of "read model".
             factory: InfrastructureFactory[PostgresEventCounters] = (
                 InfrastructureFactory.construct(
                     env=Environment(
-                        name=StudentEventCountersProjection.name, env=self.env
+                        name=StudentEventCountersProjection.context_name, env=self.env
                     )
                 )
             )
@@ -233,7 +233,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
             # Wait times out (event has not been processed).
             with self.assertRaises(TimeoutError):
                 read_model.wait(
-                    application_name=write_model.name,
+                    context_name=write_model.context_name,
                     notification_id=write_model.recorder.max_notification_id(),
                 )
 

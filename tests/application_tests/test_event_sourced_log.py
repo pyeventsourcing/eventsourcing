@@ -101,8 +101,10 @@ class TestEventSourcedLog(TestCase):
                 pass
 
         class MyApplication(AggregatesApplication):
-            def __init__(self, env: EnvType | None = None) -> None:
-                super().__init__(env=env)
+            def __init__(
+                self, *, env: EnvType | None = None, context_name: str | None = None
+            ):
+                super().__init__(env=env, context_name=context_name)
                 self.aggregate_log = EventSourcedLog(
                     events=self.events,
                     originator_id=str(uuid5(NAMESPACE_URL, "/aggregates")),

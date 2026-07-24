@@ -23,32 +23,46 @@ experience. Please [read the docs](https://eventsourcing.readthedocs.io/). See a
 
 ## Installation
 
-Add the Python `eventsourcing` package to your project. Alternatively, install
-directly into a Python virtual environment from the [Python Package Index](https://pypi.org/project/eventsourcing/).
+Add the Python `eventsourcing` package to your project. Run `uv init` to start a new project.
 
-We recommended installing version 10 with the `pydantic` option to enable support for modeling
-events with Pydantic.
+    uv add "eventsourcing[pydantic,postgres,umadb]~=10.0.0a2"
 
-    $ pip install eventsourcing[pydantic]~=10.0.0
+Alternatively, install directly into a Python virtual environment from the [Python Package Index](https://pypi.org/project/eventsourcing/10.0.0a2/).
+We recommended installing version 10 with the optional extras `pydantic`, `postgres`, `umadb`.
+
+* `pydantic` - modeling events with [Pydantic](https://pydantic.dev/docs/validation/latest/get-started).
+* `postgres` - storing events in [PostgreSQL](https://www.postgresql.org).
+* `umadb` - storing events in [UmaDB](https://umadb.io).
 
 
-## Synopsis
 
-Version 10 of this library still supports traditional event-sourced aggregates. However,
-we have chosen to foreground the library's support for DCB, and to showcase the new
-official support for modeling and serialising events with Pydantic.
+You can start the UmaDB server with `uv run umadb`.
+
+
+## Introduction
+
+Version 10 of this library still supports traditional event-sourced aggregates. In these
+examples we have chosen to foreground the library's support for DCB, to showcase the
+new official support for modeling and serialising events with Pydantic, and to demonstrate
+the capabilities of UmaDB.
 
 ### Modeling events
 
 Version 10 of this library introduces a new design for modeling events. Pure business attributes
 are modeled as "decision" objects. Decision objects are carried within "envelopes" that hold context attributes.
+ In previous versions of this library, these concerns were mixed
+in a "domain event" class.
 
 The `eventsourcing.pydantic.Decision` class works with the library's Pydantic transcoder, and
 provides strong type safety, complex model validation, and fast serialisation. Pydantic is very popular and
 widely used, and is a great choice for modeling events in Python.
 
-Continuing the "dog school" example from previous versions of this library, the example below defines two "decision" classes,
-one for registering a dog's name, and one for adding new tricks.
+Equivalent support for [MessagePack](https://msgpack.org) and Python data classes are provided by the `eventsourcing.msgspec`
+and `eventsourcing.dataclasses` packages. To enable support for MessagePack, you will need to install
+with the `msgspec` optional extra.
+
+Continuing the "dog school" example from previous versions of this library, here are two Pydantic "decision" classes.
+One for registering a dog's name, and one for adding new tricks.
 
 ```python
 from eventsourcing.pydantic import Decision
@@ -99,6 +113,10 @@ class Dog(EnduringObject):
 
 Let's also define an application class that encapsulates the `Dog` object and introduces some
 persistence infrastructure so that our enduring object can be durable.
+
+In this example, the commands and queries are defined with object methods. If you prefer, you
+can define module-level functions that have an application object argument, or alternatively
+define equivalent command handler and query handler classes.
 
 The `eventsourcing.pydantic.DCBApplication` class works with the Pydantic `EnduringObject` and
 `Decision` classes. The `save()` and `get()` methods of the application's repository are
@@ -289,7 +307,7 @@ def test_dog_school(
     print(f"Running test for: {label}")
     started = datetime.now()
 
-    app = cls(env)
+    app = cls(env=env)
 
     # Get current max sequence position.
     head = app.events.recorder.head()

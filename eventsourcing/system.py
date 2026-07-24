@@ -45,11 +45,11 @@ ProcessingJob = tuple[AggregateEvent[TDecision], Tracking]
 class RecordingEvent(Generic[TDecision]):
     def __init__(
         self,
-        application_name: str,
+        context_name: str,
         recordings: list[Recording[TDecision]],
         previous_max_notification_id: int | None,
     ):
-        self.application_name = application_name
+        self.context_name = context_name
         self.recordings: list[Recording[TDecision]] = recordings
         self.previous_max_notification_id = previous_max_notification_id
 
@@ -73,8 +73,8 @@ class Follower(
         # for backwards compatibility, set "topics" if has "follow_topics".
         cls.topics = getattr(cls, "follow_topics", cls.topics)
 
-    def __init__(self, env: EnvType | None = None) -> None:
-        super().__init__(env)
+    def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
+        super().__init__(env=env, context_name=context_name)
         self.readers: dict[str, NotificationLogReader] = {}
         self.mappers: dict[str, Mapper[TDecision]] = {}
         self.is_threading_enabled = False
@@ -86,7 +86,7 @@ class Follower(
         """
         assert isinstance(self.recorder, ProcessRecorder)
         reader = NotificationLogReader(log, section_size=self.pull_section_size)
-        env = self.construct_env(name, self.env)
+        env = self.construct_env(name=name, env=self.env)
         factory = self.construct_factory(env)
         transcoder = self.construct_transcoder()
         transcoder.check_decision_type(self)
@@ -155,7 +155,7 @@ class Follower(
             for notification in notifications:
                 envelope = mapper.to_domain_event(notification)
                 tracking = Tracking(
-                    application_name=leader_name,
+                    context_name=leader_name,
                     notification_id=notification.id,
                 )
                 processing_jobs.append((envelope, tracking))
@@ -179,8 +179,8 @@ class Leader(AggregatesApplication[TDecision]):
     domain event notifications to be pulled and processed.
     """
 
-    def __init__(self, env: EnvType | None = None) -> None:
-        super().__init__(env)
+    def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
+        super().__init__(env=env, context_name=context_name)
         self.previous_max_notification_id: int | None = None
         self.followers: list[RecordingEventReceiver[TDecision]] = []
 
@@ -208,7 +208,7 @@ class Leader(AggregatesApplication[TDecision]):
             ]
         if recordings:
             recording_event = RecordingEvent(
-                application_name=self.name,
+                context_name=self.context_name,
                 recordings=recordings,
                 previous_max_notification_id=self.previous_max_notification_id,
             )
@@ -243,13 +243,13 @@ class System:
         for pipe in pipes:
             follower_cls = None
             for cls in pipe:
-                classes[cls.name] = cls
+                classes[cls.context_name] = cls
                 if follower_cls is None:
                     follower_cls = cls
                 else:
                     leader_cls = follower_cls
                     follower_cls = cls
-                    edge = (leader_cls.name, follower_cls.name)
+                    edge = (leader_cls.context_name, follower_cls.context_name)
                     if edge not in self.edges:
                         self.edges.append(edge)
 
@@ -307,7 +307,7 @@ class System:
         cls = self.get_app_cls(name)
         if issubclass(cls, Leader):
             return cls
-        cls = type(cls.name, (Leader, cls), {})
+        cls = type(cls.context_name, (Leader, cls), {})
         assert issubclass(cls, Leader)
         return cls
 
@@ -448,7 +448,7 @@ class SingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision])
         continues until there are no more prompted names. In this way, a system
         of applications will process all events in a single thread.
         """
-        leader_name = new_recording_event.application_name
+        leader_name = new_recording_event.context_name
         with self._prompted_names_lock:
             self._prompted_names.add(leader_name)
 
@@ -476,7 +476,7 @@ class SingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision])
         self.apps.clear()
 
     def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
-        app = self.apps[cls.name]
+        app = self.apps[cls.context_name]
         assert isinstance(app, cls)
         return app
 
@@ -558,7 +558,7 @@ class NewSingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecisio
                             break
 
                     for recording_event in recording_events:
-                        leader_name = recording_event.application_name
+                        leader_name = recording_event.context_name
                         previous_max_notification_id = (
                             self._previous_max_notification_ids.get(leader_name, 0)
                         )
@@ -600,7 +600,7 @@ class NewSingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecisio
                                 follower.process_event(
                                     envelope=recording.domain_event,
                                     tracking=Tracking(
-                                        application_name=recording_event.application_name,
+                                        context_name=recording_event.context_name,
                                         notification_id=recording.notification.id,
                                     ),
                                 )
@@ -618,7 +618,7 @@ class NewSingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecisio
         self.apps.clear()
 
     def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
-        app = self.apps[cls.name]
+        app = self.apps[cls.context_name]
         assert isinstance(app, cls)
         return app
 
@@ -675,7 +675,7 @@ class MultiThreadedRunner(Runner[TDecision]):
                 follower=follower,
                 has_errored=self.has_errored,
             )
-            self.threads[follower.name] = thread
+            self.threads[follower.context_name] = thread
             thread.start()
 
         # Wait until all the threads have started.
@@ -686,8 +686,8 @@ class MultiThreadedRunner(Runner[TDecision]):
         for edge in self.system.edges:
             leader = cast("Leader[Any]", self.apps[edge[0]])
             follower = cast(Follower[Any], self.apps[edge[1]])
-            follower.follow(leader.name, leader.notification_log)
-            thread = self.threads[follower.name]
+            follower.follow(leader.context_name, leader.notification_log)
+            thread = self.threads[follower.context_name]
             leader.lead(thread)
 
     def watch_for_errors(self, timeout: float | None = None) -> bool:
@@ -712,7 +712,7 @@ class MultiThreadedRunner(Runner[TDecision]):
                 raise thread.error
 
     def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
-        app = self.apps[cls.name]
+        app = self.apps[cls.context_name]
         assert isinstance(app, cls)
         return app
 
@@ -767,7 +767,7 @@ class MultiThreadedRunnerThread(RecordingEventReceiver[TDecision], threading.Thr
         """Receives prompt by appending name of
         leader to list of prompted names.
         """
-        leader_name = new_recording_event.application_name
+        leader_name = new_recording_event.context_name
         with self.prompted_names_lock:
             if leader_name not in self.prompted_names:
                 self.prompted_names.append(leader_name)
@@ -855,7 +855,7 @@ class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision
             leader = cast("Leader[Any]", self.apps[leader_name])
             follower_name = edge[1]
             follower = cast(Follower[Any], self.apps[follower_name])
-            follower.follow(leader.name, leader.notification_log)
+            follower.follow(leader.context_name, leader.notification_log)
 
             # Create converting queue.
             converting_queue: Queue[ConvertingJob[TDecision]] = Queue(
@@ -917,16 +917,14 @@ class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision
                 raise thread.error
 
     def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
-        app = self.apps[cls.name]
+        app = self.apps[cls.context_name]
         assert isinstance(app, cls)
         return app
 
     def receive_recording_event(
         self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
-        for pulling_thread in self.pulling_threads[
-            new_recording_event.application_name
-        ]:
+        for pulling_thread in self.pulling_threads[new_recording_event.context_name]:
             pulling_thread.receive_recording_event(new_recording_event)
 
 
@@ -957,7 +955,7 @@ class PullingThread(threading.Thread, Generic[TDecision]):
         self.has_started = threading.Event()
         self.mapper = self.follower.mappers[self.leader_name]
         self.previous_max_notification_id = self.follower.recorder.max_tracking_id(
-            application_name=self.leader_name
+            context_name=self.leader_name
         )
 
     def run(self) -> None:
@@ -1063,7 +1061,7 @@ class ConvertingThread(threading.Thread, Generic[TDecision]):
                         ):
                             continue
                         tracking = Tracking(
-                            application_name=recording_event.application_name,
+                            context_name=recording_event.context_name,
                             notification_id=recording.notification.id,
                         )
                         processing_jobs.append((recording.domain_event, tracking))

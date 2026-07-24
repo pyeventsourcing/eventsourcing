@@ -21,7 +21,7 @@ class TestEnrolmentWithDCB(EnrolmentTestCase):
             "POSTGRES_PASSWORD": "eventsourcing",
         }
         try:
-            self.assert_implementation(EnrolmentWithDCB(env))
+            self.assert_implementation(EnrolmentWithDCB(env=env))
         finally:
             drop_tables()
 
@@ -30,7 +30,7 @@ class TestEnrolmentWithDCB(EnrolmentTestCase):
             "PERSISTENCE_MODULE": "eventsourcing_umadb",
             "UMADB_URI": "http://127.0.0.1:50051",
         }
-        self.assert_implementation(EnrolmentWithDCB(env))
+        self.assert_implementation(EnrolmentWithDCB(env=env))
 
 
 del EnrolmentTestCase

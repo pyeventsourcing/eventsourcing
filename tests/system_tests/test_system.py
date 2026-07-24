@@ -275,19 +275,21 @@ class TestFollower(TestCase):
 
         aggregate_event = recordings[0].domain_event
         notification = recordings[0].notification
-        tracking = Tracking(bank_accounts.name, notification.id)
+        tracking = Tracking(bank_accounts.context_name, notification.id)
 
         # Process the event.
         email_process.process_event(aggregate_event, tracking)
         self.assertEqual(
-            email_process.recorder.max_tracking_id(bank_accounts.name), notification.id
+            email_process.recorder.max_tracking_id(bank_accounts.context_name),
+            notification.id,
         )
 
         # Raises IntegrityError when attempting to process the event again.
         with self.assertRaises(IntegrityError):
             email_process.process_event(aggregate_event, tracking)
         self.assertEqual(
-            email_process.recorder.max_tracking_id(bank_accounts.name), notification.id
+            email_process.recorder.max_tracking_id(bank_accounts.context_name),
+            notification.id,
         )
 
         # Create another event that will cause conflict with email processing.
@@ -300,7 +302,7 @@ class TestFollower(TestCase):
         # Process the event and expect an integrity error.
         aggregate_event = recordings[0].domain_event
         notification = recordings[0].notification
-        tracking = Tracking(bank_accounts.name, notification.id)
+        tracking = Tracking(bank_accounts.context_name, notification.id)
         with self.assertRaises(IntegrityError):
             email_process.process_event(aggregate_event, tracking)
 
@@ -320,7 +322,7 @@ class TestFollower(TestCase):
         #         pass
         env = {"TRANSCODER_TOPIC": get_topic(dataclasses.Transcoder)}
 
-        follower = MyFollower(env)
+        follower = MyFollower(env=env)
         notifications = [
             Notification(
                 id=1,

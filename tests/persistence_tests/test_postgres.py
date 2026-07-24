@@ -1265,7 +1265,7 @@ class TestPostgresTrackingRecorder(SetupPostgresDatastore, TrackingRecorderTestC
 
         # Select notifications without creating table.
         with self.assertRaises(ProgrammingError):
-            recorder.max_tracking_id(application_name="test")
+            recorder.max_tracking_id(context_name="test")
 
     def test_insert_tracking_raises_programming_error_when_table_not_created(
         self,

@@ -57,7 +57,7 @@ class TestFtsProjection(unittest.TestCase):
 
         # Wait for the content to be processed (should time out).
         with self.assertRaises(TimeoutError):
-            read_model.wait(write_model.name, notification_id)
+            read_model.wait(write_model.context_name, notification_id)
 
         # Search in the read model, expect no results.
         self.assertEqual(0, len(read_model.search("dog")))
@@ -73,7 +73,7 @@ class TestFtsProjection(unittest.TestCase):
         )
 
         # Wait for content to be processed (projection catches up).
-        read_model.wait(write_model.name, notification_id)
+        read_model.wait(write_model.context_name, notification_id)
 
         # Search in the read model, expect results.
         pages = read_model.search("dog")
@@ -112,7 +112,7 @@ class TestFtsProjection(unittest.TestCase):
             )
 
         # Wait for content to be processed (projection continues processing).
-        read_model.wait(write_model.name, notification_id)
+        read_model.wait(write_model.context_name, notification_id)
 
         # Search for the new content in the read model.
         pages = read_model.search("zinc")

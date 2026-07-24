@@ -195,7 +195,7 @@ The example below shows how a projection can be defined.
     from eventsourcing.utils import get_topic
 
     class AggregateEventProjection(Projection["MyMaterialisedViewInterface"]):
-        name = "myprojection"
+        context_name = "myprojection"
         topics = (get_topic(Aggregate.Event), )
 
         @singledispatchmethod
@@ -220,7 +220,7 @@ different types of :class:`~eventsourcing.domain.Decision`.
 
 
     class EventDecisionProjection(Projection["MyMaterialisedViewInterface"]):
-        name = "myprojection"
+        context_name = "myprojection"
         topics = (get_topic(Decision), )
 
         @singledispatchmethod

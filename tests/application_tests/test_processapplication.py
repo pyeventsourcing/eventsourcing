@@ -28,7 +28,7 @@ class TestProcessApplication(TestCase):
         accounts = leader_cls()
         email_process = EmailProcess()
         email_process.follow(
-            accounts.name,
+            accounts.context_name,
             accounts.notification_log,
         )
 
@@ -37,29 +37,40 @@ class TestProcessApplication(TestCase):
 
         accounts.open_account("Alice", "alice@example.com")
 
-        email_process.pull_and_process(BankAccountsWithPydantic.name)
+        email_process.pull_and_process(BankAccountsWithPydantic.context_name)
 
         section = email_process.notification_log["1,5"]
         self.assertEqual(len(section.items), 1)
 
         # Check we have processed the first event.
         self.assertEqual(
-            email_process.recorder.max_tracking_id(BankAccountsWithPydantic.name), 1
+            email_process.recorder.max_tracking_id(
+                BankAccountsWithPydantic.context_name
+            ),
+            1,
         )
 
         # Check reprocessing first event raises IntegrityError and changes nothing.
         with self.assertRaises(IntegrityError):
-            email_process.pull_and_process(BankAccountsWithPydantic.name, start=0)
+            email_process.pull_and_process(
+                BankAccountsWithPydantic.context_name, start=0
+            )
         self.assertEqual(
-            email_process.recorder.max_tracking_id(BankAccountsWithPydantic.name), 1
+            email_process.recorder.max_tracking_id(
+                BankAccountsWithPydantic.context_name
+            ),
+            1,
         )
 
         # Check we can continue from the next position.
-        email_process.pull_and_process(BankAccountsWithPydantic.name, start=1)
+        email_process.pull_and_process(BankAccountsWithPydantic.context_name, start=1)
 
         # Check we haven't actually processed anything further.
         self.assertEqual(
-            email_process.recorder.max_tracking_id(BankAccountsWithPydantic.name), 1
+            email_process.recorder.max_tracking_id(
+                BankAccountsWithPydantic.context_name
+            ),
+            1,
         )
         section = email_process.notification_log["1,5"]
         self.assertEqual(len(section.items), 1)
@@ -76,7 +87,10 @@ class TestProcessApplication(TestCase):
 
         # Check we have actually processed the second event.
         self.assertEqual(
-            email_process.recorder.max_tracking_id(BankAccountsWithPydantic.name), 2
+            email_process.recorder.max_tracking_id(
+                BankAccountsWithPydantic.context_name
+            ),
+            2,
         )
 
 
@@ -109,6 +123,6 @@ class PromptForwarder(RecordingEventReceiver[TDecision]):
         self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
         self.application.pull_and_process(
-            leader_name=new_recording_event.application_name,
+            leader_name=new_recording_event.context_name,
             # start=recording_event.recordings[0].notification.id,
         )

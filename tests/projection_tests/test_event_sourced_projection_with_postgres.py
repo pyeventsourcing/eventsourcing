@@ -108,7 +108,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
         projection_thread.start()
 
         recordings = app.save(Student())
-        projection.recorder.wait(app.name, recordings[-1].notification.id)
+        projection.recorder.wait(app.context_name, recordings[-1].notification.id)
         self.assertEqual(1, projection.get_count(Student.Registered))
         self.assertEqual(0, projection.get_count(Student.NameChanged))
 
@@ -186,7 +186,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
             projection_process.start()
 
             recordings = app.save(Student())
-            projection.recorder.wait(app.name, recordings[-1].notification.id)
+            projection.recorder.wait(app.context_name, recordings[-1].notification.id)
             self.assertEqual(1, projection.get_count(Student.Registered))
             self.assertEqual(0, projection.get_count(Student.NameChanged))
 

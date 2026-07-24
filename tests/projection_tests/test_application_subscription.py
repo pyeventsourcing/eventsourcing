@@ -43,14 +43,14 @@ class TestApplicationSubscription(TestCase):
         event, tracking = next(subscription)
         self.assertIsInstance(event.decision, SubscriptionFixture.Created)
         self.assertIsInstance(tracking, Tracking)
-        self.assertEqual(tracking.application_name, app.name)
+        self.assertEqual(tracking.context_name, app.context_name)
         if max_notification_id is not None:
             self.assertGreater(tracking.notification_id, max_notification_id)
 
         for event, tracking in subscription:
             self.assertIsInstance(event.decision, SubscriptionFixture.Next)
             self.assertIsInstance(tracking, Tracking)
-            self.assertEqual(tracking.application_name, app.name)
+            self.assertEqual(tracking.context_name, app.context_name)
             if max_notification_id is not None:
                 self.assertGreater(tracking.notification_id, max_notification_id)
             if tracking.notification_id == app.recorder.max_notification_id():
@@ -67,7 +67,7 @@ class TestApplicationSubscription(TestCase):
         for event, tracking in subscription:
             self.assertIsInstance(event.decision, SubscriptionFixture.Next)
             self.assertIsInstance(tracking, Tracking)
-            self.assertEqual(tracking.application_name, app.name)
+            self.assertEqual(tracking.context_name, app.context_name)
             if max_notification_id is not None:
                 self.assertGreater(tracking.notification_id, max_notification_id)
             if tracking.notification_id == app.recorder.max_notification_id():

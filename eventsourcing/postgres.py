@@ -932,10 +932,10 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
             self.sql_create_statements.append(
                 SQL(
                     "CREATE TABLE IF NOT EXISTS {0}.{1} ("
-                    "application_name text, "
+                    "context_name text, "
                     "notification_id bigint, "
                     "PRIMARY KEY "
-                    "(application_name))"
+                    "(context_name))"
                     "WITH ("
                     "    autovacuum_enabled = true,"
                     "    autovacuum_vacuum_threshold = 100000000,"
@@ -950,8 +950,8 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
             )
             self.insert_tracking_statement = SQL(
                 "INSERT INTO {0}.{1} "
-                "VALUES (%(application_name)s, %(notification_id)s) "
-                "ON CONFLICT (application_name) DO UPDATE "
+                "VALUES (%(context_name)s, %(notification_id)s) "
+                "ON CONFLICT (context_name) DO UPDATE "
                 "SET notification_id = %(notification_id)s "
                 "WHERE {0}.{1}.notification_id < %(notification_id)s "
                 "RETURNING notification_id"
@@ -964,10 +964,10 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
             self.sql_create_statements.append(
                 SQL(
                     "CREATE TABLE IF NOT EXISTS {0}.{1} ("
-                    "application_name text, "
+                    "context_name text, "
                     "notification_id bigint, "
                     "PRIMARY KEY "
-                    "(application_name, notification_id))"
+                    "(context_name, notification_id))"
                     "WITH ("
                     "    autovacuum_enabled = true,"
                     "    autovacuum_vacuum_threshold = 100000000,"
@@ -981,14 +981,14 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
                 )
             )
             self.insert_tracking_statement = SQL(
-                "INSERT INTO {0}.{1} VALUES (%(application_name)s, %(notification_id)s)"
+                "INSERT INTO {0}.{1} VALUES (%(context_name)s, %(notification_id)s)"
             ).format(
                 Identifier(self.datastore.schema),
                 Identifier(self.tracking_table_name),
             )
 
         self.max_tracking_id_statement = SQL(
-            "SELECT MAX(notification_id) FROM {0}.{1} WHERE application_name=%s"
+            "SELECT MAX(notification_id) FROM {0}.{1} WHERE context_name=%s"
         ).format(
             Identifier(self.datastore.schema),
             Identifier(self.tracking_table_name),
@@ -1033,10 +1033,10 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
             )
 
             # Get all application names.
-            application_names: list[str] = [
-                select_row["application_name"]
+            context_names: list[str] = [
+                select_row["context_name"]
                 for select_row in curs.execute(
-                    SQL("SELECT DISTINCT application_name FROM {0}.{1}").format(
+                    SQL("SELECT DISTINCT context_name FROM {0}.{1}").format(
                         Identifier(self.datastore.schema),
                         Identifier(self.tracking_table_name),
                     )
@@ -1044,11 +1044,11 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
             ]
 
             # Get max tracking ID for each application name.
-            for application_name in application_names:
-                curs.execute(self.max_tracking_id_statement, (application_name,))
+            for context_name in context_names:
+                curs.execute(self.max_tracking_id_statement, (context_name,))
                 max_tracking_id_row = curs.fetchone()
                 assert max_tracking_id_row is not None
-                max_tracking_ids[application_name] = max_tracking_id_row["max"]
+                max_tracking_ids[context_name] = max_tracking_id_row["max"]
             # Rename the table.
             rename = f"bkup1_{self.tracking_table_name}"[: self.MAX_IDENTIFIER_LEN]
             drop_table_statement = SQL("ALTER TABLE {0}.{1} RENAME TO {2}").format(
@@ -1067,8 +1067,8 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
             # Assume we just created a table for single-row tracking.
             self._insert_tracking(curs, Tracking(self.table_migration_identifier, 1))
             self.tracking_migration_current = 1
-            for application_name, max_tracking_id in max_tracking_ids.items():
-                self._insert_tracking(curs, Tracking(application_name, max_tracking_id))
+            for context_name, max_tracking_id in max_tracking_ids.items():
+                self._insert_tracking(curs, Tracking(context_name, max_tracking_id))
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
     def insert_tracking(self, tracking: Tracking) -> None:
@@ -1085,7 +1085,7 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
         curs.execute(
             query=self.insert_tracking_statement,
             params={
-                "application_name": tracking.application_name,
+                "context_name": tracking.context_name,
                 "notification_id": tracking.notification_id,
             },
             prepare=True,
@@ -1095,7 +1095,7 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
             if fetchone is None:
                 msg = (
                     "Failed to record tracking for "
-                    f"{tracking.application_name} {tracking.notification_id}"
+                    f"{tracking.context_name} {tracking.notification_id}"
                 )
                 raise IntegrityError(msg)
 
@@ -1110,16 +1110,14 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
         self.has_checked_for_multi_row_tracking_table = True
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
-    def max_tracking_id(self, application_name: str) -> int | None:
+    def max_tracking_id(self, context_name: str) -> int | None:
         with self.datastore.get_connection() as conn, conn.cursor() as curs:
-            return self._max_tracking_id(application_name, curs)
+            return self._max_tracking_id(context_name, curs)
 
-    def _max_tracking_id(
-        self, application_name: str, curs: Cursor[DictRow]
-    ) -> int | None:
+    def _max_tracking_id(self, context_name: str, curs: Cursor[DictRow]) -> int | None:
         curs.execute(
             query=self.max_tracking_id_statement,
-            params=(application_name,),
+            params=(context_name,),
             prepare=True,
         )
         fetchone = curs.fetchone()
@@ -1127,10 +1125,8 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
         return fetchone["max"]
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
-    def has_tracking_id(
-        self, application_name: str, notification_id: int | None
-    ) -> bool:
-        return super().has_tracking_id(application_name, notification_id)
+    def has_tracking_id(self, context_name: str, notification_id: int | None) -> bool:
+        return super().has_tracking_id(context_name, notification_id)
 
 
 TPostgresTrackingRecorder = TypeVar(

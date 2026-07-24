@@ -175,32 +175,41 @@ class ApplicationTestCase(TestCase):
             "TRANSCODER_TOPIC": get_topic(pydantic.Transcoder),
         }
 
-    def test_name(self) -> None:
-        self.assertEqual(AggregatesApplication.name, "Application")
+    def test_context_name(self) -> None:
+        self.assertEqual(AggregatesApplication.context_name, "Application")
 
         class MyAggregatesApplication1(dataclasses.AggregatesApplication):
             pass
 
-        self.assertEqual(MyAggregatesApplication1.name, "MyAggregatesApplication1")
+        self.assertEqual(
+            MyAggregatesApplication1.context_name, "MyAggregatesApplication1"
+        )
+
+        my_context_name = "MyBoundedContext"
 
         class MyAggregatesApplication2(AggregatesApplication[dataclasses.Decision]):
-            name = "MyBoundedContext"
+            context_name = my_context_name
 
-        self.assertEqual(MyAggregatesApplication2.name, "MyBoundedContext")
+        self.assertEqual(MyAggregatesApplication2.context_name, my_context_name)
+
+        self.assertEqual(
+            pydantic.AggregatesApplication(context_name=my_context_name).context_name,
+            my_context_name,
+        )
 
     def test_as_context_manager(self) -> None:
-        with pydantic.AggregatesApplication(self.env):
+        with pydantic.AggregatesApplication(env=self.env):
             pass
 
     def test_resolve_persistence_topics(self) -> None:
         # None specified.
-        app = pydantic.AggregatesApplication(self.env)
+        app = pydantic.AggregatesApplication(env=self.env)
         self.assertIsInstance(app.factory, InfrastructureFactory)
 
         # Check 'PERSISTENCE_MODULE' resolves to a class.
         env = {"PERSISTENCE_MODULE": "eventsourcing.popo"}
         env.update(self.env)
-        app = pydantic.AggregatesApplication(env)
+        app = pydantic.AggregatesApplication(env=env)
         self.assertIsInstance(app.factory, InfrastructureFactory)
 
         # Check exceptions.
@@ -226,7 +235,7 @@ class ApplicationTestCase(TestCase):
         )
 
     def test_save_returns_recording_event(self) -> None:
-        app = pydantic.AggregatesApplication(self.env)
+        app = pydantic.AggregatesApplication(env=self.env)
 
         recordings = app.save()
         self.assertEqual(recordings, [])
@@ -250,7 +259,7 @@ class ApplicationTestCase(TestCase):
     def test_take_snapshot_raises_assertion_error_if_snapshotting_not_enabled(
         self,
     ) -> None:
-        app = pydantic.AggregatesApplication(self.env)
+        app = pydantic.AggregatesApplication(env=self.env)
         with self.assertRaises(AssertionError) as cm:
             app.take_snapshot(str(uuid4()))
         self.assertEqual(
@@ -420,7 +429,7 @@ class ApplicationTestCase(TestCase):
             "AGGREGATE_CACHE_FASTFORWARD": "f",
         }
         env.update(self.env)
-        app = pydantic.AggregatesApplication(env)
+        app = pydantic.AggregatesApplication(env=env)
         aggregate1 = self.MyAggregate()
         app.save(aggregate1)
         aggregate_id = aggregate1.id
@@ -458,7 +467,7 @@ class ApplicationTestCase(TestCase):
             "AGGREGATE_CACHE_MAXSIZE": "10",
         }
         env.update(self.env)
-        app = pydantic.AggregatesApplication(env)
+        app = pydantic.AggregatesApplication(env=env)
         aggregate = self.MyAggregate()
         app.save(aggregate)
         self.assertEqual(aggregate.version, 1)
@@ -475,7 +484,7 @@ class ApplicationTestCase(TestCase):
             "AGGREGATE_CACHE_MAXSIZE": "10",
         }
         env.update(self.env)
-        app = pydantic.AggregatesApplication(env)
+        app = pydantic.AggregatesApplication(env=env)
         aggregate = self.MyAggregate()
         app.save(aggregate)
         self.assertEqual(aggregate.version, 1)
@@ -490,7 +499,7 @@ class ApplicationTestCase(TestCase):
 
     # def test_application_log(self) -> None:
     #     # Check the old 'log' attribute presents the 'notification log' object.
-    #     app = pydantic.Application[Decision](self.env)
+    #     app = pydantic.Application[Decision](env=self.env)
     #
     #     # Verify deprecation warning.
     #     with warnings.catch_warnings(record=True) as w:

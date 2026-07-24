@@ -633,18 +633,19 @@ TApplicationSubscription = TypeVar(
 class AbstractApplication(
     WorksWithDecisions[TDecision], Generic[TDecision, TApplicationSubscription]
 ):
-    name: str
+    context_name: str
     env: ClassVar[dict[str, str]] = {}
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if "name" not in cls.__dict__:
-            cls.name = cls.__name__
+        if "context_name" not in cls.__dict__:
+            cls.context_name = cls.__name__
 
-    def __init__(self, env: EnvType | None = None):
-        self.env = self.construct_env(self.name, env)  # type: ignore[misc]
+    def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
+        self.context_name = context_name or type(self).context_name
+        self.env = self.construct_env(name=self.context_name, env=env)  # type: ignore[misc]
 
-    def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
+    def construct_env(self, *, name: str, env: EnvType | None = None) -> Environment:
         """Constructs environment from which application will be configured."""
 
         # Start with environment variables defined on the class.
@@ -694,7 +695,7 @@ class AggregatesApplicationSubscription(
         """
         Starts a subscription to application's recorder.
         """
-        self.name = app.name
+        self.name = app.context_name
         self.recorder = app.recorder
         self.mapper = app.mapper
         self.subscription = self.recorder.subscribe(gt=gt, topics=topics)
@@ -739,7 +740,7 @@ class AggregatesApplication(
 ):
     """Base class for event-sourced applications."""
 
-    name = "Application"
+    context_name = "Application"
     is_snapshotting_enabled: bool = False
     snapshotting_intervals: ClassVar[dict[type[Any], int]] = {}
     snapshotting_projectors: ClassVar[
@@ -785,7 +786,7 @@ class AggregatesApplication(
         #     "
         #     raise ProgrammingError(msg)
 
-    def __init__(self, env: EnvType | None = None) -> None:
+    def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
         """Initialises an application with an
         :class:`~eventsourcing.persistence.InfrastructureFactory`,
         a :class:`~eventsourcing.persistence.Mapper`,
@@ -794,7 +795,7 @@ class AggregatesApplication(
         a :class:`~eventsourcing.application.Repository`, and
         a :class:`~eventsourcing.application.LocalNotificationLog`.
         """
-        super().__init__(env=env)
+        super().__init__(env=env, context_name=context_name)
         self.closing = Event()
         self.factory = self.construct_factory(self.env)
         self.mapper: Mapper[TDecision] = self.construct_mapper()

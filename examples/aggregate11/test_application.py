@@ -16,7 +16,7 @@ class TestDogSchool(TestCase):
 
     def test_dog_school(self) -> None:
         # Construct application object.
-        school = DogSchool(self.env)
+        school = DogSchool(env=self.env)
 
         max_notification_id = school.recorder.max_notification_id()
 

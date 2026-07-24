@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import cast
 from unittest import TestCase
 from uuid import uuid4
 
@@ -13,7 +14,7 @@ from eventsourcing.domain import (
     get_metadata_from_context,
     put_metadata_in_context,
 )
-from eventsourcing.utils import get_topic
+from eventsourcing.utils import Environment, get_topic
 
 
 class TestDCBApplication(TestCase):
@@ -22,8 +23,13 @@ class TestDCBApplication(TestCase):
             pass
 
     def test_construct_with_env(self) -> None:
-        with DCBApplication[msgspec.Decision]({"NAME": "value"}) as app:
+        with DCBApplication[msgspec.Decision](env={"NAME": "value"}) as app:
             self.assertIn("NAME", app.env)
+
+    def test_construct_with_name(self) -> None:
+        with DCBApplication[msgspec.Decision](context_name="my_context") as app:
+            self.assertEqual(app.context_name, "my_context")
+            self.assertIn(cast(Environment, app.env).name, "my_context")
 
     def test_can_subclass(self) -> None:
 
@@ -31,13 +37,13 @@ class TestDCBApplication(TestCase):
             pass
 
         app1 = MyApp1()
-        self.assertEqual("MyApp1", app1.name)
+        self.assertEqual("MyApp1", app1.context_name)
 
         class MyApp2(DCBApplication[msgspec.Decision]):
-            name = "name1"
+            context_name = "name1"
 
         app2 = MyApp2()
-        self.assertEqual("name1", app2.name)
+        self.assertEqual("name1", app2.context_name)
 
     def test_respects_metadata(self) -> None:
         class MyEnduringObject(EnduringObject[msgspec.Decision]):
@@ -78,7 +84,7 @@ class TestDCBApplication(TestCase):
             "COMPRESSOR_TOPIC": get_topic(ZlibCompressor),
         }
 
-        with msgspec.DCBApplication(env) as app:
+        with msgspec.DCBApplication(env=env) as app:
             self.assertTrue(app.mapper.compressor)
 
     def test_supports_encryption(self) -> None:
@@ -87,5 +93,5 @@ class TestDCBApplication(TestCase):
             "CIPHER_KEY": AESCipher.create_key(16),
         }
 
-        with msgspec.DCBApplication(env) as app:
+        with msgspec.DCBApplication(env=env) as app:
             self.assertTrue(app.mapper.cipher)

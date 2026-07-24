@@ -41,7 +41,7 @@ class TestProcessingPolicy(TestCase):
 
         processing_event = ProcessingEvent[Decision](
             tracking=Tracking(
-                application_name="upstream_app",
+                context_name="upstream_app",
                 notification_id=5,
             )
         )

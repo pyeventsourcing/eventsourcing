@@ -222,7 +222,7 @@ class Thing(EnduringObject):
 
 
 class DecisionCountersProjection(Projection[EventCountersView, TaggedEvent[Decision]]):
-    name = "eventcounters"
+    context_name = "eventcounters"
     topics: tuple[str, ...] = (
         get_topic(Thing.Created),
         get_topic(Thing.Next),
@@ -247,7 +247,7 @@ class DecisionCountersProjection(Projection[EventCountersView, TaggedEvent[Decis
 class StudentEventCountersProjection(
     Projection[EventCountersView, AggregateEvent[Decision]]
 ):
-    name = "eventcounters"
+    context_name = "eventcounters"
     topics: tuple[str, ...] = (
         get_topic(Student.Registered),
         get_topic(Student.NameChanged),
@@ -294,7 +294,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
 
             # Wait for the events to be processed.
             read_model.wait(
-                application_name=write_model.name,
+                context_name=write_model.context_name,
                 notification_id=recordings[-1].notification.id,
                 timeout=100,
             )
@@ -311,7 +311,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
 
             # Wait for the events to be processed.
             read_model.wait(
-                application_name=write_model.name,
+                context_name=write_model.context_name,
                 notification_id=recordings[-1].notification.id,
                 timeout=100,
             )
@@ -343,7 +343,7 @@ class AggregateEventCountersProjectionTestCase(TestCase, ABC):
             # Wait times out (event has not been processed).
             with self.assertRaises(TimeoutError):
                 read_model.wait(
-                    application_name=write_model.name,
+                    context_name=write_model.context_name,
                     notification_id=recordings[-1].notification.id,
                 )
 
@@ -375,7 +375,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
 
             # Wait for the events to be processed.
             read_model.wait(
-                application_name=write_model.name,
+                context_name=write_model.context_name,
                 notification_id=position,
             )
 
@@ -391,7 +391,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
 
             # Wait for the events to be processed.
             read_model.wait(
-                application_name=write_model.name,
+                context_name=write_model.context_name,
                 notification_id=position,
             )
 
@@ -422,7 +422,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
             # Wait times out (event has not been processed).
             with self.assertRaises(TimeoutError):
                 read_model.wait(
-                    application_name=write_model.name,
+                    context_name=write_model.context_name,
                     notification_id=position,
                 )
 
