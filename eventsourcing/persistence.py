@@ -608,9 +608,8 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
-    ) -> bool | None:
+    ) -> None:
         self._is_entered = False
-        return None
 
     def close(self) -> None:
         """Closes any database connections, and anything else that needs closing."""

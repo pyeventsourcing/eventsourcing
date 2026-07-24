@@ -1072,9 +1072,9 @@ class AggregatesApplication(
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
-    ) -> bool | None:
+    ) -> None:
         self.close()
-        return self.factory.__exit__(exc_type, exc_val, exc_tb)
+        self.factory.__exit__(exc_type, exc_val, exc_tb)
 
     def __del__(self) -> None:
         with contextlib.suppress(AttributeError):
