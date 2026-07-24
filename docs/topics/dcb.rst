@@ -93,7 +93,7 @@ DCB Objects
 ===========
 
 Here we present an implementation in Python of the basic objects for DCB that are
-described in the specification and discussed in the :ref:`introduction <Introduction to Dcb>`
+described in the specification and discussed in the :ref:`introduction <Introduction to DCB>`
 above.
 
 See :doc:`this example </topics/examples/dcb-enrolment-with-basic-objects>` of
@@ -351,7 +351,7 @@ See the :doc:`speedrun example for a comparative report and analysis of the perf
 Higher-level Abstractions
 =========================
 
-The following sections describe higher-level abstractions for event sourcing with Dcb.
+The following sections describe higher-level abstractions for event sourcing with DCB.
 
 The higher-level abstractions shown below introduces the notion "enduring object" which is quite
 like "event-sourced aggregate" but with some important differences, the notion
@@ -402,7 +402,7 @@ Decision
 --------
 
 The :class:`~eventsourcing.domain.Decision` class is defined as the root of
-the decision class hierarchy in domain models that uses Dcb.
+the decision class hierarchy in domain models that uses DCB.
 
 It represents the general notion of giving form to the settled production of new facts
 in a domain model. Concrete subclasses will each define a name and a collection of attributes,
@@ -909,7 +909,7 @@ the student and the course. Similarly, a ``student_leaves_course()`` method coul
     assert student.id in course.student_ids
     assert course.id in student.course_ids
 
-Using groups to trigger cross-cutting events like this demonstrates the "one fact magic" of Dcb. However,
+Using groups to trigger cross-cutting events like this demonstrates the "one fact magic" of DCB. However,
 because the consistency boundary for a group is the union of the consistency boundaries for the members of
 a group, the criticism of :ref:`enduring objects <Enduring object>` applies even more to groups: that
 including all events in the consistency boundary, regardless of whether they are actually required for
@@ -923,7 +923,7 @@ Slice
 -----
 
 The :class:`~eventsourcing.domain.Slice` class  extends the :ref:`perspective <Perspective>` class, and
-is designed to support "vertical slice architecture" with Dcb. The idea of "vertical slices" is that individual
+is designed to support "vertical slice architecture" with DCB. The idea of "vertical slices" is that individual
 use cases can be implemented with pieces of code that are entirely independent of each other.
 Slices can support both command and query use cases.
 
@@ -1192,7 +1192,7 @@ The example below shows how to write command and query methods using :ref:`endur
     assert "Sara P" in app.list_students_for_course(course_id)
     assert "History" in app.list_courses_for_student(student_id)
 
-Read :ref:`the examples pages <Dynamic Consistency Boundaries>` for more discussion and examples of Dcb.
+Read :ref:`the examples pages <Dynamic Consistency Boundaries>` for more discussion and examples of DCB.
 
 
 Code reference

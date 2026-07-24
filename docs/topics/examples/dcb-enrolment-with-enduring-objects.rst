@@ -71,7 +71,7 @@ It has some extra steps to cover the extra methods that we have implemented.
     :pyobject: TestEnrolmentWithEnduringObjects
 
 It has some extra steps to cover the extra methods that were added to make further use of the more
-declarative syntax for Dcb, such as a student leaving a course, changes of name of students and courses,
+declarative syntax for DCB, such as a student leaving a course, changes of name of students and courses,
 and changes to the number of "places" a course has and the "max courses" for student.
 
 The extra steps also show the command methods of enduring objects in a group can be executed. New events

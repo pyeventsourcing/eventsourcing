@@ -8,7 +8,7 @@ It iterates over a sequence of operations using the :ref:`enrolment interface <E
 all the students are enrolled on all the courses. That gives 120 operations per iteration. It prints the number of
 operations completed in each second, alongside the total number of operations completed so far.
 
-We wil firstly baseline the performance by using :ref:`event-sourced aggregates <Aggregates and Dcb>`
+We wil firstly baseline the performance by using :ref:`event-sourced aggregates <Aggregates and DCB>`
 and then trial the different persistence infrastructure we have developed for our :doc:`DCB application </topics/examples/dcb-enrolment-with-basic-objects>`.
 
 Whilst this "speedrun" does not give an indication of the performance under concurrent load or the performance
@@ -18,7 +18,7 @@ period of time does measure the performance of the basic and essential operation
 Event-sourced aggregates
 ------------------------
 
-Firstly, let's baseline performance benchmarks by running the example :ref:`Aggregates and DCB <Aggregates and Dcb>`.
+Firstly, let's baseline performance benchmarks by running the example :ref:`Aggregates and DCB <Aggregates and DCB>`.
 
 .. code-block::
 
@@ -67,7 +67,7 @@ Firstly, let's baseline performance benchmarks by running the example :ref:`Aggr
  Events in database at end:  115,060 events  (115,060 new, 5,745/s)
 
 The performance report for event-sourced aggregates accomplished 62,760 operations in 20s.
-That gives an average of 0.319 milliseconds per operation, and a target for implementing Dcb.
+That gives an average of 0.319 milliseconds per operation, and a target for implementing DCB.
 
 PostgreSQL with GIN index
 -------------------------
@@ -81,7 +81,7 @@ grinding to a virtual halt after only a modest volume of recorded events.
 In this implementation, the complex DCB query logic is implemented using PostgreSQL's "full text search"
 (FTS) functionality, ``tsvector`` and ``tsquery``, and a GIN index.
 
-Types and tags of a DCB event are prefixed and concatenated into a ``tsvector`` string. A set of Dcb
+Types and tags of a DCB event are prefixed and concatenated into a ``tsvector`` string. A set of DCB
 query items is similarly compounded into a ``tsquery`` that expresses the DCB query logic. Database
 functions for appending and selecting events are defined, and a custom composite type is defined for
 efficiently sending an array of DCB events to the database.
@@ -261,7 +261,7 @@ marginally out-performs event-sourced aggregates for the single-threaded scenari
 large volumes of data, and with high-concurrency, UmaDB out-performs PostgreSQL by several
 factors.
 
-Having successfully addressed the technical challenge of implementing the complex query logic of Dcb,
+Having successfully addressed the technical challenge of implementing the complex query logic of DCB,
 we feel confident in recommending DCB as a strong alternative to the "traditional" event-sourced aggregates.
 
 However, it should be remembered that aggregates were originally introduced because of the conceptual

@@ -148,10 +148,10 @@ errors.
 When considering contention, we must remember that compared with, for example, event-sourced aggregates
 which use a simpler and therefore faster persistence model, DCB read and append operations are inherently
 more complex and therefore slower. As a result, although with "vertical slices" we can more easily code
-for tighter consistency boundaries, due to the slower operations of Dcb, there will, in theory, be more
+for tighter consistency boundaries, due to the slower operations of DCB, there will, in theory, be more
 risk of roughly contemporary operations actually happening concurrently, causing contention where contention
 would not have occurred. But of course, there will be no conflict between operations involving sequences for
-different continuity IDs, in Dcb, with or without "slices", and with or without event-sourced aggregates,
+different continuity IDs, in DCB, with or without "slices", and with or without event-sourced aggregates,
 and so this is a relatively marginal consideration in most cases.
 
 Whatever the relative merits, above all, we value having and supporting different styles and persistence

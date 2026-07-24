@@ -4,7 +4,7 @@ DCB 2 - Basic DCB Objects
 =========================
 
 Here we meet the :doc:`course subscriptions challenge </topics/examples/dcb-enrolment-introduction>`
-directly with Dcb.
+directly with DCB.
 
 Application
 -----------

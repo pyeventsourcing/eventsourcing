@@ -34,15 +34,13 @@ We recommended installing version 10 with the optional extras `pydantic`, `postg
 * `postgres` - storing events in [PostgreSQL](https://www.postgresql.org).
 * `umadb` - storing events in [UmaDB](https://umadb.io).
 
-
-
 You can start the UmaDB server with `uv run umadb`.
 
 
 ## Introduction
 
 Version 10 of this library still supports traditional event-sourced aggregates. In these
-examples we have chosen to foreground the library's support for Dcb, to showcase the
+examples we have chosen to foreground the library's support for DCB, to showcase the
 new official support for modeling and serialising events with Pydantic, and to demonstrate
 the capabilities of UmaDB.
 
