@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from eventsourcing.dataclasses import Decision, Selector, Slice
-from eventsourcing.dcb.gwt import given
+from eventsourcing.dcb.gwt import given, when
 from eventsourcing.domain import TaggedEvent, triggers
 
 
@@ -202,3 +202,108 @@ class TestGivenWhenThen(TestCase):
         with self.assertRaises(AssertionError) as cm:
             when.then(TaggedEvent(decision=MyDecision(), tags=["tag2"]))
         self.assertIn("tags mismatch", str(cm.exception))
+
+
+class TestWhenGivenThen(TestCase):
+    def test_when_given_then_flow(self) -> None:
+        class MyDecision(Decision):
+            pass
+
+        class MySlice(Slice):
+            def __init__(self, obj_id: str):
+                self.obj_id = obj_id
+                self.executed = False
+
+            def consistency_boundary(self) -> Selector:
+                return Selector(types=[MyDecision], tags=[self.obj_id])
+
+            def execute(self) -> None:
+                self.trigger_event(MyDecision)
+                self.executed = True
+
+        obj_id = "123"
+        event = TaggedEvent(decision=MyDecision(), tags=[obj_id])
+
+        slice_ = MySlice(obj_id=obj_id)
+        result = when(slice_).given(event)
+
+        self.assertTrue(slice_.executed)
+        result.then(TaggedEvent(decision=MyDecision(), tags=[]))
+
+    def test_when_given_no_events(self) -> None:
+        class MyDecision(Decision):
+            pass
+
+        class MySlice(Slice):
+            def consistency_boundary(self) -> Selector:
+                return Selector(types=[MyDecision])
+
+            def execute(self) -> None:
+                pass
+
+        result = when(MySlice()).given()
+        result.then()
+
+    def test_when_given_boundary_mismatch(self) -> None:
+        class MyDecision(Decision):
+            pass
+
+        class MySlice(Slice):
+            def consistency_boundary(self) -> Selector:
+                return Selector(types=[MyDecision], tags=["123"])
+
+            def execute(self) -> None:
+                pass
+
+        event = TaggedEvent(decision=MyDecision(), tags=["456"])
+
+        with self.assertRaises(AssertionError) as cm:
+            when(MySlice()).given(event)
+        self.assertIn("Consistency boundary wouldn't have selected", str(cm.exception))
+
+    def test_when_given_then_with_projection(self) -> None:
+        class MyDecision(Decision):
+            obj_id: str
+            value: int
+
+        class MySlice(Slice):
+            def __init__(self, obj_id: str):
+                self.obj_id = obj_id
+                self.total = 0
+
+            def consistency_boundary(self) -> Selector:
+                return Selector(types=[MyDecision], tags=[self.obj_id])
+
+            @triggers(MyDecision)
+            def apply_decision(self, value: int) -> None:
+                self.total += value
+
+            def execute(self) -> None:
+                if self.total > 10:
+                    self.trigger_event(MyDecision, obj_id=self.obj_id, value=100)
+
+        obj_id = "123"
+        event1 = TaggedEvent(decision=MyDecision(obj_id=obj_id, value=5), tags=[obj_id])
+        event2 = TaggedEvent(decision=MyDecision(obj_id=obj_id, value=6), tags=[obj_id])
+
+        result = when(MySlice(obj_id=obj_id)).given(event1, event2)
+        result.then(TaggedEvent(decision=MyDecision(obj_id=obj_id, value=100), tags=[]))
+
+    def test_when_given_then_assertion_failure(self) -> None:
+        class MyDecision(Decision):
+            pass
+
+        class OtherDecision(Decision):
+            pass
+
+        class MySlice(Slice):
+            def consistency_boundary(self) -> Selector:
+                return Selector(types=[MyDecision])
+
+            def execute(self) -> None:
+                self.trigger_event(MyDecision)
+
+        result = when(MySlice()).given(TaggedEvent(decision=MyDecision(), tags=[]))
+
+        with self.assertRaises(AssertionError):
+            result.then(TaggedEvent(decision=OtherDecision(), tags=[]))

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from eventsourcing.domain import AbstractDecision, Selector, Slice, TaggedEvent
 
@@ -45,7 +45,7 @@ def boundary_matches(
     return any(selector_matches(selector, event) for selector in selectors)
 
 
-class Then:
+class Then(Generic[TSlice]):
     def __init__(
         self,
         expected: Sequence[TaggedEvent[AbstractDecision]],
@@ -70,7 +70,7 @@ class Then:
             ), f"Event {i} tags mismatch: expected {exp.tags}, got {actual.tags}"
 
 
-class When:
+class When(Generic[TSlice]):
     def __init__(
         self,
         given_events: Sequence[TaggedEvent[AbstractDecision]],
@@ -94,8 +94,8 @@ class When:
     def then(
         self,
         *expected: TaggedEvent[AbstractDecision],
-    ) -> Then:
-        return Then(expected, self.collected, self.slice)
+    ) -> TSlice:
+        return Then(expected, self.collected, self.slice).slice
 
 
 class Given:
@@ -105,10 +105,24 @@ class Given:
     ):
         self.events = list(events)
 
-    def when(self, slice_: TSlice, /) -> When:
+    def when(self, slice_: TSlice, /) -> When[TSlice]:
         return When(
             given_events=self.events,
             slice_=slice_,
+        )
+
+
+class WhenSlice(Generic[TSlice]):
+    def __init__(self, slice_: TSlice):
+        self.slice = slice_
+
+    def given(
+        self,
+        *events: TaggedEvent[AbstractDecision],
+    ) -> When[TSlice]:
+        return When(
+            given_events=list(events),
+            slice_=self.slice,
         )
 
 
@@ -116,3 +130,7 @@ def given(
     *events: TaggedEvent[AbstractDecision],
 ) -> Given:
     return Given(*events)
+
+
+def when(slice_: TSlice, /) -> WhenSlice[TSlice]:
+    return WhenSlice(slice_)

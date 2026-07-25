@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest import TestCase
 
-from eventsourcing.dcb.gwt import given
+from eventsourcing.dcb.gwt import given, when
 from eventsourcing.domain import TaggedEvent
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
@@ -640,66 +640,71 @@ class TestEnrolmentSlices(TestCase):
         self.assertEqual(s.names, [])
 
     def test_course_names(self) -> None:
-        s = CourseNames(["course-1", "course-2"])
-
-        when = given(
-            TaggedEvent(
-                decision=CourseRegistered(
-                    course_id="course-1", name="Maths", places=10
+        self.assertEqual(
+            ["Maths", "Physics"],
+            when(CourseNames(["course-1", "course-2"]))
+            .given(
+                TaggedEvent(
+                    decision=CourseRegistered(
+                        course_id="course-1", name="Maths", places=10
+                    ),
+                    tags=["course-1"],
                 ),
-                tags=["course-1"],
-            ),
-            TaggedEvent(
-                decision=CourseRegistered(
-                    course_id="course-2", name="Physics", places=20
+                TaggedEvent(
+                    decision=CourseRegistered(
+                        course_id="course-2", name="Physics", places=20
+                    ),
+                    tags=["course-2"],
                 ),
-                tags=["course-2"],
-            ),
-        ).when(s)
-        when.then()
-        self.assertEqual(s.names, ["Maths", "Physics"])
+            )
+            .then()
+            .names,
+        )
 
     def test_course_names_after_update(self) -> None:
-        s = CourseNames(["course-1"])
-
-        when = given(
-            TaggedEvent(
-                decision=CourseRegistered(
-                    course_id="course-1", name="Maths", places=10
+        self.assertEqual(
+            when(CourseNames(["course-1"]))
+            .given(
+                TaggedEvent(
+                    decision=CourseRegistered(
+                        course_id="course-1", name="Maths", places=10
+                    ),
+                    tags=["course-1"],
                 ),
-                tags=["course-1"],
-            ),
-            TaggedEvent(
-                decision=CourseNameUpdated(course_id="course-1", name="Mathematics"),
-                tags=["course-1"],
-            ),
-        ).when(s)
-        when.then()
-        self.assertEqual(s.names, ["Mathematics"])
+                TaggedEvent(
+                    decision=CourseNameUpdated(
+                        course_id="course-1", name="Mathematics"
+                    ),
+                    tags=["course-1"],
+                ),
+            )
+            .then()
+            .names,
+            ["Mathematics"],
+        )
 
     # --- Student (read-only projection) ---
 
     def test_student_projection(self) -> None:
         student_id = "student-1"
-        s = Student(student_id)
+        student = Student(student_id)
 
-        when = given(
+        when(student).given(
             TaggedEvent(
                 decision=StudentRegistered(
                     student_id=student_id, name="Alice", max_courses=3
                 ),
                 tags=[student_id],
             ),
-        ).when(s)
-        when.then()
-        self.assertTrue(s.student_was_registered)
-        self.assertEqual(s.name, "Alice")
-        self.assertEqual(s.max_courses, 3)
-        self.assertEqual(s.course_ids, [])
+        ).then()
+        self.assertTrue(student.student_was_registered)
+        self.assertEqual(student.name, "Alice")
+        self.assertEqual(student.max_courses, 3)
+        self.assertEqual(student.course_ids, [])
 
     def test_student_projection_with_updates_and_courses(self) -> None:
         student_id = "student-1"
-        s = Student(student_id)
+        student = Student(student_id)
 
         when = given(
             TaggedEvent(
@@ -732,35 +737,35 @@ class TestEnrolmentSlices(TestCase):
                 decision=StudentLeftCourse(student_id=student_id, course_id="course-1"),
                 tags=[student_id, "course-1"],
             ),
-        ).when(s)
+        ).when(student)
         when.then()
-        self.assertEqual(s.name, "Alicia")
-        self.assertEqual(s.max_courses, 5)
-        self.assertEqual(s.course_ids, ["course-2"])
+        self.assertEqual(student.name, "Alicia")
+        self.assertEqual(student.max_courses, 5)
+        self.assertEqual(student.course_ids, ["course-2"])
 
     # --- Course (read-only projection) ---
 
     def test_course_projection(self) -> None:
         course_id = "course-1"
-        s = Course(course_id)
+        course = Course(course_id)
 
         when = given(
             TaggedEvent(
                 decision=CourseRegistered(course_id=course_id, name="Maths", places=10),
                 tags=[course_id],
             ),
-        ).when(s)
+        ).when(course)
         when.then()
-        self.assertTrue(s.course_was_registered)
-        self.assertEqual(s.name, "Maths")
-        self.assertEqual(s.places, 10)
-        self.assertEqual(s.student_ids, [])
+        self.assertTrue(course.course_was_registered)
+        self.assertEqual(course.name, "Maths")
+        self.assertEqual(course.places, 10)
+        self.assertEqual(course.student_ids, [])
 
     def test_course_projection_with_updates_and_students(self) -> None:
         course_id = "course-1"
-        s = Course(course_id)
+        course = Course(course_id)
 
-        given(
+        when(course).given(
             TaggedEvent(
                 decision=CourseRegistered(course_id=course_id, name="Maths", places=10),
                 tags=[course_id],
@@ -789,7 +794,47 @@ class TestEnrolmentSlices(TestCase):
                 decision=StudentLeftCourse(student_id="student-1", course_id=course_id),
                 tags=["student-1", course_id],
             ),
-        ).when(s).then()
-        self.assertEqual(s.name, "Mathematics")
-        self.assertEqual(s.places, 20)
-        self.assertEqual(s.student_ids, ["student-2"])
+        ).then()
+        self.assertEqual(course.name, "Mathematics")
+        self.assertEqual(course.places, 20)
+        self.assertEqual(course.student_ids, ["student-2"])
+
+    def test_when_given_then_course_projection_with_updates_and_students(self) -> None:
+        course_id = "course-1"
+        mathematics = "Mathematics"
+        places = 20
+        student2 = "student-2"
+
+        course = Course(course_id)
+        when(course).given(
+            TaggedEvent(
+                decision=CourseRegistered(course_id=course_id, name="Maths", places=10),
+                tags=[course_id],
+            ),
+            TaggedEvent(
+                decision=CourseNameUpdated(course_id=course_id, name=mathematics),
+                tags=[course_id],
+            ),
+            TaggedEvent(
+                decision=CoursePlacesUpdated(course_id=course_id, places=places),
+                tags=[course_id],
+            ),
+            TaggedEvent(
+                decision=StudentJoinedCourse(
+                    student_id="student-1", course_id=course_id
+                ),
+                tags=["student-1", course_id],
+            ),
+            TaggedEvent(
+                decision=StudentJoinedCourse(student_id=student2, course_id=course_id),
+                tags=[student2, course_id],
+            ),
+            TaggedEvent(
+                decision=StudentLeftCourse(student_id="student-1", course_id=course_id),
+                tags=["student-1", course_id],
+            ),
+        ).then()
+
+        self.assertEqual(course.name, mathematics)
+        self.assertEqual(course.places, places)
+        self.assertEqual(course.student_ids, [student2])
