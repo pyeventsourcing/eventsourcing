@@ -833,6 +833,7 @@ class SQLiteFactory(InfrastructureFactory[SQLiteTrackingRecorder]):
 
     def close(self) -> None:
         self.datastore.close()
+        super().close()
 
 
 Factory = SQLiteFactory

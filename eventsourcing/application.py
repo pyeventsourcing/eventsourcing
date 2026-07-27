@@ -1064,7 +1064,6 @@ class AggregatesApplication(
         self.factory.close()
 
     def __enter__(self) -> Self:
-        self.factory.__enter__()
         return self
 
     def __exit__(
@@ -1074,7 +1073,6 @@ class AggregatesApplication(
         exc_tb: TracebackType | None,
     ) -> None:
         self.close()
-        self.factory.__exit__(exc_type, exc_val, exc_tb)
 
     def __del__(self) -> None:
         with contextlib.suppress(AttributeError):

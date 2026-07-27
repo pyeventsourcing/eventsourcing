@@ -609,6 +609,7 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
+        self.close()
         self._is_entered = False
 
     def close(self) -> None:

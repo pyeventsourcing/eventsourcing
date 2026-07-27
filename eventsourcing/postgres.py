@@ -1384,22 +1384,10 @@ class BasePostgresFactory(BaseInfrastructureFactory[TTrackingRecorder]):
     def env_create_table(self) -> bool:
         return strtobool(self.env.get(self.CREATE_TABLE) or "yes")
 
-    def __enter__(self) -> Self:
-        self.datastore.__enter__()
-        return super().__enter__()
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        self.datastore.__exit__(exc_type, exc_val, exc_tb)
-        super().__exit__(exc_type, exc_val, exc_tb)
-
     def close(self) -> None:
         with contextlib.suppress(AttributeError):
             self.datastore.close()
+        super().close()
 
 
 class PostgresFactory(

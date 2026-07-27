@@ -164,7 +164,6 @@ class DcbApplication(
         self.factory.close()
 
     def __enter__(self) -> Self:
-        self.factory.__enter__()
         return self
 
     def __exit__(
@@ -174,7 +173,6 @@ class DcbApplication(
         exc_tb: TracebackType | None,
     ) -> None:
         self.close()
-        self.factory.__exit__(exc_type, exc_val, exc_tb)
 
 
 TEnduringObject = TypeVar("TEnduringObject", bound=EnduringObject[Any])

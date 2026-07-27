@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "eventsourcing"
-version = "10.0.0a6"
+version = "10.0.0a7"
 description = "Event sourcing in Python"
 license = "BSD-3-Clause"
 readme = "README.md"
@@ -68,7 +68,7 @@ pyright = "*"
 pydantic = { version = "*"}
 msgspec = { version = "*"}
 pytest = { version = "*"}
-eventsourcing-umadb = { version = ">=0.4.0a1", allow-prereleases = true }
+eventsourcing-umadb = { version = ">=0.4.4" }
 #eventsourcing-umadb = {path = "../eventsourcing-umadb", develop = true}
 
 [tool.poetry.group.docs.dependencies]
