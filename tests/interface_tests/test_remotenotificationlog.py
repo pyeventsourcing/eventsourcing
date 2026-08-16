@@ -6,7 +6,7 @@ from abc import abstractmethod
 from http.client import HTTPConnection
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Event, Thread
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, override
 from unittest.case import TestCase
 
 from eventsourcing.interface import (
@@ -147,6 +147,7 @@ class BankAccountsJSONService(
     BankAccountsInterface,
     NotificationLogJSONService[BankAccountsWithPydantic],
 ):
+    @override
     def open_account(self, body: str) -> str:
         kwargs = json.loads(body)
         account_id = self.app.open_account(**kwargs)
@@ -180,6 +181,7 @@ class HTTPApplicationServer(Thread):
         )
         self.is_running = Event()
 
+    @override
     def run(self) -> None:
         [f() for f in self.prepare]
         self.is_running.set()
@@ -239,9 +241,11 @@ class BankAccountsHTTPClient(BankAccountsInterface):
     def __init__(self, server_address: tuple[str, int | None]) -> None:
         self.connection = HTTPConnection(*server_address)
 
+    @override
     def get_log_section(self, section_id: str) -> str:
         return self._request("GET", f"/notifications/{section_id}")
 
+    @override
     def get_notifications(
         self,
         start: int | None,
@@ -258,6 +262,7 @@ class BankAccountsHTTPClient(BankAccountsInterface):
             ),
         )
 
+    @override
     def open_account(self, body: str) -> str:
         return self._request("PUT", "/accounts/", body.encode("utf8"))
 

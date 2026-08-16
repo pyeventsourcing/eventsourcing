@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from base64 import b64decode, b64encode
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from Crypto.Cipher import AES
 from Crypto.Cipher._mode_gcm import (
@@ -57,6 +57,7 @@ class AESCipher(Cipher):
         AESCipher.check_key_size(len(key))
         self.key = key
 
+    @override
     def encrypt(self, plaintext: bytes) -> bytes:
         """Return ciphertext for given plaintext."""
         # Construct AES-GCM cipher, with 96-bit nonce.
@@ -81,6 +82,7 @@ class AESCipher(Cipher):
         assert isinstance(cipher, GcmMode)
         return cipher
 
+    @override
     def decrypt(self, ciphertext: bytes) -> bytes:
         """Return plaintext for given ciphertext."""
         # Split out the nonce, tag, and encrypted data.

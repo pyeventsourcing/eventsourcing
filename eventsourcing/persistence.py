@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import queue
 import sys
-import typing
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Iterator, Mapping, Sequence
@@ -10,16 +9,19 @@ from dataclasses import dataclass, field
 from threading import Condition, Event, Lock, Semaphore, Thread, Timer
 from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
-from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Self,
+    get_origin,
+    override,
+)
 
 from eventsourcing.dcb.api import DcbEvent
 from eventsourcing.domain import (
     NIL_UUID,
     AggregateEvent,
     TaggedEvent,
-    TDecision,
-    WorksWithDecisions,
-    null_metadata_in_context,
 )
 from eventsourcing.errors import (
     ConnectionNotFromPoolError,
@@ -31,6 +33,12 @@ from eventsourcing.errors import (
     ProgrammingError,
     RecordConflictError,
     WaitInterruptedError,
+)
+from eventsourcing.metadata import null_metadata_in_context
+from eventsourcing.types import (
+    AggregateEventProtocol,
+    TaggedEventProtocol,
+    WorksWithDecisions,
 )
 from eventsourcing.utils import (
     Environment,
@@ -46,22 +54,22 @@ if TYPE_CHECKING:
 
 
 # Backport Queue shutdown feature - remove when dropping support for Python 3.12.
-_T = TypeVar("_T")
 if sys.version_info[0:2] < (3, 13):  # pragma: no cover
 
     class ShutDown(Exception):  # noqa: N818  # pyright: ignore[reportRedeclaration]
         """Raised when put/get with shut-down queue."""
 
-    class Queue(queue.Queue[_T]):  # pyright: ignore[reportRedeclaration]
+    class Queue[T](queue.Queue[T]):  # pyright: ignore[reportRedeclaration]
         def __init__(self, maxsize: int = 0):
             super().__init__(maxsize)
             # Queue shutdown state
             self.is_shutdown = False
 
+        @override
         def put(
             self,
-            item: _T,
-            block: bool = True,  # noqa: FBT001,FBT002
+            item: T,
+            block: bool = True,
             timeout: float | None = None,
         ) -> None:
             """Put an item into the queue.
@@ -104,11 +112,12 @@ if sys.version_info[0:2] < (3, 13):  # pragma: no cover
                 self.unfinished_tasks += 1
                 self.not_empty.notify()
 
+        @override
         def get(
             self,
-            block: bool = True,  # noqa: FBT001,FBT002
+            block: bool = True,
             timeout: float | None = None,
-        ) -> _T:
+        ) -> T:
             """Remove and return an item from the queue.
 
             If optional args 'block' is true and 'timeout' is None (the default),
@@ -180,7 +189,7 @@ else:  # pragma: no cover
     ShutDown = queue.ShutDown  # pyright: ignore[reportAttributeAccessIssue]
 
 
-class Transcoder(WorksWithDecisions[TDecision], ABC):
+class Transcoder[TDecision](WorksWithDecisions[TDecision], ABC):
     """Abstract base class for transcoders."""
 
     @abstractmethod
@@ -241,7 +250,7 @@ class Cipher(ABC):
         """Return plaintext for given ciphertext."""
 
 
-class Mapper(ABC, Generic[TDecision]):
+class Mapper[TDecision](ABC):
     """
     Abstract base class for converting between domain event
     objects and :class:`StoredEvent` objects.
@@ -258,11 +267,15 @@ class Mapper(ABC, Generic[TDecision]):
         self.cipher = cipher
 
     @abstractmethod
-    def to_stored_event(self, domain_event: AggregateEvent[TDecision]) -> StoredEvent:
+    def to_stored_event(
+        self, domain_event: AggregateEventProtocol[TDecision]
+    ) -> StoredEvent:
         """Converts the given domain event to a :class:`StoredEvent` object."""
 
     @abstractmethod
-    def to_domain_event(self, stored_event: StoredEvent) -> AggregateEvent[TDecision]:
+    def to_domain_event(
+        self, stored_event: StoredEvent
+    ) -> AggregateEventProtocol[TDecision]:
         """Converts the given :class:`StoredEvent` to a domain event object."""
 
 
@@ -510,16 +523,16 @@ class ProcessRecorder(TrackingRecorder, ApplicationRecorder, ABC):
 
 
 @dataclass(frozen=True)
-class Recording(Generic[TDecision]):
+class Recording[TDecision]:
     """Represents the recording of a domain event."""
 
-    domain_event: AggregateEvent[TDecision]
+    domain_event: AggregateEventProtocol[TDecision]
     """The domain event that has been recorded."""
     notification: Notification
     """A Notification that represents the domain event in the application sequence."""
 
 
-class EventStore(Generic[TDecision]):
+class EventStore[TDecision]:
     """Stores and retrieves domain events."""
 
     def __init__(
@@ -531,7 +544,9 @@ class EventStore(Generic[TDecision]):
         self.recorder = recorder
 
     def put(
-        self, domain_events: Sequence[AggregateEvent[TDecision]], **kwargs: Any
+        self,
+        domain_events: Sequence[AggregateEventProtocol[TDecision]],
+        **kwargs: Any,
     ) -> list[Recording[TDecision]]:
         """Stores domain events in aggregate sequence."""
         stored_events = list(map(self.mapper.to_stored_event, domain_events))
@@ -564,7 +579,7 @@ class EventStore(Generic[TDecision]):
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> Iterator[AggregateEvent[TDecision]]:
+    ) -> Iterator[AggregateEventProtocol[TDecision]]:
         """Retrieves domain events from aggregate sequence."""
         with null_metadata_in_context():
             return map(
@@ -579,10 +594,7 @@ class EventStore(Generic[TDecision]):
             )
 
 
-TTrackingRecorder = TypeVar("TTrackingRecorder", bound=TrackingRecorder)
-
-
-class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
+class BaseInfrastructureFactory(ABC):
     """Abstract base class for infrastructure factories."""
 
     PERSISTENCE_MODULE = "PERSISTENCE_MODULE"
@@ -612,6 +624,7 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         self.close()
         self._is_entered = False
 
+    @abstractmethod
     def close(self) -> None:
         """Closes any database connections, and anything else that needs closing."""
 
@@ -637,7 +650,7 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
             or "eventsourcing.popo"
         )
         try:
-            obj: Any = resolve_topic(topic)
+            obj = resolve_topic(topic)
         except TopicError as e:
             msg = (
                 "Failed to resolve persistence module topic: "
@@ -667,7 +680,7 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
             else:
                 msg = (
                     f"Found {len(factory_classes)} infrastructure factory classes in"
-                    f" '{topic}', expected 1."
+                    f" '{topic}', expected 1: {factory_classes}"
                 )
                 raise InfrastructureFactoryError(msg)
         elif isinstance(obj, type) and issubclass(obj, cls):
@@ -680,7 +693,7 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
             raise InfrastructureFactoryError(msg)
         return factory_cls(env=env)
 
-    def transcoder(
+    def transcoder[TDecision](
         self,
     ) -> Transcoder[TDecision]:
         """Constructs a transcoder."""
@@ -728,7 +741,9 @@ class BaseInfrastructureFactory(ABC, Generic[TTrackingRecorder]):
         return compressor
 
 
-class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
+class InfrastructureFactory[TTrackingRecorder: TrackingRecorder](
+    BaseInfrastructureFactory
+):
     """Abstract base class for Application factories."""
 
     MAPPER_TOPIC = "MAPPER_TOPIC"
@@ -737,7 +752,7 @@ class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
     TRACKING_RECORDER_TOPIC = "TRACKING_RECORDER_TOPIC"
     PROCESS_RECORDER_TOPIC = "PROCESS_RECORDER_TOPIC"
 
-    def mapper(
+    def mapper[TDecision](
         self,
         transcoder: Transcoder[TDecision] | None = None,
         mapper_class: type[Mapper[TDecision]] | None = None,
@@ -746,15 +761,14 @@ class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
         # Resolve MAPPER_TOPIC if no given class.
         if mapper_class is None:
             mapper_topic = self.env.get(self.MAPPER_TOPIC)
-            mapper_class = (
-                resolve_topic(mapper_topic)
-                if mapper_topic
-                else AggregateEventMapper[TDecision]
-            )
+            if mapper_topic:
+                mapper_class = resolve_topic(mapper_topic)
+        if mapper_class is None:
+            mapper_class = AggregateEventMapper
 
         # Check we have a mapper class.
         assert mapper_class is not None
-        origin_mapper_class = typing.get_origin(mapper_class) or mapper_class
+        origin_mapper_class = get_origin(mapper_class) or mapper_class
         assert isinstance(origin_mapper_class, type), mapper_class
         assert issubclass(origin_mapper_class, Mapper), mapper_class
 
@@ -765,7 +779,7 @@ class InfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder]):
             compressor=self.compressor(),
         )
 
-    def event_store(
+    def event_store[TDecision](
         self,
         mapper: Mapper[TDecision] | None = None,
         recorder: AggregateRecorder | None = None,
@@ -829,10 +843,7 @@ class Cursor(ABC):
         """Fetches one result."""
 
 
-TCursor = TypeVar("TCursor", bound=Cursor)
-
-
-class Connection(ABC, Generic[TCursor]):
+class Connection[TCursor: Cursor](ABC):
     def __init__(self, max_age: float | None = None) -> None:
         self._closed = False
         self._closing = Event()
@@ -887,10 +898,7 @@ class Connection(ABC, Generic[TCursor]):
                 self.close()
 
 
-TConnection = TypeVar("TConnection", bound=Connection[Any])
-
-
-class ConnectionPool(ABC, Generic[TConnection]):
+class ConnectionPool[TConnection: Connection[Any]](ABC):
     def __init__(
         self,
         *,
@@ -1218,15 +1226,10 @@ class ConnectionPool(ABC, Generic[TConnection]):
         self.close()
 
 
-TApplicationRecorder_co = TypeVar(
-    "TApplicationRecorder_co", bound=ApplicationRecorder, covariant=True
-)
-
-
-class Subscription(Iterator[Notification], Generic[TApplicationRecorder_co]):
+class Subscription[TApplicationRecorder: ApplicationRecorder](Iterator[Notification]):
     def __init__(
         self,
-        recorder: TApplicationRecorder_co,
+        recorder: TApplicationRecorder,
         gt: int | None = None,
         topics: Sequence[str] = (),
     ) -> None:
@@ -1253,18 +1256,22 @@ class Subscription(Iterator[Notification], Generic[TApplicationRecorder_co]):
         """Stops the subscription."""
         self._has_been_stopped = True
 
+    @override
     def __iter__(self) -> Self:
         return self
 
     @abstractmethod
+    @override
     def __next__(self) -> Notification:
         """Returns the next Notification object in the application sequence."""
 
 
-class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
+class ListenNotifySubscription[TApplicationRecorder: ApplicationRecorder](
+    Subscription[TApplicationRecorder]
+):
     def __init__(
         self,
-        recorder: TApplicationRecorder_co,
+        recorder: TApplicationRecorder,
         gt: int | None = None,
         topics: Sequence[str] = (),
     ) -> None:
@@ -1278,12 +1285,14 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
         self._pull_thread = Thread(target=self._loop_on_pull)
         self._pull_thread.start()
 
+    @override
     def __exit__(self, *args: object, **kwargs: Any) -> None:
         try:
             super().__exit__(*args, **kwargs)
         finally:
             self._pull_thread.join()
 
+    @override
     def stop(self) -> None:
         """Stops the subscription."""
         super().stop()
@@ -1292,6 +1301,7 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
         )
         self._has_been_notified.set()
 
+    @override
     def __next__(self) -> Notification:
         # If necessary, get a new list of notifications from the recorder.
         if (
@@ -1348,8 +1358,11 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
                 break
 
 
-class AggregateEventMapper(Mapper[TDecision]):
-    def to_stored_event(self, domain_event: AggregateEvent[TDecision]) -> StoredEvent:
+class AggregateEventMapper[TDecision](Mapper[TDecision]):
+    @override
+    def to_stored_event(
+        self, domain_event: AggregateEventProtocol[TDecision]
+    ) -> StoredEvent:
         topic = get_topic(type(domain_event.decision))
         stored_state = self.transcoder.encode(domain_event.decision)
         if self.compressor:
@@ -1365,7 +1378,10 @@ class AggregateEventMapper(Mapper[TDecision]):
             metadata=domain_event.metadata,
         )
 
-    def to_domain_event(self, stored_event: StoredEvent) -> AggregateEvent[TDecision]:
+    @override
+    def to_domain_event(
+        self, stored_event: StoredEvent
+    ) -> AggregateEventProtocol[TDecision]:
         stored_state = stored_event.state
         try:
             if self.cipher:
@@ -1383,7 +1399,7 @@ class AggregateEventMapper(Mapper[TDecision]):
             )
             raise MapperDeserialisationError(msg) from e
         else:
-            return AggregateEvent[TDecision](
+            return AggregateEvent(
                 decision=decision,
                 uuid=stored_event.uuid,
                 metadata=stored_event.metadata,
@@ -1392,7 +1408,7 @@ class AggregateEventMapper(Mapper[TDecision]):
             )
 
 
-class TaggedEventMapper(Generic[TDecision]):
+class TaggedEventMapper[TDecision]:
     def __init__(
         self,
         transcoder: Transcoder[TDecision],
@@ -1403,7 +1419,7 @@ class TaggedEventMapper(Generic[TDecision]):
         self.compressor = compressor
         self.cipher = cipher
 
-    def to_dcb_event(self, event: TaggedEvent[TDecision]) -> DcbEvent:
+    def to_dcb_event(self, event: TaggedEventProtocol[TDecision]) -> DcbEvent:
         data = self.transcoder.encode(event.decision)
         if self.compressor:
             data = self.compressor.compress(data)
@@ -1417,7 +1433,7 @@ class TaggedEventMapper(Generic[TDecision]):
             metadata=event.metadata,
         )
 
-    def to_tagged_event(self, event: DcbEvent) -> TaggedEvent[TDecision]:
+    def to_tagged_event(self, event: DcbEvent) -> TaggedEventProtocol[TDecision]:
         data = event.data
         if self.cipher:
             data = self.cipher.decrypt(data)

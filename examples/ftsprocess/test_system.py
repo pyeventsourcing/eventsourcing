@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import ClassVar, override
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain import put_metadata_in_context
+from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.pydantic import Decision
 from eventsourcing.system import SingleThreadedRunner
 from eventsourcing.tests.postgres_utils import drop_tables
@@ -155,14 +155,17 @@ class TestWithPostgres(ContentManagementSystemTestCase):
         "POSTGRES_PASSWORD": "eventsourcing",
     }
 
+    @override
     def setUp(self) -> None:
         drop_tables()
         super().setUp()
 
+    @override
     def tearDown(self) -> None:
         super().tearDown()
         drop_tables()
 
+    @override
     def test_system(self) -> None:
         super().test_system()
 

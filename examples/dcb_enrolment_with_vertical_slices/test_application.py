@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import override
+
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError
 from eventsourcing.tests.postgres_utils import drop_tables
@@ -43,6 +45,7 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
         }
         self.assert_implementation(EnrolmentWithVerticalSlices(env=env))
 
+    @override
     def assert_implementation(self, app: EnrolmentInterface) -> None:
         super().assert_implementation(app)
 

@@ -4,7 +4,7 @@ import contextlib
 import sys
 from threading import Event, Lock, Thread
 from time import sleep, time
-from typing import Any, ClassVar
+from typing import Any, ClassVar, override
 from unittest import TestCase
 
 from eventsourcing.errors import (
@@ -27,12 +27,14 @@ class DummyCursor(Cursor):
         self._closed = False
         self._results: list[list[int]] | None = None
 
+    @override
     def execute(self, statement: str | bytes, params: Params | None = None) -> None:
         if self._closed:
             raise PersistenceError
         assert statement == "SELECT 1"
         self._results = [[1]]
 
+    @override
     def fetchall(self) -> Any:
         if self._closed:
             raise PersistenceError
@@ -40,6 +42,7 @@ class DummyCursor(Cursor):
             raise ProgrammingError
         return self._results
 
+    @override
     def fetchone(self) -> Any:
         if self._closed:
             raise PersistenceError
@@ -57,16 +60,19 @@ class DummyConnection(Connection[DummyCursor]):
         self._cursors: list[DummyCursor] = []
         self._closed_on_server = False
 
+    @override
     def commit(self) -> None:
         if self.closed:
             msg = "Closed"
             raise PersistenceError(msg)
 
+    @override
     def rollback(self) -> None:
         if self.closed:
             msg = "Closed"
             raise PersistenceError(msg)
 
+    @override
     def cursor(self) -> DummyCursor:
         curs = DummyCursor()
         self._cursors.append(curs)
@@ -74,6 +80,7 @@ class DummyConnection(Connection[DummyCursor]):
             curs.close()
         return curs
 
+    @override
     def _close(self) -> None:
         for curs in self._cursors:
             curs.close()
@@ -84,11 +91,13 @@ class DummyConnection(Connection[DummyCursor]):
 
 
 class DummyConnectionPool(ConnectionPool[DummyConnection]):
+    @override
     def _create_connection(self) -> DummyConnection:
         return DummyConnection(max_age=self.max_age)
 
 
 class TestConnection(TestCase):
+    @override
     def tearDown(self) -> None:
         sys.stdout.flush()
 
@@ -470,6 +479,7 @@ class TestConnectionPool(TestCase):
                 super().__init__(daemon=True)
                 self.name = name
 
+            @override
             def run(self) -> None:
                 for _ in range(num_gets):
                     if is_stopped.is_set():
@@ -698,6 +708,7 @@ class TestConnectionPool(TestCase):
 
         # Block on waiting for a writer connection (holds the semaphore).
         class WriterThread(Thread):
+            @override
             def run(self) -> None:
                 with contextlib.suppress(ConnectionUnavailableError):
                     pool.get_connection(timeout=0.1, is_writer=True)

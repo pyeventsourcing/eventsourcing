@@ -106,4 +106,4 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(copy.places, course.places)
 
         # Check the enduring object's consistency boundary.
-        self.assertEqual(course.consistency_boundary(), [Selector(tags=[course.id])])
+        self.assertEqual(course.consistency_boundary(), Selector(tags=[course.id]))

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime  # noqa:TC003
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from pydantic import Field
 
 from eventsourcing.domain import (
     AggregateEvent,
-    EventEnvelope,
-    datetime_now_with_tzinfo,
     projector,
 )
 from eventsourcing.errors import ProgrammingError
@@ -17,6 +16,10 @@ from eventsourcing.pydantic import (
     Immutable,
     ImmutableAggregate,
 )
+from eventsourcing.timestamp import datetime_now_with_tzinfo
+
+if TYPE_CHECKING:
+    from eventsourcing.types import AggregateEventProtocol
 
 
 class Trick(Immutable):
@@ -66,9 +69,10 @@ def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[Decision]:
 
 
 @projector
-def evolve_dog(envelope: EventEnvelope[Decision], dog: Dog | None) -> Dog | None:
+def evolve_dog(
+    dog: Dog | None, envelope: AggregateEventProtocol[Decision]
+) -> Dog | None:
     """Mutates aggregate with event."""
-    assert isinstance(envelope, AggregateEvent)
     match envelope.decision:
         case DogRegistered(name=name, timestamp=timestamp):
             return Dog(

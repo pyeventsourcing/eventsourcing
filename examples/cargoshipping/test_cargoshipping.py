@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import unittest
 from datetime import timedelta
+from typing import override
 
-from eventsourcing.domain import datetime_now_with_tzinfo
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 from examples.cargoshipping.application import BookingApplication
 from examples.cargoshipping.interface import BookingService, select_preferred_itinerary
 
 
 class TestBookingService(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         self.service = BookingService(BookingApplication())
 

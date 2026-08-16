@@ -22,10 +22,10 @@ classifiers = [
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -65,6 +65,7 @@ mypy = "*"
 ruff = "*"
 psycopg-binary = "*"
 pyright = "*"
+pyrefly = "*"
 pydantic = { version = "*"}
 msgspec = { version = "*"}
 pytest = { version = "*"}
@@ -79,7 +80,7 @@ pytest-benchmark = { version = "*", extras = ["histogram"]}
 
 [tool.black]
 line-length = 88
-target-version = ["py311"]
+target-version = ["py312"]
 include = '\.pyi?$'
 preview = true
 exclude = '''
@@ -146,8 +147,8 @@ exclude_also = [
 line-length = 88
 #indent-width = 4
 
-# Assume Python 3.11
-target-version = "py311"
+# Assume Python 3.12
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
@@ -241,5 +242,26 @@ include = [
     "examples",
     "tests",
 ]
-pythonVersion = "3.11"
+pythonVersion = "3.12"
 typeCheckingMode = "standard"
+
+[tool.pyrefly]
+# Specifies the target Python version for static analysis
+python-version = "3.12"
+
+# Maps directly to your Pyright include paths
+project-includes = [
+    "eventsourcing/**/*.py",
+    "examples/**/*.py",
+    "tests/**/*.py",
+]
+
+# Enables strict checks (equivalent to strict_optional, disallow_untyped_defs, disallow_any_generics, and warn_unused_ignores)
+preset = "strict"
+
+# Explicitly configures untyped function bodies to match check_untyped_defs = True
+check-unannotated-defs = true
+
+[tool.pyrefly.errors]
+# Matches your ignore_missing_imports = True configuration
+missing-import = false

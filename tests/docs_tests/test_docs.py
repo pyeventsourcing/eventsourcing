@@ -6,18 +6,20 @@ from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
 from types import ModuleType
+from typing import override
 from unittest.case import TestCase
 
 import eventsourcing
-from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.tests.persistence import tmpfile_uris
 from eventsourcing.tests.postgres_utils import drop_tables
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 from eventsourcing.utils import clear_topic_cache
 
 base_dir = Path(eventsourcing.__file__).resolve().parent.parent
 
 
 class TestDocs(TestCase):
+    @override
     def setUp(self) -> None:
         drop_tables()
         super().setUp()
@@ -28,6 +30,7 @@ class TestDocs(TestCase):
 
         # Then, later...
 
+    @override
     def tearDown(self) -> None:
         self.restore_environ()
 

@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent, EventEnvelope, projector
+from eventsourcing.domain import AggregateEvent, projector
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.msgspec import (
     Decision,
     Immutable,
     ImmutableAggregate,
 )
+
+if TYPE_CHECKING:
+    from eventsourcing.types import AggregateEventProtocol
 
 
 class Trick(Immutable):
@@ -45,7 +49,9 @@ def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[Decision]:
 
 
 @projector
-def evolve_dog(envelope: EventEnvelope[Decision], dog: Dog | None) -> Dog | None:
+def evolve_dog(
+    dog: Dog | None, envelope: AggregateEventProtocol[Decision]
+) -> Dog | None:
     """Mutates aggregate with event."""
     assert isinstance(envelope, AggregateEvent)
     match envelope.decision:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, TypedDict
+from typing import TYPE_CHECKING, NamedTuple, TypedDict, override
 
 from psycopg.sql import SQL, Identifier
 from psycopg.types.json import Jsonb
@@ -26,7 +26,6 @@ from eventsourcing.postgres import (
     BasePostgresFactory,
     PostgresDatastore,
     PostgresRecorder,
-    PostgresTrackingRecorder,
 )
 
 if TYPE_CHECKING:
@@ -329,11 +328,13 @@ class PostgresDcbRecorderTS(DcbRecorder, PostgresRecorder):
             ]
         )
 
+    @override
     def head(self) -> int | None:
         with self.datastore.get_connection() as conn:
             row = conn.execute(self.sql_statement_max_sequence_position).fetchone()
             return row["max"] if row is not None else None
 
+    @override
     def read(
         self,
         query: DcbQuery | None = None,
@@ -374,6 +375,7 @@ class PostgresDcbRecorderTS(DcbRecorder, PostgresRecorder):
 
             return SimpleDcbReadResponse(iter(events), head)
 
+    @override
     def subscribe(
         self,
         query: DcbQuery | None = None,
@@ -382,6 +384,7 @@ class PostgresDcbRecorderTS(DcbRecorder, PostgresRecorder):
     ) -> DcbSubscription[Self]:
         raise NotImplementedError  # pragma: no cover
 
+    @override
     def append(
         self, events: Sequence[DcbEvent], condition: DcbAppendCondition | None = None
     ) -> int:
@@ -500,9 +503,10 @@ class PgDcbEventRow(TypedDict):
 
 
 class PostgresTSDcbFactory(
-    BasePostgresFactory[PostgresTrackingRecorder],
-    DcbInfrastructureFactory[PostgresTrackingRecorder],
+    BasePostgresFactory,
+    DcbInfrastructureFactory,
 ):
+    @override
     def dcb_recorder(self) -> DcbRecorder:
         prefix = self.env.name.lower() or "dcb"
 

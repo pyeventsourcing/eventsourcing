@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 from unittest.case import TestCase
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from eventsourcing import dataclasses, pydantic
 from eventsourcing.application import AggregatesApplication, ProcessingEvent
-from eventsourcing.domain import AggregateEvent, triggers
+from eventsourcing.decorator import triggers
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError, Notification, Tracking
 from eventsourcing.system import (
@@ -24,6 +24,8 @@ from tests.application_tests.test_processapplication import EmailProcess
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from eventsourcing.types import AggregateEventProtocol
 
 
 system_defined_as_global = System(
@@ -184,6 +186,7 @@ class TestLeader(TestCase):
             def __init__(self) -> None:
                 self.num_received = 0
 
+            @override
             def receive_recording_event(
                 self, new_recording_event: RecordingEvent[dataclasses.Decision]
             ) -> None:
@@ -240,13 +243,15 @@ class TestFollower(TestCase):
                 self.message = message
 
             @staticmethod
+            @override
             def create_id(to: str) -> str:
                 return str(uuid5(NAMESPACE_URL, f"/emails/{to}"))
 
         class UUID5EmailProcess(EmailProcess):
+            @override
             def policy(
                 self,
-                envelope: AggregateEvent[pydantic.Decision],
+                envelope: AggregateEventProtocol[pydantic.Decision],
                 processing_event: ProcessingEvent[pydantic.Decision],
             ) -> None:
                 match envelope.decision:
@@ -310,6 +315,7 @@ class TestFollower(TestCase):
         class MyFollower(Follower[dataclasses.Decision]):
             topics: Sequence[str] = ()
 
+            @override
             def policy(self, *args: Any, **kwargs: Any) -> None:
                 pass
 

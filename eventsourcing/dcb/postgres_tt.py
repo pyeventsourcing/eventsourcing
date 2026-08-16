@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import threading
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, override
 
 from psycopg.generators import notifies
 from psycopg.sql import SQL, Composed, Identifier
@@ -29,7 +29,6 @@ from eventsourcing.postgres import (
     BasePostgresFactory,
     PostgresDatastore,
     PostgresRecorder,
-    PostgresTrackingRecorder,
 )
 
 if TYPE_CHECKING:
@@ -391,12 +390,14 @@ class PostgresDcbRecorderTT(DcbRecorder, PostgresRecorder):
     def format(self, sql: SQL) -> Composed:
         return sql.format(**self.sql_kwargs)
 
+    @override
     def head(self) -> int | None:
         with self.datastore.cursor() as curs:
             self.execute(curs, self.sql_select_max_id, explain=False)
             row = curs.fetchone()
             return row["max"] if row is not None else None
 
+    @override
     def read(
         self,
         query: DcbQuery | None = None,
@@ -498,6 +499,7 @@ class PostgresDcbRecorderTT(DcbRecorder, PostgresRecorder):
 
         return events, head
 
+    @override
     def subscribe(
         self,
         query: DcbQuery | None = None,
@@ -510,6 +512,7 @@ class PostgresDcbRecorderTT(DcbRecorder, PostgresRecorder):
             after=after,
         )
 
+    @override
     def append(
         self, events: Sequence[DcbEvent], condition: DcbAppendCondition | None = None
     ) -> int:
@@ -675,6 +678,7 @@ class PostgresDcbSubscription(DcbListenNotifySubscription[PostgresDcbRecorderTT]
         self._listen_thread = threading.Thread(target=self._listen, daemon=True)
         self._listen_thread.start()
 
+    @override
     def __exit__(self, *args: object, **kwargs: Any) -> None:
         super().__exit__(*args, **kwargs)
         self._listen_thread.join()
@@ -708,9 +712,10 @@ class PostgresDcbSubscription(DcbListenNotifySubscription[PostgresDcbRecorderTT]
 
 
 class PostgresTTDcbFactory(
-    BasePostgresFactory[PostgresTrackingRecorder],
-    DcbInfrastructureFactory[PostgresTrackingRecorder],
+    BasePostgresFactory,
+    DcbInfrastructureFactory,
 ):
+    @override
     def dcb_recorder(self) -> DcbRecorder:
         prefix = self.env.name.lower() or "dcb"
 
@@ -722,3 +727,6 @@ class PostgresTTDcbFactory(
         if self.env_create_table():
             recorder.create_table()
         return recorder
+
+
+del DcbInfrastructureFactory

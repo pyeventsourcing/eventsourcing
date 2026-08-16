@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, override
 from unittest import skip
 
 from eventsourcing.dataclasses.legacy import LegacyJSONTranscoder, UUIDAsHex
@@ -11,6 +11,7 @@ from eventsourcing.tests.persistence import (
 
 
 class TestJSONTranscoder(TranscoderTestCase):
+    @override
     def construct_transcoder(self) -> Transcoder[Any]:
         transcoder = LegacyJSONTranscoder()
         transcoder.register(CustomType1AsDict())
@@ -19,26 +20,32 @@ class TestJSONTranscoder(TranscoderTestCase):
         return transcoder
 
     @skip("test_tuple(): JSONTranscoder converts tuples to lists")
+    @override
     def test_tuple(self) -> None:
         pass
 
     @skip("test_mixed(): JSONTranscoder converts tuples to lists")
+    @override
     def test_mixed(self) -> None:
         pass
 
     @skip("test_dict_subclass(): JSONTranscoder converts dict subclasses to dict")
+    @override
     def test_dict_subclass(self) -> None:
         pass
 
     @skip("test_list_subclass(): JSONTranscoder converts list subclasses to list")
+    @override
     def test_list_subclass(self) -> None:
         pass
 
     @skip("test_str_subclass(): JSONTranscoder converts str subclasses to str")
+    @override
     def test_str_subclass(self) -> None:
         pass
 
     @skip("test_int_subclass(): JSONTranscoder converts int subclasses to int")
+    @override
     def test_int_subclass(self) -> None:
         pass
 

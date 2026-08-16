@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any, Generic
+from typing import TYPE_CHECKING, Any, override
 
 from eventsourcing.dcb.api import (
     DcbAppendCondition,
@@ -13,36 +13,32 @@ from eventsourcing.dcb.api import (
     DcbRecorder,
     DcbSequencedEvent,
     DcbSubscription,
-    TDcbRecorder_co,
 )
-from eventsourcing.domain import (
-    Selector,
-    TaggedEvent,
-    TDecision,
-    null_metadata_in_context,
-)
+from eventsourcing.metadata import null_metadata_in_context
 from eventsourcing.persistence import (
     BaseInfrastructureFactory,
     Queue,
     ShutDown,
     TaggedEventMapper,
-    TTrackingRecorder,
 )
+from eventsourcing.types import SelectorProtocol, TaggedEventProtocol
 from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class DcbEventStore(Generic[TDecision]):
+class DcbEventStore[TDecision]:
     def __init__(self, mapper: TaggedEventMapper[TDecision], recorder: DcbRecorder):
         self.mapper = mapper
         self.recorder = recorder
 
     def append(
         self,
-        events: Sequence[TaggedEvent[TDecision]],
-        cb: Selector[TDecision] | Sequence[Selector[TDecision]] | None = None,
+        events: Sequence[TaggedEventProtocol[TDecision]],
+        cb: (
+            SelectorProtocol[TDecision] | Sequence[SelectorProtocol[TDecision]] | None
+        ) = None,
         after: int | None = None,
     ) -> int:
         if len(events) == 0:
@@ -62,7 +58,9 @@ class DcbEventStore(Generic[TDecision]):
 
     def read(
         self,
-        cb: Selector[TDecision] | Sequence[Selector[TDecision]] | None = None,
+        cb: (
+            SelectorProtocol[TDecision] | Sequence[SelectorProtocol[TDecision]] | None
+        ) = None,
         *,
         after: int | None = None,
     ) -> DcbEventStoreReadResponse[TDecision]:
@@ -75,23 +73,27 @@ class DcbEventStore(Generic[TDecision]):
 
     @staticmethod
     def _cb_to_dcb_query(
-        cb: Selector[TDecision] | Sequence[Selector[TDecision]] | None = None,
+        cb: (
+            SelectorProtocol[TDecision] | Sequence[SelectorProtocol[TDecision]] | None
+        ) = None,
     ) -> DcbQuery:
-        cb = [cb] if isinstance(cb, Selector) else cb or []
+        cb_sequence = [cb] if isinstance(cb, SelectorProtocol) else cb or []
         return DcbQuery(
             items=[
                 DcbQueryItem(
                     types=[get_topic(t) for t in s.types],
                     tags=list(s.tags),
                 )
-                for s in cb
+                for s in cb_sequence
             ]
         )
 
 
-class DcbEventStoreReadResponse(Iterator[TaggedEvent[TDecision]]):
+class DcbEventStoreReadResponse[TDecision](Iterator[TaggedEventProtocol[TDecision]]):
     def __init__(
-        self, dcb_read_response: DcbReadResponse, mapper: TaggedEventMapper[TDecision]
+        self,
+        dcb_read_response: DcbReadResponse,
+        mapper: TaggedEventMapper[TDecision],
     ):
         self._dcb_read_response = dcb_read_response
         self._mapper = mapper
@@ -100,7 +102,8 @@ class DcbEventStoreReadResponse(Iterator[TaggedEvent[TDecision]]):
     def head(self) -> int | None:
         return self._dcb_read_response.head
 
-    def __next__(self) -> TaggedEvent[TDecision]:
+    @override
+    def __next__(self) -> TaggedEventProtocol[TDecision]:
         dcb_sequenced_event = self._dcb_read_response.__next__()
         with null_metadata_in_context():
             return self._mapper.to_tagged_event(dcb_sequenced_event.event)
@@ -110,16 +113,16 @@ class NotFoundError(Exception):
     pass
 
 
-class DcbInfrastructureFactory(BaseInfrastructureFactory[TTrackingRecorder], ABC):
+class DcbInfrastructureFactory(BaseInfrastructureFactory, ABC):
     @abstractmethod
     def dcb_recorder(self) -> DcbRecorder:
         pass  # pragma: no cover
 
 
-class DcbListenNotifySubscription(DcbSubscription[TDcbRecorder_co]):
+class DcbListenNotifySubscription[TRecorder: DcbRecorder](DcbSubscription[TRecorder]):
     def __init__(
         self,
-        recorder: TDcbRecorder_co,
+        recorder: TRecorder,
         query: DcbQuery | None = None,
         after: int | None = None,
     ) -> None:
@@ -133,10 +136,12 @@ class DcbListenNotifySubscription(DcbSubscription[TDcbRecorder_co]):
         self._pull_thread = threading.Thread(target=self._loop_on_pull)
         self._pull_thread.start()
 
+    @override
     def __exit__(self, *args: object, **kwargs: Any) -> None:
         super().__exit__(*args, **kwargs)
         self._pull_thread.join()
 
+    @override
     def stop(self) -> None:
         """Stops the subscription."""
         super().stop()
@@ -145,6 +150,7 @@ class DcbListenNotifySubscription(DcbSubscription[TDcbRecorder_co]):
         )
         self._has_been_notified.set()
 
+    @override
     def __next__(self) -> DcbSequencedEvent:
         # If necessary, get a new list of events from the recorder.
         if self._events_index == len(self._events) and not self._has_been_stopped:

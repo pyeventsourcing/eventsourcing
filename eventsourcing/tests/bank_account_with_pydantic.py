@@ -5,7 +5,7 @@ from typing import Self
 
 from pydantic import BaseModel
 
-from eventsourcing.domain import triggers
+from eventsourcing.decorator import triggers
 from eventsourcing.pydantic import (
     Aggregate,
     AggregateSnapshot,

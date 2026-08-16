@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from unittest import TestCase
 
-from eventsourcing.domain import put_metadata_in_context
+from eventsourcing.metadata import put_metadata_in_context
 from examples.aggregate7.application import DogSchool
 
 

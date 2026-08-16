@@ -5,14 +5,15 @@ from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from threading import Event, get_ident
 from time import sleep
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, override
 from unittest import TestCase
 from uuid import uuid4
 
 from eventsourcing import dataclasses, pydantic
 from eventsourcing.application import AggregateNotFoundError, AggregatesApplication
 from eventsourcing.dataclasses.legacy import Transcoding
-from eventsourcing.domain import Aggregate, triggers
+from eventsourcing.decorator import triggers
+from eventsourcing.domain import Aggregate
 from eventsourcing.errors import InfrastructureFactoryError
 from eventsourcing.persistence import (
     AggregateEventMapper,
@@ -112,9 +113,11 @@ class EmailAddressAsStr(Transcoding):
     type = EmailAddress
     name = "email_address_as_str"
 
+    @override
     def encode(self, obj: EmailAddress) -> str:
         return obj.address
 
+    @override
     def decode(self, data: str) -> EmailAddress:
         return EmailAddress(address=data)
 
@@ -169,6 +172,7 @@ class ApplicationTestCase(TestCase):
         def do(self) -> None:
             pass
 
+    @override
     def setUp(self) -> None:
         self.env: dict[str, str] = {
             "MAPPER_TOPIC": get_topic(AggregateEventMapper),

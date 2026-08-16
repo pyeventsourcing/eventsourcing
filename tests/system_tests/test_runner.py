@@ -7,18 +7,20 @@ from abc import ABC, abstractmethod
 from queue import Queue
 from threading import Event
 from time import sleep
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, override
 from unittest.case import TestCase
 from unittest.mock import MagicMock
 
-from eventsourcing.application import ProcessingEvent  # noqa: TC001
+from eventsourcing.decorator import triggers
 from eventsourcing.domain import (
     AggregateEvent,
-    EventEnvelope,
-    triggers,
 )
 from eventsourcing.errors import ProgrammingError
-from eventsourcing.pydantic import Aggregate, AggregatesApplication, Decision
+from eventsourcing.pydantic import (
+    Aggregate,
+    Decision,
+    ProcessApplication,
+)
 from eventsourcing.system import (
     ConvertingThread,
     EventProcessingError,
@@ -27,7 +29,6 @@ from eventsourcing.system import (
     NewSingleThreadedRunner,
     NotificationConvertingError,
     NotificationPullingError,
-    ProcessApplication,
     ProcessingJob,
     PullingThread,
     RecordingEvent,
@@ -45,18 +46,13 @@ from tests.application_tests.test_processapplication import EmailProcess
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
+    from eventsourcing.application import ProcessingEvent
     from eventsourcing.persistence import Notification, Tracking
+    from eventsourcing.types import AggregateEventProtocol
 
 
 class EmailProcess2(EmailProcess):
     pass
-
-
-TRunner = TypeVar(
-    "TRunner",
-    bound=Runner[Any],
-    # default=SingleThreadedRunner[TDecision] | NewSingleThreadedRunner[TDecision],
-)
 
 
 class Command(Aggregate):
@@ -92,7 +88,7 @@ class Result(Aggregate):
         self.error = error
 
 
-class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
+class RunnerTestCase[TRunner: Runner[Any]](TestCase, ABC):
     @abstractmethod
     def construct_runner(self, system: System, env: EnvType | None = None) -> TRunner:
         raise NotImplementedError
@@ -198,15 +194,16 @@ class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
             self.assertEqual(len(section.items), 10)
 
     def test_system_with_processing_loop(self) -> None:
-        class Commands(AggregatesApplication, ProcessApplication[Decision]):
+        class Commands(ProcessApplication):
             def create_command(self, text: str) -> str:
                 command = Command(text=text)
                 self.save(command)
                 return command.id
 
+            @override
             def policy(
                 self,
-                envelope: EventEnvelope[Decision],
+                envelope: AggregateEventProtocol[Decision],
                 processing_event: ProcessingEvent[Decision],
             ) -> None:
                 match envelope.decision:
@@ -225,10 +222,11 @@ class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
                 command = self.repository.get(command_id, Command)
                 return command.output, command.error
 
-        class Results(AggregatesApplication, ProcessApplication[Decision]):
+        class Results(ProcessApplication):
+            @override
             def policy(
                 self,
-                envelope: AggregateEvent[Decision],
+                envelope: AggregateEventProtocol[Decision],
                 processing_event: ProcessingEvent[Decision],
             ) -> None:
                 match envelope.decision:
@@ -398,21 +396,25 @@ class RunnerTestCase(TestCase, ABC, Generic[TRunner]):
 
 
 class TestSingleThreadedRunner(RunnerTestCase[SingleThreadedRunner[Decision]]):
+    @override
     def construct_runner(
         self, system: System, env: EnvType | None = None
     ) -> SingleThreadedRunner[Decision]:
         return SingleThreadedRunner[Decision](system, env)
 
+    @override
     def wait_for_runner(self, runner: SingleThreadedRunner[Decision]) -> None:
         pass
 
 
 class TestNewSingleThreadedRunner(RunnerTestCase[NewSingleThreadedRunner[Decision]]):
+    @override
     def construct_runner(
         self, system: System, env: EnvType | None = None
     ) -> NewSingleThreadedRunner[Decision]:
         return NewSingleThreadedRunner[Decision](system=system, env=env)
 
+    @override
     def wait_for_runner(self, runner: NewSingleThreadedRunner[Decision]) -> None:
         pass
 
@@ -534,8 +536,9 @@ class BrokenInitialisation(EmailProcess):
 
 
 class BrokenProcessing(EmailProcess):
+    @override
     def process_event(
-        self, envelope: EventEnvelope[Decision], tracking: Tracking
+        self, envelope: AggregateEventProtocol[Decision], tracking: Tracking
     ) -> None:
         msg = "Just testing error handling when processing is broken"
         raise DeliberateError(msg)
@@ -552,6 +555,7 @@ class MultiThreadedRunnerTestCase(RunnerTestCase[TMultiThreadedRunner], ABC):
         # notice of attribute previous_max_notification_id.
         pass
 
+    @override
     def wait_for_runner(
         self,
         runner: TMultiThreadedRunner,
@@ -691,6 +695,7 @@ class MultiThreadedRunnerTestCase(RunnerTestCase[TMultiThreadedRunner], ABC):
 class TestMultiThreadedRunner(
     MultiThreadedRunnerTestCase[MultiThreadedRunner[Decision]]
 ):
+    @override
     def construct_runner(
         self, system: System, env: EnvType | None = None
     ) -> MultiThreadedRunner[Decision]:
@@ -698,6 +703,7 @@ class TestMultiThreadedRunner(
 
 
 class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
+    @override
     def setUp(self) -> None:
         super().setUp()
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
@@ -715,6 +721,7 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
         os.environ["COMMANDS_SQLITE_DBNAME"] = next(uris)
         os.environ["RESULTS_SQLITE_DBNAME"] = next(uris)
 
+    @override
     def tearDown(self) -> None:
         del os.environ["PERSISTENCE_MODULE"]
         del os.environ[f"{BankAccountsWithPydantic.context_name.upper()}_SQLITE_DBNAME"]
@@ -731,6 +738,7 @@ class TestMultiThreadedRunnerWithSQLiteFileBased(TestMultiThreadedRunner):
 
 
 class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
+    @override
     def setUp(self) -> None:
         super().setUp()
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
@@ -761,6 +769,7 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
         os.environ["COMMANDS_SQLITE_DBNAME"] = "file:commands?mode=memory&cache=shared"
         os.environ["RESULTS_SQLITE_DBNAME"] = "file:results?mode=memory&cache=shared"
 
+    @override
     def tearDown(self) -> None:
         del os.environ["PERSISTENCE_MODULE"]
         del os.environ[f"{BankAccountsWithPydantic.context_name.upper()}_SQLITE_DBNAME"]
@@ -777,6 +786,7 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
 
 
 class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
+    @override
     def setUp(self) -> None:
         super().setUp()
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.postgres"
@@ -787,6 +797,7 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         os.environ["POSTGRES_PASSWORD"] = "eventsourcing"  # noqa: S105
         drop_tables()
 
+    @override
     def tearDown(self) -> None:
         drop_tables()
         del os.environ["PERSISTENCE_MODULE"]
@@ -797,6 +808,7 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         del os.environ["POSTGRES_PASSWORD"]
         super().tearDown()
 
+    @override
     def wait_for_runner(
         self,
         runner: MultiThreadedRunner[Decision],
@@ -809,12 +821,14 @@ class TestNewMultiThreadedRunner(
     MultiThreadedRunnerTestCase[NewMultiThreadedRunner[Decision]]
 ):
 
+    @override
     def construct_runner(
         self, system: System, env: EnvType | None = None
     ) -> NewMultiThreadedRunner[Decision]:
         return NewMultiThreadedRunner(system=system, env=env)
 
     class BrokenPulling(EmailProcess):
+        @override
         def pull_notifications(
             self,
             leader_name: str,
@@ -827,6 +841,7 @@ class TestNewMultiThreadedRunner(
             raise ProgrammingError(msg)
 
     class BrokenConverting(EmailProcess):
+        @override
         def convert_notifications(
             self, leader_name: str, notifications: Iterable[Notification]
         ) -> list[ProcessingJob[Decision]]:
@@ -834,6 +849,7 @@ class TestNewMultiThreadedRunner(
             raise ProgrammingError(msg)
 
     # This duplicates test method above.
+    @override
     def test_ignores_recording_event_if_seen_subsequent(self) -> None:
         system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
 

@@ -5,7 +5,7 @@ import warnings
 import weakref
 from threading import Event
 from time import sleep
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, override
 from unittest import TestCase
 
 from eventsourcing.errors import WaitInterruptedError
@@ -375,11 +375,13 @@ class BrokenProjectionError(Exception):
 
 # Define a projection that raises an exception.
 class BrokenProjection(Projection[TrackingRecorder, Any]):
+    @override
     def process_event(self, envelope: Any, tracking: Tracking) -> None:
         raise BrokenProjectionError
 
 
 # Define a projection that stalls.
 class VerySlowProjection(Projection[TrackingRecorder, Any]):
+    @override
     def process_event(self, envelope: Any, tracking: Tracking) -> None:
         sleep(2)

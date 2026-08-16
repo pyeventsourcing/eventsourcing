@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, override
 
 from eventsourcing.errors import ProgrammingError
 
@@ -52,6 +52,7 @@ class DcbReadResponse(Iterator[DcbSequencedEvent], ABC):
         pass  # pragma: no cover
 
     @abstractmethod
+    @override
     def __next__(self) -> DcbSequencedEvent:
         pass  # pragma: no cover
 
@@ -112,13 +113,10 @@ class DcbRecorder(ABC):
         """
 
 
-TDcbRecorder_co = TypeVar("TDcbRecorder_co", bound=DcbRecorder, covariant=True)
-
-
-class DcbSubscription(Iterator[DcbSequencedEvent], Generic[TDcbRecorder_co]):
+class DcbSubscription[TDcbRecorder: DcbRecorder](Iterator[DcbSequencedEvent]):
     def __init__(
         self,
-        recorder: TDcbRecorder_co,
+        recorder: TDcbRecorder,
         query: DcbQuery | None = None,
         after: int | None = None,
     ) -> None:
@@ -145,9 +143,11 @@ class DcbSubscription(Iterator[DcbSequencedEvent], Generic[TDcbRecorder_co]):
         """Stops the subscription."""
         self._has_been_stopped = True
 
+    @override
     def __iter__(self) -> Self:
         return self
 
     @abstractmethod
+    @override
     def __next__(self) -> DcbSequencedEvent:
         """Returns the next DcbEvent in the sequence."""

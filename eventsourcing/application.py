@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import typing
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from copy import deepcopy
@@ -12,28 +13,22 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Generic,
     Self,
-    TypeVar,
     cast,
     overload,
+    override,
 )
+
+from typing_extensions import TypeVar
 
 from eventsourcing.domain import (
     NIL_UUID_STR,
-    AbstractDecision,
     Aggregate,
     AggregateEvent,
-    CanMutateProtocol,
-    CollectEventsProtocol,
-    ProjectorFunction,
-    TDecision,
-    TEnvelope,
-    WorksWithDecisions,
     evolve_aggregate,
-    null_metadata_in_context,
 )
 from eventsourcing.errors import EventSourcingError, ProgrammingError
+from eventsourcing.metadata import null_metadata_in_context
 from eventsourcing.persistence import (
     ApplicationRecorder,
     EventStore,
@@ -44,6 +39,13 @@ from eventsourcing.persistence import (
     Tracking,
     TrackingRecorder,
     Transcoder,
+)
+from eventsourcing.types import (
+    AggregateEventProtocol,
+    EventCollectorProtocol,
+    MutableAggregateProtocol,
+    Projector,
+    WorksWithDecisions,
 )
 from eventsourcing.utils import (
     Environment,
@@ -56,26 +58,22 @@ if TYPE_CHECKING:
     from types import TracebackType
     from typing import Self
 
-_KT = TypeVar("_KT")
-_VT = TypeVar("_VT")
-_T = TypeVar("_T")
 
-
-class Cache(Generic[_KT, _VT]):
+class Cache[KT, VT]:
     def __init__(self) -> None:
-        self.cache: dict[_KT, Any] = {}
+        self.cache: dict[KT, Any] = {}
 
-    def get(self, key: _KT, *, evict: bool = False) -> _VT:
+    def get(self, key: KT, *, evict: bool = False) -> VT:
         if evict:
             return self.cache.pop(key)
         return self.cache[key]
 
-    def put(self, key: _KT, value: _VT | None) -> None:
+    def put(self, key: KT, value: VT | None) -> None:
         if value is not None:
             self.cache[key] = value
 
 
-class LRUCache(Cache[_KT, _VT]):
+class LRUCache[KT, VT](Cache[KT, VT]):
     """Size limited caching that tracks accesses by recency.
 
     This is basically copied from functools.lru_cache. But
@@ -103,7 +101,8 @@ class LRUCache(Cache[_KT, _VT]):
             None,
         ]  # initialize by pointing to self
 
-    def get(self, key: _KT, *, evict: bool = False) -> _VT:
+    @override
+    def get(self, key: KT, *, evict: bool = False) -> VT:
         with self.lock:
             link = self.cache.get(key)
             if link is not None:
@@ -126,7 +125,8 @@ class LRUCache(Cache[_KT, _VT]):
                 return result
             raise KeyError
 
-    def put(self, key: _KT, value: _VT | None) -> Any | None:
+    @override
+    def put(self, key: KT, value: VT | None) -> Any | None:
         evicted_key = None
         evicted_value = None
         with self.lock:
@@ -174,7 +174,7 @@ class LRUCache(Cache[_KT, _VT]):
         return evicted_key, evicted_value
 
 
-class Repository(WorksWithDecisions[TDecision]):
+class Repository[TDecision](WorksWithDecisions[TDecision]):
     """Reconstructs aggregates from events in an
     :class:`~eventsourcing.persistence.EventStore`,
     possibly using snapshot store to avoid replaying
@@ -221,49 +221,61 @@ class Repository(WorksWithDecisions[TDecision]):
         self._fastforward_locks_inuse: dict[str, tuple[Lock, int]] = {}
 
     @overload
-    def get(
+    def get[TState: MutableAggregateProtocol[Any]](
         self,
         aggregate_id: str,
-        aggregate_cls: type[_T],
+        aggregate_cls: type[TState],
         *,
         version: int | None = None,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
-    ) -> _T: ...
+    ) -> TState:
+        """
+        OVERLOAD 1: No projector provided.
+        TState is STRICTLY BOUND to MutableAggregateProtocol.
+        """
 
     @overload
-    def get(
+    def get[TState](
         self,
         aggregate_id: str,
         *,
         version: int | None = None,
-        projector: ProjectorFunction[_T, AggregateEvent[TDecision]],
+        projector: Projector[TState, AggregateEventProtocol[TDecision]],
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
-    ) -> _T: ...
+    ) -> TState:
+        """
+        OVERLOAD 2: Custom projector provided (no class).
+        TState is UNBOUND (can be immutable, read model, etc.).
+        """
 
     @overload
-    def get(
+    def get[TState](
         self,
         aggregate_id: str,
-        aggregate_cls: type[_T] | None,
+        aggregate_cls: type[TState] | None,
         *,
         version: int | None = None,
-        projector: ProjectorFunction[_T, AggregateEvent[TDecision]],
+        projector: Projector[TState, AggregateEventProtocol[TDecision]],
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
-    ) -> _T: ...
+    ) -> TState:
+        """
+        OVERLOAD 3: Both provided.
+        TState is UNBOUND.
+        """
 
-    def get(
+    def get[TState](
         self,
         aggregate_id: str,
-        aggregate_cls: type[_T] | None = None,
+        aggregate_cls: type[TState] | None = None,
         *,
         version: int | None = None,
-        projector: ProjectorFunction[_T, AggregateEvent[TDecision]] | None = None,
+        projector: Projector[TState, AggregateEventProtocol[TDecision]] | None = None,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
-    ) -> _T:
+    ) -> TState:
         """Reconstructs an :class:`~eventsourcing.domain.Aggregate` for a
         given ID from stored events, optionally at a particular version.
         """
@@ -278,8 +290,11 @@ class Repository(WorksWithDecisions[TDecision]):
             raise ProgrammingError(msg)
 
         if projector is None:
+            # Safely cast evolve_aggregate to match the unbounded TState signature.
+            # This is perfectly safe at runtime because Overload 1 guarantees that
+            # if we get to this block, TState IS actually a MutableAggregateProtocol.
             projector = cast(
-                ProjectorFunction[_T, AggregateEvent[TDecision]], evolve_aggregate
+                Projector[TState, AggregateEventProtocol[TDecision]], evolve_aggregate
             )
 
         if self.cache and version is None:
@@ -327,13 +342,13 @@ class Repository(WorksWithDecisions[TDecision]):
             )
         return aggregate
 
-    def _reconstruct_aggregate(
+    def _reconstruct_aggregate[TState](
         self,
         aggregate_id: str,
-        aggregate_cls: type[_T] | None,
+        aggregate_cls: type[TState] | None,
         version: int | None,
-        projector: ProjectorFunction[_T, AggregateEvent[TDecision]],
-    ) -> _T:
+        projector: Projector[TState, AggregateEventProtocol[TDecision]],
+    ) -> TState:
         gt: int | None = None
 
         if self.snapshot_store is not None:
@@ -349,7 +364,7 @@ class Repository(WorksWithDecisions[TDecision]):
             if snapshots:
                 gt = snapshots[0].originator_version
         else:
-            snapshots = []
+            snapshots = list[AggregateEventProtocol[TDecision]]()
 
         # Get aggregate events.
         aggregate_events = self.event_store.get(
@@ -359,7 +374,7 @@ class Repository(WorksWithDecisions[TDecision]):
         )
 
         # Reconstruct the aggregate from its events.
-        initial: _T | None = (
+        initial: TState | None = (
             aggregate_cls.__new__(aggregate_cls)
             if aggregate_cls and projector is evolve_aggregate
             else None
@@ -491,7 +506,8 @@ class LocalNotificationLog(NotificationLog):
         self.recorder = recorder
         self.section_size = section_size
 
-    def __getitem__(self, requested_section_id: str) -> Section:
+    @override
+    def __getitem__(self, section_id: str) -> Section:
         """Returns a :class:`Section` of event notifications
         based on the requested section ID. The section ID of
         the returned section will describe the event
@@ -502,7 +518,7 @@ class LocalNotificationLog(NotificationLog):
         are gaps in the sequence of recorded event notification.
         """
         # Interpret the section ID.
-        parts = requested_section_id.split(",")
+        parts = section_id.split(",")
         part1 = int(parts[0])
         part2 = int(parts[1])
         start = max(1, part1)
@@ -536,6 +552,7 @@ class LocalNotificationLog(NotificationLog):
             next_id=next_id,
         )
 
+    @override
     def select(
         self,
         start: int | None,
@@ -567,7 +584,7 @@ class LocalNotificationLog(NotificationLog):
         return f"{first_id},{last_id}"
 
 
-class ProcessingEvent(Generic[TDecision]):
+class ProcessingEvent[TDecision]:
     """Keeps together a :class:`~eventsourcing.persistence.Tracking`
     object, which represents the position of a domain event notification
     in the notification log of a particular application, and the
@@ -577,13 +594,15 @@ class ProcessingEvent(Generic[TDecision]):
     def __init__(self, tracking: Tracking | None = None):
         """Initialises the process event with the given tracking object."""
         self.tracking = tracking
-        self.events: list[AggregateEvent[TDecision]] = []
-        self.aggregates: dict[str, Aggregate[TDecision]] = {}
+        self.events = list[AggregateEventProtocol[TDecision]]()
+        self.aggregates = dict[str, Aggregate[TDecision]]()
         self.saved_kwargs: dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: CollectEventsProtocol[TDecision] | AggregateEvent[TDecision] | None,
+        *objs: EventCollectorProtocol[AggregateEventProtocol[TDecision]]
+        | AggregateEventProtocol[TDecision]
+        | None,
         **kwargs: Any,
     ) -> None:
         """Collects pending domain events from the given aggregate."""
@@ -593,7 +612,7 @@ class ProcessingEvent(Generic[TDecision]):
             if isinstance(obj, AggregateEvent):
                 self.events.append(obj)
             else:
-                if isinstance(obj, CollectEventsProtocol):
+                if isinstance(obj, EventCollectorProtocol):
                     for event in obj.collect_events():
                         self.events.append(event)
                 if isinstance(obj, Aggregate):
@@ -602,15 +621,15 @@ class ProcessingEvent(Generic[TDecision]):
         self.saved_kwargs.update(kwargs)
 
 
-_TA = TypeVar("_TA", bound=Aggregate[Any])
 
-
-class AbstractApplicationSubscription(Iterator[tuple[TEnvelope, Tracking]], ABC):
+class AbstractApplicationSubscription[TEvent](Iterator[tuple[TEvent, Tracking]], ABC):
+    @override
     def __iter__(self) -> Self:
         return self
 
     @abstractmethod
-    def __next__(self) -> tuple[TEnvelope, Tracking]:
+    @override
+    def __next__(self) -> tuple[TEvent, Tracking]:
         pass
 
     @abstractmethod
@@ -658,7 +677,6 @@ class BoundedContext:
         # Override with the given environment variables.
         if env is not None:
             _env.update(env)
-        return Environment(name, _env)
         _env.update(os.environ)
         if env is not None:
             _env.update(env)
@@ -676,10 +694,12 @@ class BoundedContext:
         pass
 
 
-class SupportsApplicationSubscriptions(
+class SupportsApplicationSubscriptions[
+    TDecision,
+    TApplicationSubscription,
+](
     BoundedContext,
     WorksWithDecisions[TDecision],
-    Generic[TDecision, TApplicationSubscription],
 ):
 
     @abstractmethod
@@ -695,8 +715,14 @@ class SupportsApplicationSubscriptions(
         pass
 
 
+# Old-style so we can define a default (remove when dropping Python 3.12)
+TRecorder = TypeVar("TRecorder", bound=ApplicationRecorder, default=ApplicationRecorder)
+TDecision = TypeVar("TDecision")
+
+
 class AggregatesApplicationSubscription(
-    AbstractApplicationSubscription[AggregateEvent[TDecision]],
+    AbstractApplicationSubscription[AggregateEventProtocol[TDecision]],
+    typing.Generic[TDecision, TRecorder],
 ):
     """An iterator that yields all domain events recorded in an application
     sequence that have notification IDs greater than a given value. The iterator
@@ -707,7 +733,7 @@ class AggregatesApplicationSubscription(
 
     def __init__(
         self,
-        app: AggregatesApplication[TDecision],
+        app: AggregatesApplication[TDecision, TRecorder],
         gt: int | None = None,
         topics: Sequence[str] = (),
     ):
@@ -719,23 +745,30 @@ class AggregatesApplicationSubscription(
         self.mapper = app.mapper
         self.subscription = self.recorder.subscribe(gt=gt, topics=topics)
 
+    @override
     def stop(self) -> None:
         """Stops the subscription to the application's recorder."""
         self.subscription.stop()
 
+    @override
     def __enter__(self) -> Self:
         """Calls __enter__ on the stored event subscription."""
         self.subscription.__enter__()
         return super().__enter__()
 
+    @override
     def __exit__(self, *args: object, **kwargs: Any) -> None:
         """Calls __exit__ on the stored event subscription."""
         self.subscription.__exit__(*args, **kwargs)
 
+    @override
     def __iter__(self) -> Self:
         return self
 
-    def __next__(self) -> tuple[AggregateEvent[TDecision], Tracking]:
+    @override
+    def __next__(
+        self,
+    ) -> tuple[AggregateEventProtocol[TDecision], Tracking]:
         """Returns the next stored event from subscription to the application's
         recorder. Constructs a tracking object that identifies the position of
         the event in the application sequence. Constructs a domain event object
@@ -756,8 +789,10 @@ class AggregatesApplicationSubscription(
 
 class AggregatesApplication(
     SupportsApplicationSubscriptions[
-        TDecision, AggregatesApplicationSubscription[TDecision]
+        TDecision,
+        AggregatesApplicationSubscription[TDecision, TRecorder],
     ],
+    typing.Generic[TDecision, TRecorder],
 ):
     """Base class for event-sourced applications."""
 
@@ -767,7 +802,7 @@ class AggregatesApplication(
     snapshotting_projectors: ClassVar[
         dict[
             type[Any],
-            ProjectorFunction[Any, Any],
+            Projector[Any, Any],
         ]
     ] = {}
     log_section_size = 10
@@ -819,13 +854,13 @@ class AggregatesApplication(
         super().__init__(env=env, context_name=context_name)
         self.closing = Event()
         self.factory = self.construct_factory(self.env)
-        self.mapper: Mapper[TDecision] = self.construct_mapper()
+        self.mapper = self.construct_mapper()
         self.recorder = self.construct_recorder()
-        self.events: EventStore[TDecision] = self.construct_event_store()
+        self.events = self.construct_event_store()
         self.snapshots: EventStore[TDecision] | None = None
         if self.factory.is_snapshotting_enabled():
             self.snapshots = self.construct_snapshot_store()
-        self._repository: Repository[TDecision] = self.construct_repository()
+        self._repository = self.construct_repository()
         self._notification_log = self.construct_notification_log()
 
     @property
@@ -881,11 +916,11 @@ class AggregatesApplication(
         """
         return self.factory.transcoder()
 
-    def construct_recorder(self) -> ApplicationRecorder:
+    def construct_recorder(self) -> TRecorder:
         """Constructs an :class:`~eventsourcing.persistence.ApplicationRecorder`
         for use by the application.
         """
-        return self.factory.application_recorder()
+        return cast(TRecorder, self.factory.application_recorder())
 
     def construct_event_store(self) -> EventStore[TDecision]:
         """Constructs an :class:`~eventsourcing.persistence.EventStore`
@@ -931,7 +966,9 @@ class AggregatesApplication(
 
     def save(
         self,
-        *objs: CollectEventsProtocol[TDecision] | AggregateEvent[TDecision] | None,
+        *objs: EventCollectorProtocol[AggregateEventProtocol[TDecision]]
+        | AggregateEventProtocol[TDecision]
+        | None,
         **kwargs: Any,
     ) -> list[Recording[TDecision]]:
         """Collects pending events from given aggregates and
@@ -945,7 +982,7 @@ class AggregatesApplication(
                     self.check_decision_type(type(decision))
                 case _:
                     self.check_decision_type(type(obj))
-        processing_event: ProcessingEvent[TDecision] = ProcessingEvent()
+        processing_event = ProcessingEvent[TDecision]()
         processing_event.collect_events(*objs, **kwargs)
         recordings = self._record(processing_event)
         self._take_snapshots(processing_event)
@@ -979,7 +1016,7 @@ class AggregatesApplication(
                     try:
                         projector = self.snapshotting_projectors[type(aggregate)]
                     except KeyError:
-                        if not isinstance(event, CanMutateProtocol):
+                        if not isinstance(event, AggregateEvent):
                             msg = (
                                 f"Cannot take snapshot for {type(aggregate)} with "
                                 "default project_aggregate() function, because its "
@@ -1001,13 +1038,13 @@ class AggregatesApplication(
                         projector=projector,
                     )
 
-    def take_snapshot(
+    def take_snapshot[T: Aggregate[Any]](
         self,
         aggregate_id: str,
-        aggregate_cls: type[_TA] | None = None,
+        aggregate_cls: type[T] | None = None,
         *,
         version: int | None = None,
-        projector: ProjectorFunction[Any, Any] = evolve_aggregate,
+        projector: Projector[Any, Any] = evolve_aggregate,
     ) -> None:
         """Takes a snapshot of the recorded state of the aggregate,
         and puts the snapshot in the snapshot store.
@@ -1048,24 +1085,28 @@ class AggregatesApplication(
         need to take action when new domain events have been saved.
         """
 
+    @override
     def application_subscription(
         self,
         gt: int | None = None,
         topics: Sequence[str] = (),
-    ) -> AggregatesApplicationSubscription[TDecision]:
-        return AggregatesApplicationSubscription(
+    ) -> AggregatesApplicationSubscription[TDecision, TRecorder]:
+        return AggregatesApplicationSubscription[TDecision, TRecorder](
             app=self,
             gt=gt,
             topics=topics,
         )
 
+    @override
     def close(self) -> None:
         self.closing.set()
         self.factory.close()
 
+    @override
     def __enter__(self) -> Self:
         return self
 
+    @override
     def __exit__(
         self,
         exc_type: type[BaseException] | None,
@@ -1079,21 +1120,13 @@ class AggregatesApplication(
             self.close()
 
 
-TAggregatesApplication = TypeVar(
-    "TAggregatesApplication", bound=AggregatesApplication[Any]
-)
-
-
 class AggregateNotFoundError(EventSourcingError):
     """Raised when an :class:`~eventsourcing.domain.Aggregate`
     object is not found in a :class:`Repository`.
     """
 
 
-SDecision = TypeVar("SDecision", bound=AbstractDecision)
-
-
-class EventSourcedLog(Generic[TDecision, SDecision]):
+class EventSourcedLog[TDecision, SDecision]:
     """Constructs a sequence of domain events, like an aggregate.
     But unlike an aggregate the events can be triggered
     and selected for use in an application without
@@ -1113,6 +1146,8 @@ class EventSourcedLog(Generic[TDecision, SDecision]):
         originator_id: str,
         event_cls: type[SDecision],
     ):
+        # TODO: Change `EventStore` to subclass WorksWithDecisions, then
+        #  assert that event_cls is a subclass of its decision class.
         self.events = events
         self.originator_id = originator_id
         self.event_cls = event_cls
@@ -1121,7 +1156,7 @@ class EventSourcedLog(Generic[TDecision, SDecision]):
         self,
         next_originator_version: int | None = None,
         **kwargs: Any,
-    ) -> AggregateEvent[SDecision]:
+    ) -> AggregateEventProtocol[TDecision]:
         """Constructs and returns a new log event."""
         return self._trigger_event(
             logged_cls=self.event_cls,
@@ -1134,7 +1169,7 @@ class EventSourcedLog(Generic[TDecision, SDecision]):
         logged_cls: type[SDecision],
         next_originator_version: int | None = None,
         **kwargs: Any,
-    ) -> AggregateEvent[SDecision]:
+    ) -> AggregateEventProtocol[TDecision]:
         """Constructs and returns a new log event."""
         if next_originator_version is None:
             last_logged = self.get_last()
@@ -1146,17 +1181,17 @@ class EventSourcedLog(Generic[TDecision, SDecision]):
         return AggregateEvent(
             originator_id=self.originator_id,
             originator_version=next_originator_version,
-            decision=logged_cls(**kwargs),
+            decision=cast(TDecision, logged_cls(**kwargs)),
         )
 
-    def get_first(self) -> AggregateEvent[SDecision] | None:
+    def get_first(self) -> AggregateEventProtocol[SDecision] | None:
         """Selects the first logged event."""
         try:
             return next(self.get(limit=1))
         except StopIteration:
             return None
 
-    def get_last(self) -> AggregateEvent[SDecision] | None:
+    def get_last(self) -> AggregateEventProtocol[SDecision] | None:
         """Selects the last logged event."""
         try:
             return next(self.get(desc=True, limit=1))
@@ -1170,12 +1205,12 @@ class EventSourcedLog(Generic[TDecision, SDecision]):
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> Iterator[AggregateEvent[SDecision]]:
+    ) -> Iterator[AggregateEventProtocol[SDecision]]:
         """Selects a range of logged events with limit,
         with ascending or descending order.
         """
         return cast(
-            Iterator[AggregateEvent[SDecision]],
+            Iterator[AggregateEventProtocol[SDecision]],
             self.events.get(
                 originator_id=self.originator_id,
                 gt=gt,

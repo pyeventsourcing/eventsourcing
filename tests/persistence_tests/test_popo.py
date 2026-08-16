@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from concurrent.futures.thread import ThreadPoolExecutor
+from typing import override
 from uuid import uuid4
 
 from eventsourcing.dataclasses import Transcoder
-from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.persistence import (
     AggregateEventMapper,
     AggregateRecorder,
@@ -27,18 +27,22 @@ from eventsourcing.tests.persistence import (
     ProcessRecorderTestCase,
     TrackingRecorderTestCase,
 )
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 from eventsourcing.utils import Environment, get_topic
 
 
 class TestPOPOAggregateRecorder(AggregateRecorderTestCase):
+    @override
     def create_recorder(self) -> AggregateRecorder:
         return POPOAggregateRecorder()
 
 
 class TestPOPOApplicationRecorder(ApplicationRecorderTestCase[POPOApplicationRecorder]):
+    @override
     def create_recorder(self) -> POPOApplicationRecorder:
         return POPOApplicationRecorder()
 
+    @override
     def test_insert_select(self) -> None:
         super().test_insert_select()
 
@@ -138,30 +142,37 @@ class TestPOPOApplicationRecorder(ApplicationRecorderTestCase[POPOApplicationRec
 
         thread_pool.shutdown()
 
+    @override
     def test_concurrent_throughput(self) -> None:
         super().test_concurrent_throughput()
 
 
 class TestPOPOTrackingRecorder(TrackingRecorderTestCase):
+    @override
     def create_recorder(self) -> TrackingRecorder:
         return POPOTrackingRecorder()
 
+    @override
     def test_wait(self) -> None:
         super().test_wait()
 
+    @override
     def test_insert_tracking(self) -> None:
         super().test_insert_tracking()
 
 
 class TestPOPOProcessRecorder(ProcessRecorderTestCase):
+    @override
     def create_recorder(self) -> ProcessRecorder:
         return POPOProcessRecorder()
 
+    @override
     def test_performance(self) -> None:
         super().test_performance()
 
 
 class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase[POPOFactory]):
+    @override
     def setUp(self) -> None:
         self.env = Environment("TestCase")
         self.env[POPOFactory.MAPPER_TOPIC] = get_topic(AggregateEventMapper)
@@ -169,15 +180,19 @@ class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase[POPOFactory]):
 
         super().setUp()
 
+    @override
     def expected_factory_class(self) -> type[POPOFactory]:
         return POPOFactory
 
+    @override
     def expected_aggregate_recorder_class(self) -> type[AggregateRecorder]:
         return POPOAggregateRecorder
 
+    @override
     def expected_application_recorder_class(self) -> type[ApplicationRecorder]:
         return POPOApplicationRecorder
 
+    @override
     def expected_tracking_recorder_class(self) -> type[TrackingRecorder]:
         return POPOTrackingRecorder
 
@@ -190,15 +205,19 @@ class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase[POPOFactory]):
     class POPOProcessRecorderSubclass(POPOProcessRecorder):
         pass
 
+    @override
     def application_recorder_subclass(self) -> type[ApplicationRecorder]:
         return self.POPOApplicationRecorderSubclass
 
+    @override
     def tracking_recorder_subclass(self) -> type[TrackingRecorder]:
         return self.POPOTrackingRecorderSubclass
 
+    @override
     def process_recorder_subclass(self) -> type[ProcessRecorder]:
         return self.POPOProcessRecorderSubclass
 
+    @override
     def expected_process_recorder_class(self) -> type[ProcessRecorder]:
         return POPOProcessRecorder
 

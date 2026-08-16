@@ -1,4 +1,5 @@
 import os
+from typing import override
 from unittest import TestCase
 
 from eventsourcing.tests.application import (
@@ -14,6 +15,7 @@ class WithPostgres(TestCase):
     postgres_schema = "public"
     postgres_enable_db_functions = "n"
 
+    @override
     def setUp(self) -> None:
         super().setUp()
 
@@ -28,6 +30,7 @@ class WithPostgres(TestCase):
         os.environ["POSTGRES_ENABLE_DB_FUNCTIONS"] = self.postgres_enable_db_functions
         drop_tables()
 
+    @override
     def tearDown(self) -> None:
         drop_tables()
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextlib
 from collections import defaultdict
 from threading import Event, RLock
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 from eventsourcing.persistence import (
     AggregateRecorder,
@@ -35,6 +35,7 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
         self._stored_events: list[StoredEvent] = []
         self._stored_events_index: dict[str, dict[int, int]] = defaultdict(dict)
 
+    @override
     def insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
@@ -75,6 +76,7 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
             notification_ids.append(len(self._stored_events))
         return notification_ids
 
+    @override
     def select_events(
         self,
         originator_id: str,
@@ -107,6 +109,7 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
         super().__init__()
         self._listeners: set[Event] = set()
 
+    @override
     def insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
@@ -114,6 +117,7 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
         self._notify_listeners()
         return notification_ids
 
+    @override
     def select_notifications(
         self,
         start: int | None,
@@ -156,10 +160,12 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
                     break
             return results
 
+    @override
     def max_notification_id(self) -> int | None:
         with self._database_lock:
             return len(self._stored_events) or None
 
+    @override
     def subscribe(
         self, gt: int | None = None, topics: Sequence[str] = ()
     ) -> Subscription[ApplicationRecorder]:
@@ -188,6 +194,7 @@ class POPOSubscription(ListenNotifySubscription[POPOApplicationRecorder]):
         super().__init__(recorder=recorder, gt=gt, topics=topics)
         self._recorder.listen(self._has_been_notified)
 
+    @override
     def stop(self) -> None:
         super().stop()
         self._recorder.unlisten(self._has_been_notified)
@@ -207,6 +214,7 @@ class POPOTrackingRecorder(POPORecorder, TrackingRecorder):
             )
             raise IntegrityError(msg)
 
+    @override
     def insert_tracking(self, tracking: Tracking) -> None:
         with self._database_lock:
             self._assert_tracking_uniqueness(tracking)
@@ -215,6 +223,7 @@ class POPOTrackingRecorder(POPORecorder, TrackingRecorder):
     def _insert_tracking(self, tracking: Tracking) -> None:
         self._max_tracking_ids[tracking.context_name] = tracking.notification_id
 
+    @override
     def max_tracking_id(self, context_name: str) -> int | None:
         with self._database_lock:
             return self._max_tracking_ids[context_name]
@@ -223,6 +232,7 @@ class POPOTrackingRecorder(POPORecorder, TrackingRecorder):
 class POPOProcessRecorder(
     POPOTrackingRecorder, POPOApplicationRecorder, ProcessRecorder
 ):
+    @override
     def _assert_uniqueness(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
     ) -> None:
@@ -231,6 +241,7 @@ class POPOProcessRecorder(
         if t:
             self._assert_tracking_uniqueness(t)
 
+    @override
     def _update_table(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
@@ -242,9 +253,11 @@ class POPOProcessRecorder(
 
 
 class POPOFactory(InfrastructureFactory[POPOTrackingRecorder]):
+    @override
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         return POPOAggregateRecorder()
 
+    @override
     def application_recorder(self) -> ApplicationRecorder:
         application_recorder_topic = self.env.get(self.APPLICATION_RECORDER_TOPIC)
         if application_recorder_topic:
@@ -253,6 +266,7 @@ class POPOFactory(InfrastructureFactory[POPOTrackingRecorder]):
             application_recorder_class = POPOApplicationRecorder
         return application_recorder_class()
 
+    @override
     def tracking_recorder(
         self, tracking_recorder_class: type[POPOTrackingRecorder] | None = None
     ) -> POPOTrackingRecorder:
@@ -266,6 +280,7 @@ class POPOFactory(InfrastructureFactory[POPOTrackingRecorder]):
         assert issubclass(tracking_recorder_class, POPOTrackingRecorder)
         return tracking_recorder_class()
 
+    @override
     def process_recorder(self) -> ProcessRecorder:
         process_recorder_topic = self.env.get(self.PROCESS_RECORDER_TOPIC)
         if process_recorder_topic:
@@ -273,6 +288,10 @@ class POPOFactory(InfrastructureFactory[POPOTrackingRecorder]):
         else:
             process_recorder_class = POPOProcessRecorder
         return process_recorder_class()
+
+    @override
+    def close(self) -> None:
+        pass
 
 
 Factory = POPOFactory

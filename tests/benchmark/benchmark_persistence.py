@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from eventsourcing.domain import event, triggers
+from eventsourcing.decorator import event, triggers
 from eventsourcing.persistence import InfrastructureFactory, StoredEvent
 from eventsourcing.postgres import PostgresApplicationRecorder
 from eventsourcing.pydantic import Aggregate, AggregatesApplication
@@ -144,7 +144,7 @@ def test_recorder_insert_events_1(
             )
             for i in range(num_events)
         ]
-        return (events,), {}
+        return (events,), dict[Any, Any]()
 
     def func(events: Sequence[StoredEvent]) -> None:
         recorder.insert_events(events)
@@ -180,7 +180,7 @@ def test_recorder_insert_events_2(
             )
             for i in range(num_events)
         ]
-        return (events,), {}
+        return (events,), dict[Any, Any]()
 
     def func(events: Sequence[StoredEvent]) -> None:
         recorder.insert_events(events)
@@ -216,7 +216,7 @@ def test_recorder_insert_events_100(
             )
             for i in range(num_events)
         ]
-        return (events,), {}
+        return (events,), dict[Any, Any]()
 
     def func(events: Sequence[StoredEvent]) -> None:
         recorder.insert_events(events)
@@ -289,7 +289,7 @@ def test_app_save(env: str, num_events: int, benchmark: BenchmarkFixture) -> Non
         agg = A(a=0)
         for i in range(num_events - 1):
             agg.subsequent(a=i + 1)
-        return (app, agg), {}
+        return (app, agg), dict[Any, Any]()
 
     def func(app: AggregatesApplication, agg: Aggregate) -> None:
         app.save(agg)

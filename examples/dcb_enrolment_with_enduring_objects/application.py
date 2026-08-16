@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import cast, override
 
-from eventsourcing.domain import (
-    event,
-)
+from eventsourcing.decorator import event
 from eventsourcing.pydantic import (
     DcbApplication,
     Decision,
@@ -154,16 +152,19 @@ class StudentAndCourse(Group):
 
 
 class EnrolmentWithEnduringObjects(DcbApplication, EnrolmentInterface):
+    @override
     def register_student(self, name: str, max_courses: int) -> str:
         student = Student(name=name, max_courses=max_courses)
         self.repository.save(student)
         return student.id
 
+    @override
     def register_course(self, name: str, places: int) -> str:
         course = Course(name=name, places=places)
         self.repository.save(course)
         return course.id
 
+    @override
     def join_course(self, student_id: str, course_id: str) -> None:
         group = self.repository.get_group(StudentAndCourse, student_id, course_id)
         group.student_joins_course()
@@ -174,11 +175,13 @@ class EnrolmentWithEnduringObjects(DcbApplication, EnrolmentInterface):
         group.student_leaves_course()
         self.repository.save(group)
 
+    @override
     def list_students_for_course(self, course_id: str) -> list[str]:
         course = self.get_course(course_id)
         students = self.repository.get_many(course.student_ids, cls=Student)
         return [cast(Student, c).name for c in students if c is not None]
 
+    @override
     def list_courses_for_student(self, student_id: str) -> list[str]:
         student = self.get_student(student_id)
         courses = self.repository.get_many(student.course_ids, cls=Course)

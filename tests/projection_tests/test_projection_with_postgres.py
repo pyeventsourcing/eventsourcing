@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import Any, ClassVar, override
 
 from psycopg.sql import SQL, Identifier
 
@@ -70,15 +70,19 @@ class PostgresEventCounters(PostgresTrackingRecorder, EventCountersView):
             Identifier(self.counters_table_name),
         )
 
+    @override
     def get_student_registered_counter(self) -> int:
         return self._select_counter(self._created_event_counter_name)
 
+    @override
     def get_student_name_changed_counter(self) -> int:
         return self._select_counter(self._subsequent_event_counter_name)
 
+    @override
     def incr_student_registered_counter(self, tracking: Tracking) -> None:
         self._incr_counter(self._created_event_counter_name, tracking)
 
+    @override
     def incr_student_name_changed_counter(self, tracking: Tracking) -> None:
         self._incr_counter(self._subsequent_event_counter_name, tracking)
 
@@ -114,13 +118,16 @@ class TestPostgresEventCounters(EventCountersViewTestCase):
         "POSTGRES_SCHEMA": "public",
     }
 
+    @override
     def setUp(self) -> None:
         self.factory = InfrastructureFactory[EventCountersView].construct(self.env)
 
+    @override
     def tearDown(self) -> None:
         self.factory.close()
         drop_tables()
 
+    @override
     def construct_event_counters_view(self) -> EventCountersView:
         return self.factory.tracking_recorder(PostgresEventCounters)
 
@@ -138,14 +145,17 @@ class TestAggregateEventCountersProjectionWithPostgres(
         "POSTGRES_PASSWORD": "eventsourcing",
     }
 
+    @override
     def setUp(self) -> None:
         drop_tables()
         super().setUp()
 
+    @override
     def tearDown(self) -> None:
         super().tearDown()
         drop_tables()
 
+    @override
     def test_event_counters_projection(self) -> None:
         super().test_event_counters_projection()
 
@@ -202,6 +212,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
             self.assertEqual(read_model.get_student_registered_counter(), 4)
             self.assertEqual(read_model.get_student_name_changed_counter(), 8)
 
+    @override
     def test_run_forever_raises_projection_error(self) -> None:
         super().test_run_forever_raises_projection_error()
 

@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 from threading import Event, Thread, get_ident
 from time import sleep
 from timeit import timeit
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast, override
 from unittest import TestCase
 from uuid import UUID, uuid4
 
@@ -20,10 +20,8 @@ from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.dataclasses.legacy import Transcoding
 from eventsourcing.domain import (
-    AbstractDecision,
     AggregateEvent,
     TaggedEvent,
-    datetime_now_with_tzinfo,
 )
 from eventsourcing.errors import WaitInterruptedError
 from eventsourcing.persistence import (
@@ -43,6 +41,7 @@ from eventsourcing.persistence import (
     TrackingRecorder,
     Transcoder,
 )
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 from eventsourcing.utils import Environment, get_topic
 
 if TYPE_CHECKING:
@@ -217,19 +216,14 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
         )
 
 
-_TApplicationRecorder = TypeVar(
-    "_TApplicationRecorder", bound=ApplicationRecorder, default=ApplicationRecorder
-)
-
-
-class ApplicationRecorderTestCase(
-    RecorderTestCase, ABC, Generic[_TApplicationRecorder]
+class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
+    RecorderTestCase, ABC
 ):
     EXPECT_CONTIGUOUS_NOTIFICATION_IDS = True
     recorder_supports_idempotent_appends: ClassVar[bool] = False
 
     @abstractmethod
-    def create_recorder(self) -> _TApplicationRecorder:
+    def create_recorder(self) -> TApplicationRecorder:
         """"""
 
     def test_insert_select(self) -> None:
@@ -1161,16 +1155,13 @@ class NonInterleavingNotificationIDsBaseCase(RecorderTestCase, ABC):
         pass
 
 
-_TInfrastrutureFactory = TypeVar(
-    "_TInfrastrutureFactory", bound=InfrastructureFactory[Any]
-)
-
-
-class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactory]):
+class InfrastructureFactoryTestCase[TFactory: InfrastructureFactory[Any]](
+    ABC, TestCase
+):
     env: Environment
 
     @abstractmethod
-    def expected_factory_class(self) -> type[_TInfrastrutureFactory]:
+    def expected_factory_class(self) -> type[TFactory]:
         pass
 
     @abstractmethod
@@ -1201,10 +1192,9 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
     def expected_process_recorder_class(self) -> type[ProcessRecorder]:
         pass
 
+    @override
     def setUp(self) -> None:
-        self.factory = cast(
-            _TInfrastrutureFactory, InfrastructureFactory.construct(self.env)
-        )
+        self.factory = cast(TFactory, InfrastructureFactory.construct(self.env))
         self.assertIsInstance(self.factory, self.expected_factory_class())
         self.transcoder = dataclasses.Transcoder()
         # self.transcoder = LegacyJSONTranscoder()
@@ -1212,6 +1202,7 @@ class InfrastructureFactoryTestCase(ABC, TestCase, Generic[_TInfrastrutureFactor
         # self.transcoder.register(DecimalAsStr())
         # self.transcoder.register(DatetimeAsISO())
 
+    @override
     def tearDown(self) -> None:
         self.factory.close()
 
@@ -1464,6 +1455,7 @@ class Mydict(dict[_KT, _VT]):  # noqa: PLW1641
     def __repr__(self) -> str:
         return f"{type(self).__name__}({super().__repr__()})"
 
+    @override
     def __eq__(self, other: object) -> bool:
         return type(self) is type(other) and super().__eq__(other)
 
@@ -1475,6 +1467,7 @@ class MyList(list[_T]):  # noqa: PLW1641
     def __repr__(self) -> str:
         return f"{type(self).__name__}({super().__repr__()})"
 
+    @override
     def __eq__(self, other: object) -> bool:
         return type(self) is type(other) and super().__eq__(other)
 
@@ -1485,6 +1478,7 @@ class MyStr(str):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({super().__repr__()})"
 
+    @override
     def __eq__(self, other: object) -> bool:
         return type(self) is type(other) and super().__eq__(other)
 
@@ -1496,6 +1490,7 @@ class MyInt(int):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({super().__repr__()})"
 
+    @override
     def __eq__(self, other: object) -> bool:
         return type(self) is type(other) and super().__eq__(other)
 
@@ -1515,9 +1510,11 @@ class CustomType1AsDict(Transcoding):
     type = CustomType1
     name = "custom_type1_as_dict"
 
+    @override
     def encode(self, obj: CustomType1) -> UUID:
         return obj.value
 
+    @override
     def decode(self, data: UUID) -> CustomType1:
         assert isinstance(data, UUID)
         return CustomType1(value=data)
@@ -1527,9 +1524,11 @@ class CustomType2AsDict(Transcoding):
     type = CustomType2
     name = "custom_type2_as_dict"
 
+    @override
     def encode(self, obj: CustomType2) -> CustomType1:
         return obj.value
 
+    @override
     def decode(self, data: CustomType1) -> CustomType2:
         assert isinstance(data, CustomType1)
         return CustomType2(data)
@@ -1537,6 +1536,7 @@ class CustomType2AsDict(Transcoding):
 
 # TODO: Rework this as a proper test for LegacyJSONTranscoder.
 class TranscoderTestCase(TestCase):
+    @override
     def setUp(self) -> None:
         self.transcoder = self.construct_transcoder()
 
@@ -1780,7 +1780,7 @@ class TranscoderTestCase(TestCase):
         )
 
 
-class TaggedEventMapperTestCase(TestCase, ABC):
+class TaggedEventMapperTestCase[TDecision](TestCase, ABC):
     transcoder_class: ClassVar[type[Transcoder[Any]]]
 
     def _test_tagged_event_mapper(self) -> None:
@@ -1849,7 +1849,7 @@ class TaggedEventMapperTestCase(TestCase, ABC):
         self.assertEqual(copy.metadata, event.metadata)
 
     @abstractmethod
-    def construct_decision(self) -> AbstractDecision:
+    def construct_decision(self) -> TDecision:
         pass
 
     def construct_mapper(
@@ -1864,7 +1864,7 @@ class TaggedEventMapperTestCase(TestCase, ABC):
         )
 
 
-class AggregateEventMapperTestCase(TestCase, ABC):
+class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
     transcoder_class: ClassVar[type[Transcoder[Any]]]
 
     def _test_aggregate_event_mapper(self) -> None:
@@ -1942,7 +1942,7 @@ class AggregateEventMapperTestCase(TestCase, ABC):
         self.assertEqual(copy.metadata, event.metadata)
 
     @abstractmethod
-    def construct_decision(self) -> AbstractDecision:
+    def construct_decision(self) -> TDecision:
         pass
 
     def construct_mapper(

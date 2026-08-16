@@ -1,6 +1,6 @@
 import unittest
 from decimal import Decimal
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 from eventsourcing.domain import AggregateEvent
@@ -10,6 +10,9 @@ from examples.shopvertical.slices.adjust_product_inventory.cmd import (
     AdjustProductInventory,
 )
 
+if TYPE_CHECKING:
+    from examples.shopvertical.common import Events
+
 
 class TestAdjustProductInventory(unittest.TestCase):
     def test_adjust_inventory(self) -> None:
@@ -18,7 +21,7 @@ class TestAdjustProductInventory(unittest.TestCase):
             product_id=product_id,
             adjustment=2,
         )
-        product_events = (
+        product_events: Events = (
             AggregateEvent(
                 decision=AddedProductToShop(
                     name="Tea",

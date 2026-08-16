@@ -1,27 +1,27 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from eventsourcing.persistence import Recorder
-from eventsourcing.pydantic import AggregatesApplication, Decision
-from eventsourcing.system import ProcessApplication
+from eventsourcing.pydantic import Decision, ProcessApplication
 from examples.contentmanagement.domainmodel import Page
 from examples.contentmanagement.utils import apply_diff
 from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
     from eventsourcing.application import ProcessingEvent
-    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.types import AggregateEventProtocol
 
 
-class FtsProcess(AggregatesApplication, ProcessApplication[Decision]):
+class FtsProcess(ProcessApplication):
     env: ClassVar[dict[str, str]] = {
         "COMPRESSOR_TOPIC": "gzip",
     }
 
+    @override
     def policy(
         self,
-        envelope: AggregateEvent[Decision],
+        envelope: AggregateEventProtocol[Decision],
         processing_event: ProcessingEvent[Decision],
     ) -> None:
         match envelope.decision:

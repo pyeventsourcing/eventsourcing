@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from eventsourcing.domain import AggregateEvent
 from examples.shopvertical.common import Command, get_events, put_events
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 class SubmitCart(Command):
     cart_id: str
 
+    @override
     def handle(self, events: Events) -> Events:
         requested_products: dict[str, int] = defaultdict(int)
         is_submitted = False
@@ -61,5 +62,6 @@ class SubmitCart(Command):
             ),
         )
 
+    @override
     def execute(self) -> int | None:
         return put_events(self.handle(get_events(self.cart_id)))

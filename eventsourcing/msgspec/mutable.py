@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 from abc import ABC
-from typing import Any, Self, TypeVar
+from typing import Any, Self, override
 
 import eventsourcing.domain
 from eventsourcing.msgspec.immutable import (
@@ -31,9 +31,6 @@ class AggregateState(Immutable):
     pass
 
 
-_T = TypeVar("_T")
-
-
 class AggregateSnapshot(Decision):
     state: Any
 
@@ -49,7 +46,8 @@ class AggregateSnapshot(Decision):
             state=snapshot_state,
         )
 
-    def mutate(self, obj: _T | None) -> _T | None:
+    @override
+    def mutate[TState](self, obj: TState | None) -> TState | None:
         """Reconstructs the snapshotted :class:`Aggregate` object."""
         assert obj is not None
         for key in type(self.state).__struct_fields__:

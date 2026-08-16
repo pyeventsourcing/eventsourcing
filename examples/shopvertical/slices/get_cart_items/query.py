@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal  # noqa:TC003
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from eventsourcing.pydantic import Immutable
 from examples.shopvertical.common import Query, get_events
@@ -55,5 +55,6 @@ class GetCartItems(Query):
                     cart_items.clear()
         return tuple(cart_items)
 
+    @override
     def execute(self) -> Sequence[CartItem]:
         return self.projection(get_events(self.cart_id))

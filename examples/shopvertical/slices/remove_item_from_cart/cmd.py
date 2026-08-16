@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from eventsourcing.domain import AggregateEvent
 from examples.shopvertical.common import Command, get_events, put_events
@@ -23,6 +23,7 @@ class RemoveItemFromCart(Command):
     cart_id: str
     product_id: str
 
+    @override
     def handle(self, events: Events) -> Events:
         product_ids: list[str] = []
         is_submitted = False
@@ -53,5 +54,6 @@ class RemoveItemFromCart(Command):
             ),
         )
 
+    @override
     def execute(self) -> int | None:
         return put_events(self.handle(get_events(self.cart_id)))

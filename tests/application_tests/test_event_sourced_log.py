@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 from unittest import TestCase
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
@@ -12,7 +12,8 @@ from eventsourcing.dataclasses.legacy import (
     LegacyJSONTranscoder,
     UUIDAsHex,
 )
-from eventsourcing.domain import Aggregate, AggregateEvent, triggers
+from eventsourcing.decorator import triggers
+from eventsourcing.domain import Aggregate
 from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,
@@ -20,6 +21,7 @@ from eventsourcing.persistence import (
 from eventsourcing.popo import POPOAggregateRecorder
 
 if TYPE_CHECKING:
+    from eventsourcing.types import AggregateEventProtocol
     from eventsourcing.utils import EnvType
 
 
@@ -116,6 +118,7 @@ class TestEventSourcedLog(TestCase):
                 self.save(aggregate, logged_id)
                 return aggregate.id
 
+            @override
             def construct_transcoder(
                 self,
             ) -> Transcoder:
@@ -165,10 +168,10 @@ class TestEventSourcedLog(TestCase):
 
         # Subclass EventSourcedLog.
         class TransactionLog(EventSourcedLog[Decision, TransactionLogEvent]):
-            def account_credited(self) -> AggregateEvent[Decision]:
+            def account_credited(self) -> AggregateEventProtocol[Decision]:
                 return self._trigger_event(logged_cls=AccountCredited)
 
-            def account_debited(self) -> AggregateEvent[Decision]:
+            def account_debited(self) -> AggregateEventProtocol[Decision]:
                 return self._trigger_event(logged_cls=AccountDebited)
 
         transaction_log = TransactionLog(

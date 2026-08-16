@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError
@@ -42,6 +42,7 @@ class TestEnrolmentWithEnduringObjects(EnrolmentTestCase):
         }
         self.assert_implementation(EnrolmentWithEnduringObjects(env=env))
 
+    @override
     def assert_implementation(self, app: EnrolmentInterface) -> None:
         super().assert_implementation(app)
 

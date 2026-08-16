@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal  # noqa: TC003
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from eventsourcing.domain import AggregateEvent
 from examples.shopvertical.common import Command, get_events, put_events
@@ -24,6 +24,7 @@ class AddItemToCart(Command):
     price: Decimal
     name: str
 
+    @override
     def handle(self, events: Events) -> Events:
         product_ids = []
         is_submitted = False
@@ -57,5 +58,6 @@ class AddItemToCart(Command):
             ),
         )
 
+    @override
     def execute(self) -> int | None:
         return put_events(self.handle(get_events(self.cart_id)))

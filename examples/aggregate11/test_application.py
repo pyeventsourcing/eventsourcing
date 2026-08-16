@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import sys
+from typing import override
 from unittest import TestCase, skipIf
 
 from examples.aggregate11.application import DogSchool
@@ -11,6 +12,7 @@ with contextlib.suppress(ImportError):
 
 
 class TestDogSchool(TestCase):
+    @override
     def setUp(self) -> None:
         self.env: dict[str, str] = {}
 

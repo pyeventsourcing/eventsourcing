@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import typing
 from abc import ABC
-from typing import Any, Self, TypeVar
+from typing import Any, Self, TypeVar, get_type_hints, override
 
 from eventsourcing import domain
 from eventsourcing.dataclasses.immutable import (
@@ -39,7 +38,7 @@ class AggregateSnapshot(Decision):
 
     @classmethod
     def take(cls, aggregate: Aggregate) -> Self:
-        type_of_snapshot_state = typing.get_type_hints(cls)["state"]
+        type_of_snapshot_state = get_type_hints(cls)["state"]
         aggregate_state = dict(aggregate.__dict__)
         aggregate_state.pop("new_decisions")
         aggregate_state.pop("id")
@@ -47,6 +46,7 @@ class AggregateSnapshot(Decision):
         snapshot_state = type_of_snapshot_state(**aggregate_state)
         return cls(state=snapshot_state)
 
+    @override
     def mutate(self, obj: _T | None) -> _T | None:
         """Reconstructs the snapshotted :class:`Aggregate` object."""
         assert obj is not None

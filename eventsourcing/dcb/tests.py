@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
+from typing import Any, override
 from unittest import TestCase
 from uuid import uuid4
 
@@ -13,7 +14,6 @@ from eventsourcing.dcb.api import (
     DcbRecorder,
     DcbSequencedEvent,
     DcbSubscription,
-    TDcbRecorder_co,
 )
 from eventsourcing.persistence import IntegrityError
 
@@ -683,7 +683,7 @@ class DcbRecorderTestCase(TestCase):
 
 
 class EnsureSubscriptionBlockAndReceive(threading.Thread):
-    def __init__(self, subscription: DcbSubscription[TDcbRecorder_co]):
+    def __init__(self, subscription: DcbSubscription[Any]):
         super().__init__()
         self.subscription = subscription
         self.has_blocked = threading.Event()
@@ -691,6 +691,7 @@ class EnsureSubscriptionBlockAndReceive(threading.Thread):
         self.received_event: DcbSequencedEvent | None = None
         self.start()
 
+    @override
     def run(self) -> None:
         self.has_blocked.set()
         self.received_event = next(self.subscription)

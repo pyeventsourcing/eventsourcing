@@ -1,5 +1,9 @@
 import eventsourcing.domain
-from eventsourcing.dataclasses.application import AggregatesApplication, DcbApplication
+from eventsourcing.dataclasses.application import (
+    AggregatesApplication,
+    DcbApplication,
+    ProcessApplication,
+)
 from eventsourcing.dataclasses.immutable import (
     Decision,
     Immutable,
@@ -33,6 +37,7 @@ __all__ = [
     "Immutable",
     "ImmutableAggregate",
     "ImmutableAggregateSnapshot",
+    "ProcessApplication",
     "Selector",
     "Slice",
     "Transcoder",

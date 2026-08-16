@@ -2,7 +2,7 @@
 Installation
 ============
 
-This version of the library is compatible with Python 3.11, 3.12, 3.13, and 3.14.
+This version of the library is compatible with Python 3.12, 3.13, 3.14, 3.15.
 
 The package depends only on modules from the Python Standard Library,
 with the exception of ``typing_extensions`` and any optional extras described below.
@@ -55,7 +55,7 @@ Example ``pyproject.toml`` configuration:
 .. code-block:: toml
 
     [project]
-    requires-python = ">=3.11"
+    requires-python = ">=3.12"
     dependencies = [
         "eventsourcing~=10.0.0",
     ]

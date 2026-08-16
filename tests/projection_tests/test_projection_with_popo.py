@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, override
 from unittest import skipIf
 
 from eventsourcing.msgspec.transcoder import Transcoder
@@ -25,18 +25,22 @@ class POPOEventCounters(POPOTrackingRecorder, EventCountersView):
         self._created_event_counter = 0
         self._subsequent_event_counter = 0
 
+    @override
     def get_student_registered_counter(self) -> int:
         return self._created_event_counter
 
+    @override
     def get_student_name_changed_counter(self) -> int:
         return self._subsequent_event_counter
 
+    @override
     def incr_student_registered_counter(self, tracking: Tracking) -> None:
         with self._database_lock:
             self._assert_tracking_uniqueness(tracking)
             self._insert_tracking(tracking)
             self._created_event_counter += 1
 
+    @override
     def incr_student_name_changed_counter(self, tracking: Tracking) -> None:
         with self._database_lock:
             self._assert_tracking_uniqueness(tracking)
@@ -45,6 +49,7 @@ class POPOEventCounters(POPOTrackingRecorder, EventCountersView):
 
 
 class TestPOPOEventCounters(EventCountersViewTestCase):
+    @override
     def construct_event_counters_view(self) -> EventCountersView:
         return POPOEventCounters()
 

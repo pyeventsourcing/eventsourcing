@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from eventsourcing.domain import event
+from eventsourcing.decorator import event
 from eventsourcing.msgspec import (
     Aggregate,
     AggregateSnapshot,

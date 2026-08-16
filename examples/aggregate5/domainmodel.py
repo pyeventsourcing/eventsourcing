@@ -4,11 +4,13 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from eventsourcing.dataclasses import Decision, Immutable
-from eventsourcing.domain import AggregateEvent, EventEnvelope
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.errors import ProgrammingError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from eventsourcing.types import AggregateEventProtocol
 
 
 class Dog(Immutable):
@@ -34,7 +36,7 @@ class Dog(Immutable):
 
     @staticmethod
     def register(name: str) -> tuple[Dog, AggregateEvent[Decision]]:
-        event = AggregateEvent(
+        event: AggregateEvent[Decision] = AggregateEvent(
             decision=Dog.Registered(
                 name=name,
             ),
@@ -50,9 +52,8 @@ class Dog(Immutable):
         return dog, event
 
     @staticmethod
-    def mutate(event: EventEnvelope[Decision], dog: Dog | None) -> Dog:
+    def mutate(event: AggregateEventProtocol[Any], dog: Dog | None) -> Dog:
         """Mutates aggregate with event."""
-        assert isinstance(event, AggregateEvent)
         match event.decision:
             case Dog.Registered(name=name):
                 return Dog(
@@ -77,7 +78,7 @@ class Dog(Immutable):
 
     @staticmethod
     def projector(
-        dog: Dog | None, events: Iterable[EventEnvelope[Decision]]
+        dog: Dog | None, events: Iterable[AggregateEventProtocol[Decision]]
     ) -> Dog | None:
         for event in events:
             dog = Dog.mutate(event, dog)

@@ -1,3 +1,5 @@
+from typing import override
+
 from eventsourcing.persistence import ApplicationRecorder
 from eventsourcing.popo import POPOApplicationRecorder
 from eventsourcing.postgres import PostgresApplicationRecorder, PostgresDatastore
@@ -12,6 +14,7 @@ from eventsourcing.tests.postgres_utils import drop_tables
 class TestNonInterleavingPOPO(NonInterleavingNotificationIDsBaseCase):
     insert_num = 10000
 
+    @override
     def create_recorder(self) -> ApplicationRecorder:
         return POPOApplicationRecorder()
 
@@ -19,6 +22,7 @@ class TestNonInterleavingPOPO(NonInterleavingNotificationIDsBaseCase):
 class TestNonInterleavingSQLiteInMemory(NonInterleavingNotificationIDsBaseCase):
     insert_num = 10000
 
+    @override
     def create_recorder(self) -> ApplicationRecorder:
         recorder = SQLiteApplicationRecorder(
             SQLiteDatastore(db_name="file::memory:?cache=shared")
@@ -30,6 +34,7 @@ class TestNonInterleavingSQLiteInMemory(NonInterleavingNotificationIDsBaseCase):
 class TestNonInterleavingSQLiteFileDB(NonInterleavingNotificationIDsBaseCase):
     insert_num = 10000
 
+    @override
     def create_recorder(self) -> ApplicationRecorder:
         self.uris = tmpfile_uris()
         self.db_uri = next(self.uris)
@@ -42,6 +47,7 @@ class TestNonInterleavingSQLiteFileDB(NonInterleavingNotificationIDsBaseCase):
 class TestNonInterleavingPostgres(NonInterleavingNotificationIDsBaseCase):
     insert_num = 100
 
+    @override
     def setUp(self) -> None:
         drop_tables()
         self.datastore = PostgresDatastore(
@@ -52,10 +58,12 @@ class TestNonInterleavingPostgres(NonInterleavingNotificationIDsBaseCase):
             "eventsourcing",
         )
 
+    @override
     def tearDown(self) -> None:
         self.datastore.close()
         drop_tables()
 
+    @override
     def create_recorder(self) -> ApplicationRecorder:
         self.uris = tmpfile_uris()
         self.db_uri = next(self.uris)

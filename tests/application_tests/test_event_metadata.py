@@ -4,6 +4,8 @@ from uuid import uuid4
 from eventsourcing.dataclasses import Decision
 from eventsourcing.domain import (
     AggregateEvent,
+)
+from eventsourcing.metadata import (
     null_metadata_in_context,
     put_metadata_in_context,
 )

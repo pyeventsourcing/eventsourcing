@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Self
+from typing import Any, Self, override
 
 from pydantic import BaseModel, ConfigDict
 
@@ -11,7 +11,8 @@ class Immutable(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-class Decision(Immutable, eventsourcing.domain.AbstractDecision):
+class Decision(Immutable, eventsourcing.domain.Decision):
+    @override
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
 

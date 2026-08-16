@@ -1,13 +1,14 @@
 from collections.abc import Sequence
+from typing import cast, override
 from unittest import TestCase
 
 from eventsourcing.dataclasses import Decision, EnduringObject
+from eventsourcing.decorator import triggers
 from eventsourcing.domain import (
     Group,
     Selector,
     Slice,
     TaggedEvent,
-    triggers,
 )
 from eventsourcing.errors import ProgrammingError
 
@@ -49,10 +50,10 @@ class TestEnduringObject(TestCase):
         event = pending[0]
         self.assertIsInstance(event, TaggedEvent)
         self.assertIsInstance(event.decision, ObjCreated)
-        self.assertEqual(event.decision.obj_id, "blah")
+        self.assertEqual(cast(ObjCreated, event.decision).obj_id, "blah")
 
         copy: Obj | None = Obj.__new__(Obj)
-        copy = event.mutate(copy)
+        copy = cast(TaggedEvent[Decision], event).mutate(copy)
         assert copy is not None
         self.assertEqual(copy.id, "blah")
 
@@ -85,11 +86,11 @@ class TestEnduringObject(TestCase):
         event = pending[1]
         self.assertIsInstance(event, TaggedEvent)
         self.assertIsInstance(event.decision, ObjUpdated)
-        self.assertEqual(event.decision.a, "a")
+        self.assertEqual(cast(ObjUpdated, event.decision).a, "a")
 
         copy: Obj | None = Obj.__new__(Obj)
-        copy = pending[0].mutate(copy)
-        copy = pending[1].mutate(copy)
+        copy = cast(TaggedEvent[Decision], pending[0]).mutate(copy)
+        copy = cast(TaggedEvent[Decision], pending[1]).mutate(copy)
         assert copy is not None
         self.assertEqual(copy.id, "blah")
         self.assertEqual(my_obj.a, "a")
@@ -163,7 +164,7 @@ class TestGroup(TestCase):
 
         copy1: Obj1 | None = Obj1.__new__(Obj1)
         for event in list(new1) + list(new_both):
-            copy1 = event.mutate(copy1)
+            copy1 = cast(TaggedEvent[Decision], event).mutate(copy1)
 
         self.assertIsInstance(copy1, Obj1)
         assert isinstance(copy1, Obj1)  # for mypy
@@ -171,7 +172,7 @@ class TestGroup(TestCase):
 
         copy2: Obj2 | None = Obj2.__new__(Obj2)
         for event in list(new2) + list(new_both):
-            copy2 = event.mutate(copy2)
+            copy2 = cast(TaggedEvent[Decision], event).mutate(copy2)
 
         self.assertIsInstance(copy2, Obj2)
         assert isinstance(copy2, Obj2)  # for mypy
@@ -191,11 +192,13 @@ class TestSlice(TestCase):
                 self.obj_id = obj_id
                 self.a = a
 
+            @override
             def consistency_boundary(
                 self,
             ) -> Selector[Decision] | Sequence[Selector[Decision]]:
                 return Selector(types=[Created], tags=[self.obj_id])
 
+            @override
             def execute(self) -> None:
                 self.trigger_event(
                     Created,
@@ -209,6 +212,7 @@ class TestSlice(TestCase):
                 self.a = ""
                 self.new_a = a
 
+            @override
             def consistency_boundary(
                 self,
             ) -> Selector[Decision] | Sequence[Selector[Decision]]:
@@ -222,6 +226,7 @@ class TestSlice(TestCase):
             def _(self, a: str) -> None:
                 self.a = a
 
+            @override
             def execute(self) -> None:
                 self.trigger_event(
                     Updated,
@@ -236,7 +241,7 @@ class TestSlice(TestCase):
 
         update = Update(obj_id=obj_id, a="2")
         for event in new:
-            event.mutate(update)
+            cast(TaggedEvent[Decision], event).mutate(update)
 
         self.assertEqual("1", update.a)
         self.assertEqual("2", update.new_a)
@@ -248,7 +253,7 @@ class TestSlice(TestCase):
         new = update.collect_events()
 
         for event in new:
-            event.mutate(update)
+            cast(TaggedEvent[Decision], event).mutate(update)
 
         self.assertEqual("2", update.a)
         self.assertEqual("2", update.new_a)
@@ -282,6 +287,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
                 self.a = ""
                 self.new_a = a
 
+            @override
             def consistency_boundary(
                 self,
             ) -> Selector[Decision] | Sequence[Selector[Decision]]:
@@ -297,6 +303,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
             def _(self, a: str) -> None:
                 self.a = a
 
+            @override
             def execute(self) -> None:
                 self.trigger_event(
                     MyObject.Updated,
@@ -316,7 +323,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         # Construct a slice and update "a".
         update = Update(obj.id, a="3")
         for event in new:
-            event.mutate(update)
+            cast(TaggedEvent[Decision], event).mutate(update)
         update.execute()
         self.assertEqual("3", update.a)
         new.extend(update.collect_events())
@@ -324,7 +331,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         # Reconstruct enduring object from all new events.
         copy1: MyObject | None = MyObject.__new__(MyObject)
         for event in new:
-            copy1 = event.mutate(copy1)
+            copy1 = cast(TaggedEvent[Decision], event).mutate(copy1)
 
         self.assertIsInstance(copy1, MyObject)
         assert isinstance(copy1, MyObject)  # for mypy
@@ -336,11 +343,13 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
                 self.obj_id = obj_id
                 self.a = a
 
+            @override
             def consistency_boundary(
                 self,
             ) -> Selector[Decision] | Sequence[Selector[Decision]]:
                 return Selector(types=[MyObject.Created], tags=[self.obj_id])
 
+            @override
             def execute(self) -> None:
                 self.trigger_event(
                     MyObject.Created,
@@ -355,7 +364,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
 
         copy2: MyObject | None = MyObject.__new__(MyObject)
         for event in new:
-            copy2 = event.mutate(copy2)
+            copy2 = cast(TaggedEvent[Decision], event).mutate(copy2)
 
         self.assertIsInstance(copy2, MyObject)
         assert isinstance(copy2, MyObject)  # for mypy

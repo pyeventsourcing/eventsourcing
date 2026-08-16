@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import unittest
-from typing import ClassVar
+from typing import ClassVar, override
 from uuid import uuid4
 
-from eventsourcing.domain import put_metadata_in_context
+from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.postgres import PostgresDatastore
 from eventsourcing.projection import ProjectionRunner
 from eventsourcing.tests.postgres_utils import drop_tables
@@ -120,10 +120,12 @@ class TestFtsProjection(unittest.TestCase):
         self.assertEqual(pages[0].slug, "minerals")
         self.assertEqual(pages[0].body, "iron zinc calcium")
 
+    @override
     def setUp(self) -> None:
         drop_tables()
         super().setUp()
 
+    @override
     def tearDown(self) -> None:
         super().tearDown()
         drop_tables()

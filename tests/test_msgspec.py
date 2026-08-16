@@ -1,8 +1,8 @@
 from copy import deepcopy
 from threading import Thread
+from typing import override
 from unittest import TestCase
 
-import eventsourcing.domain
 from eventsourcing.msgspec.immutable import Decision
 from eventsourcing.msgspec.transcoder import Transcoder
 from eventsourcing.tests.persistence import (
@@ -34,21 +34,25 @@ class TestDecision(TestCase):
         t.join()
 
 
-class TestTaggedEventMapperWithMsgspecTranscoder(TaggedEventMapperTestCase):
+class TestTaggedEventMapperWithMsgspecTranscoder(TaggedEventMapperTestCase[Decision]):
     transcoder_class = Transcoder
 
     def test_tagged_event_mapper(self) -> None:
         super()._test_tagged_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
+    @override
+    def construct_decision(self) -> Decision:
         return MyMsgspecDecision(a="1")
 
 
-class TestMsgspecTranscoderWithAggregateEventMapper(AggregateEventMapperTestCase):
+class TestMsgspecTranscoderWithAggregateEventMapper(
+    AggregateEventMapperTestCase[Decision]
+):
     transcoder_class = Transcoder
 
     def test_aggregate_event_mapper(self) -> None:
         super()._test_aggregate_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
+    @override
+    def construct_decision(self) -> Decision:
         return MyMsgspecDecision(a="1")

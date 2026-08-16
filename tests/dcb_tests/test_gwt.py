@@ -1,8 +1,10 @@
+from typing import override
 from unittest import TestCase
 
 from eventsourcing.dataclasses import Decision, Selector, Slice
 from eventsourcing.dcb.gwt import given, when
-from eventsourcing.domain import TaggedEvent, triggers
+from eventsourcing.decorator import triggers
+from eventsourcing.domain import TaggedEvent
 
 
 class TestGivenWhenThen(TestCase):
@@ -15,9 +17,11 @@ class TestGivenWhenThen(TestCase):
                 self.obj_id = obj_id
                 self.executed = False
 
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector(types=[MyDecision], tags=[self.obj_id])
 
+            @override
             def execute(self) -> None:
                 self.trigger_event(MyDecision)
                 self.executed = True
@@ -43,9 +47,11 @@ class TestGivenWhenThen(TestCase):
             pass
 
         class MySlice(Slice):
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector(types=[MyDecision], tags=["123"])
 
+            @override
             def execute(self) -> None:
                 pass
 
@@ -66,9 +72,11 @@ class TestGivenWhenThen(TestCase):
             pass
 
         class MySlice(Slice):
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector(types=[MyDecision])
 
+            @override
             def execute(self) -> None:
                 self.trigger_event(MyDecision)
 
@@ -82,9 +90,11 @@ class TestGivenWhenThen(TestCase):
             pass
 
         class MySlice(Slice):
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector(types=[MyDecision])
 
+            @override
             def execute(self) -> None:
                 self.trigger_event(MyDecision)
                 self.trigger_event(MyDecision)
@@ -105,9 +115,11 @@ class TestGivenWhenThen(TestCase):
             pass
 
         class MySlice(Slice):
+            @override
             def consistency_boundary(self) -> list[Selector]:
                 return [Selector(types=[Decision1]), Selector(types=[Decision2])]
 
+            @override
             def execute(self) -> None:
                 pass
 
@@ -132,10 +144,12 @@ class TestGivenWhenThen(TestCase):
             pass
 
         class MySlice(Slice):
+            @override
             def consistency_boundary(self) -> Selector:
                 # Empty selector matches everything
                 return Selector()
 
+            @override
             def execute(self) -> None:
                 pass
 
@@ -152,6 +166,7 @@ class TestGivenWhenThen(TestCase):
                 self.obj_id = obj_id
                 self.total = 0
 
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector(types=[MyDecision], tags=[self.obj_id])
 
@@ -159,6 +174,7 @@ class TestGivenWhenThen(TestCase):
             def apply_decision(self, value: int) -> None:
                 self.total += value
 
+            @override
             def execute(self) -> None:
                 if self.total > 10:
                     self.trigger_event(MyDecision, obj_id=self.obj_id, value=100)
@@ -177,9 +193,11 @@ class TestGivenWhenThen(TestCase):
             pass
 
         class MySlice(Slice):
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector()
 
+            @override
             def execute(self) -> None:
                 self.trigger_event(MyDecision, ["tag1"])
 
@@ -214,9 +232,11 @@ class TestWhenGivenThen(TestCase):
                 self.obj_id = obj_id
                 self.executed = False
 
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector(types=[MyDecision], tags=[self.obj_id])
 
+            @override
             def execute(self) -> None:
                 self.trigger_event(MyDecision)
                 self.executed = True
@@ -235,9 +255,11 @@ class TestWhenGivenThen(TestCase):
             pass
 
         class MySlice(Slice):
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector(types=[MyDecision])
 
+            @override
             def execute(self) -> None:
                 pass
 
@@ -249,9 +271,11 @@ class TestWhenGivenThen(TestCase):
             pass
 
         class MySlice(Slice):
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector(types=[MyDecision], tags=["123"])
 
+            @override
             def execute(self) -> None:
                 pass
 
@@ -271,6 +295,7 @@ class TestWhenGivenThen(TestCase):
                 self.obj_id = obj_id
                 self.total = 0
 
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector(types=[MyDecision], tags=[self.obj_id])
 
@@ -278,6 +303,7 @@ class TestWhenGivenThen(TestCase):
             def apply_decision(self, value: int) -> None:
                 self.total += value
 
+            @override
             def execute(self) -> None:
                 if self.total > 10:
                     self.trigger_event(MyDecision, obj_id=self.obj_id, value=100)
@@ -297,9 +323,11 @@ class TestWhenGivenThen(TestCase):
             pass
 
         class MySlice(Slice):
+            @override
             def consistency_boundary(self) -> Selector:
                 return Selector(types=[MyDecision])
 
+            @override
             def execute(self) -> None:
                 self.trigger_event(MyDecision)
 

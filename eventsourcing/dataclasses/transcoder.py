@@ -4,7 +4,7 @@ import dataclasses
 import json
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, override
 from uuid import UUID
 
 import eventsourcing.persistence
@@ -20,9 +20,11 @@ class Transcoder(eventsourcing.persistence.Transcoder[Decision]):
         )
         self.decoder = json.JSONDecoder()
 
+    @override
     def encode(self, decision: Decision) -> bytes:
         return self.encoder.encode(decision).encode("utf8")
 
+    @override
     def decode(self, data: bytes, decision_class: type[Decision]) -> Decision:
         return decision_class(**(json.loads(data)))
 

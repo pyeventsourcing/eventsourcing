@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from decimal import Decimal  # noqa: TC003
+from typing import override
 
-from eventsourcing.domain import event
+from eventsourcing.decorator import event
 from eventsourcing.pydantic import Aggregate, Decision, Immutable
 from examples.shopstandard.exceptions import (
     CartAlreadySubmittedError,
@@ -40,6 +41,7 @@ class Product(Aggregate):
         self.inventory = 0
 
     @staticmethod
+    @override
     def create_id(product_id: str) -> str:
         return product_id
 
@@ -86,6 +88,7 @@ class Cart(Aggregate):
         self.is_submitted = False
 
     @staticmethod
+    @override
     def create_id(cart_id: str) -> str:
         return cart_id
 

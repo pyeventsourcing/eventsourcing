@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, override
 
 from psycopg.sql import SQL, Identifier
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from psycopg import Cursor
     from psycopg.rows import DictRow
 
-    from eventsourcing.persistence import ApplicationRecorder, StoredEvent
+    from eventsourcing.persistence import StoredEvent
 
 
 class SearchableTimestampsApplicationRecorder(
@@ -66,6 +66,7 @@ class SearchableTimestampsApplicationRecorder(
             Identifier(self.event_timestamps_table_name),
         )
 
+    @override
     def _insert_events(
         self,
         curs: Cursor[DictRow],
@@ -85,6 +86,7 @@ class SearchableTimestampsApplicationRecorder(
             )
         super()._insert_events(curs, stored_events, **kwargs)
 
+    @override
     def get_version_at_timestamp(
         self, originator_id: str, timestamp: datetime
     ) -> int | None:
@@ -100,7 +102,8 @@ class SearchableTimestampsApplicationRecorder(
 
 
 class SearchableTimestampsInfrastructureFactory(PostgresFactory):
-    def application_recorder(self) -> ApplicationRecorder:
+    @override
+    def application_recorder(self) -> PostgresApplicationRecorder:
         prefix = self.env.name.lower() or "stored"
         events_table_name = prefix + "_events"
         event_timestamps_table_name = prefix + "_timestamps"

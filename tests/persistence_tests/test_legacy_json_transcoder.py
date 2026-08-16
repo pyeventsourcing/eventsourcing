@@ -40,7 +40,7 @@ class TestDataclassMapper(TestCase):
         compressor = ZlibCompressor()
 
         # Create a domain event.
-        domain_event = AggregateEvent(
+        domain_event = AggregateEvent[Decision](
             decision=BankAccountWithDataclasses.TransactionAppended(
                 amount=Decimal("10.00"),
             ),
@@ -63,7 +63,7 @@ class TestDataclassMapper(TestCase):
         self.assertEqual(copy.originator_version, domain_event.originator_version)
         # TODO: Timestamps...
         # self.assertEqual(copy.timestamp, domain_event.timestamp)
-        self.assertEqual(copy.decision.amount, domain_event.decision.amount)
+        # self.assertEqual(copy.decision.amount, domain_event.decision.amount)
         self.assertEqual(copy, domain_event)
 
         # Construct mapper with less capable transcoder.

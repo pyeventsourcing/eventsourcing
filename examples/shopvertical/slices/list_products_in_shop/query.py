@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal  # noqa:TC003
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from eventsourcing.pydantic import Immutable
 from eventsourcing.utils import get_topic
@@ -51,6 +51,7 @@ class ListProductsInShop(Query):
                     )
         return tuple(products.values())
 
+    @override
     def execute(self) -> Sequence[ProductDetails]:
         # TODO: Make this a materialised view.
         return self.projection(

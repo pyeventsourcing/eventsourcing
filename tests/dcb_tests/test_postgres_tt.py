@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from time import sleep
+from typing import override
 from unittest import TestCase
 from uuid import uuid4
 
@@ -90,6 +91,7 @@ class TestPostgresDcbRecorderTT(DcbRecorderTestCase, WithPostgres):
 
 
 class TestPostgresTTDcbFactory(TestCase):
+    @override
     def tearDown(self) -> None:
         drop_tables()
 

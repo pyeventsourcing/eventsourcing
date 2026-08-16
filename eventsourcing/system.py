@@ -8,21 +8,17 @@ from collections import defaultdict
 from collections.abc import Sequence
 from queue import Full, Queue
 from types import FrameType, ModuleType
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast, override
 
 from eventsourcing.application import (
     AggregatesApplication,
     NotificationLog,
     Section,
-    TAggregatesApplication,
-)
-from eventsourcing.domain import (
-    AggregateEvent,
-    CollectEventsProtocol,
     TDecision,
-    null_metadata_in_context,
+    TRecorder,
 )
 from eventsourcing.errors import ProgrammingError
+from eventsourcing.metadata import null_metadata_in_context
 from eventsourcing.persistence import (
     Mapper,
     Notification,
@@ -31,6 +27,7 @@ from eventsourcing.persistence import (
     Tracking,
 )
 from eventsourcing.projection import EventSourcedProjection
+from eventsourcing.types import AggregateEventProtocol, EventCollectorProtocol
 from eventsourcing.utils import EnvType, get_topic, resolve_topic
 
 if TYPE_CHECKING:
@@ -39,10 +36,10 @@ if TYPE_CHECKING:
     from typing import Self
 
 
-ProcessingJob = tuple[AggregateEvent[TDecision], Tracking]
+type ProcessingJob[TDecision] = tuple[AggregateEventProtocol[TDecision], Tracking]
 
 
-class RecordingEvent(Generic[TDecision]):
+class RecordingEvent[TDecision]:
     def __init__(
         self,
         context_name: str,
@@ -54,12 +51,12 @@ class RecordingEvent(Generic[TDecision]):
         self.previous_max_notification_id = previous_max_notification_id
 
 
-ConvertingJob = RecordingEvent[TDecision] | Sequence[Notification] | None
+type ConvertingJob[TDecision] = RecordingEvent[TDecision] | Sequence[
+    Notification
+] | None
 
 
-class Follower(
-    EventSourcedProjection[TDecision, ProcessRecorder, AggregateEvent[TDecision]]
-):
+class Follower[TDecision](EventSourcedProjection[TDecision]):
     """Extends the :class:`~eventsourcing.projection.EventSourcedProjection` class
     by pulling notification objects from its notification log readers, by converting
     the notification objects to domain events and tracking objects and by processing
@@ -110,8 +107,11 @@ class Follower(
             ):
                 self.process_event(domain_event, tracking)
 
+    @override
     def process_event(
-        self, envelope: AggregateEvent[TDecision], tracking: Tracking
+        self,
+        envelope: AggregateEventProtocol[TDecision],
+        tracking: Tracking,
     ) -> None:
         with self.processing_lock:
             super().process_event(envelope, tracking)
@@ -162,7 +162,7 @@ class Follower(
         return processing_jobs
 
 
-class RecordingEventReceiver(ABC, Generic[TDecision]):
+class RecordingEventReceiver[TDecision](ABC):
     """Abstract base class for objects that may receive recording events."""
 
     @abstractmethod
@@ -172,7 +172,10 @@ class RecordingEventReceiver(ABC, Generic[TDecision]):
         """Receives a recording event."""
 
 
-class Leader(AggregatesApplication[TDecision]):
+class Leader(
+    AggregatesApplication[TDecision, TRecorder],
+    Generic[TDecision, TRecorder],  # noqa: UP046
+):
     """Extends the :class:`~eventsourcing.application.Application`
     class by also being responsible for keeping track of
     followers, and prompting followers when there are new
@@ -188,15 +191,19 @@ class Leader(AggregatesApplication[TDecision]):
         """Adds given follower to a list of followers."""
         self.followers.append(follower)
 
+    @override
     def save(
         self,
-        *objs: CollectEventsProtocol[TDecision] | AggregateEvent[TDecision] | None,
+        *objs: EventCollectorProtocol[AggregateEventProtocol[TDecision]]
+        | AggregateEventProtocol[TDecision]
+        | None,
         **kwargs: Any,
     ) -> list[Recording[TDecision]]:
         if self.previous_max_notification_id is None:
             self.previous_max_notification_id = self.recorder.max_notification_id()
         return super().save(*objs, **kwargs)
 
+    @override
     def _notify(self, recordings: list[Recording[TDecision]]) -> None:
         """Calls :func:`receive_recording_event` on each follower
         whenever new events have just been saved.
@@ -217,7 +224,9 @@ class Leader(AggregatesApplication[TDecision]):
                 follower.receive_recording_event(recording_event)
 
 
-class ProcessApplication(Follower[TDecision], Leader[TDecision]):
+class ProcessApplication[TDecision](
+    Follower[TDecision], Leader[TDecision, ProcessRecorder]
+):
     """Base class for event processing applications
     that are both "leaders" and followers".
     """
@@ -230,7 +239,7 @@ class System:
 
     def __init__(
         self,
-        pipes: Iterable[Iterable[type[AggregatesApplication[Any]]]],
+        pipes: Iterable[Iterable[type[AggregatesApplication[Any, Any]]]],
     ):
         # Remember the caller frame's module, so that we might identify a topic.
         caller_frame = cast(FrameType, inspect.currentframe()).f_back
@@ -333,7 +342,7 @@ class System:
         return topic
 
 
-class Runner(ABC, Generic[TDecision]):
+class Runner[TDecision](ABC):
     """Abstract base class for system runners."""
 
     def __init__(self, system: System, env: EnvType | None = None):
@@ -353,7 +362,7 @@ class Runner(ABC, Generic[TDecision]):
         """Stops the runner."""
 
     @abstractmethod
-    def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
+    def get[T: AggregatesApplication[Any, Any]](self, cls: type[T]) -> T:
         """Returns an application instance for given application class."""
 
     def __enter__(self) -> Self:
@@ -385,13 +394,15 @@ class EventProcessingError(Exception):
     """Raised when event processing fails."""
 
 
-class SingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision]):
+class SingleThreadedRunner[TDecision](
+    Runner[TDecision], RecordingEventReceiver[TDecision]
+):
     """Runs a :class:`System` in a single thread."""
 
     def __init__(self, system: System, env: EnvType | None = None):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, AggregatesApplication[TDecision]] = {}
+        self.apps: dict[str, AggregatesApplication[TDecision, Any]] = {}
         self._recording_events_received: list[RecordingEvent[TDecision]] = []
         self._prompted_names_lock = threading.Lock()
         self._prompted_names: set[str] = set()
@@ -411,6 +422,7 @@ class SingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision])
             single = self.system.get_app_cls(name)(env=self.env)
             self.apps[name] = single
 
+    @override
     def start(self) -> None:
         """Starts the runner. The applications mentioned in the system definition
         are constructed. The followers are set up to follow the applications
@@ -435,6 +447,7 @@ class SingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision])
             assert isinstance(leader, Leader)
             leader.lead(self)
 
+    @override
     def receive_recording_event(
         self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
@@ -470,24 +483,28 @@ class SingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision])
             finally:
                 self._processing_lock.release()
 
+    @override
     def stop(self) -> None:
         for app in self.apps.values():
             app.close()
         self.apps.clear()
 
-    def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
+    @override
+    def get[T: AggregatesApplication[Any, Any]](self, cls: type[T]) -> T:
         app = self.apps[cls.context_name]
         assert isinstance(app, cls)
         return app
 
 
-class NewSingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision]):
+class NewSingleThreadedRunner[TDecision](
+    Runner[TDecision], RecordingEventReceiver[TDecision]
+):
     """Runs a :class:`System` in a single thread."""
 
     def __init__(self, system: System, env: EnvType | None = None):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, AggregatesApplication[Any]] = {}
+        self.apps: dict[str, AggregatesApplication[Any, Any]] = {}
         self._recording_events_received: list[RecordingEvent[TDecision]] = []
         self._recording_events_received_lock = threading.Lock()
         self._processing_lock = threading.Lock()
@@ -507,6 +524,7 @@ class NewSingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecisio
             single = self.system.get_app_cls(name)(env=self.env)
             self.apps[name] = single
 
+    @override
     def start(self) -> None:
         """Starts the runner.
         The applications are constructed, and setup to lead and follow
@@ -534,6 +552,7 @@ class NewSingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecisio
             assert isinstance(leader, Leader)
             leader.lead(self)
 
+    @override
     def receive_recording_event(
         self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
@@ -612,18 +631,20 @@ class NewSingleThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecisio
             finally:
                 self._processing_lock.release()
 
+    @override
     def stop(self) -> None:
         for app in self.apps.values():
             app.close()
         self.apps.clear()
 
-    def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
+    @override
+    def get[T: AggregatesApplication[Any, Any]](self, cls: type[T]) -> T:
         app = self.apps[cls.context_name]
         assert isinstance(app, cls)
         return app
 
 
-class MultiThreadedRunner(Runner[TDecision]):
+class MultiThreadedRunner[TDecision](Runner[TDecision]):
     """Runs a :class:`System` with one :class:`MultiThreadedRunnerThread`
     for each :class:`Follower` in the system definition.
     """
@@ -631,7 +652,7 @@ class MultiThreadedRunner(Runner[TDecision]):
     def __init__(self, system: System, env: EnvType | None = None):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, AggregatesApplication[Any]] = {}
+        self.apps: dict[str, AggregatesApplication[Any, Any]] = {}
         self.threads: dict[str, MultiThreadedRunnerThread[TDecision]] = {}
         self.has_errored = threading.Event()
 
@@ -654,6 +675,7 @@ class MultiThreadedRunner(Runner[TDecision]):
             single = self.system.get_app_cls(name)(env=self.env)
             self.apps[name] = single
 
+    @override
     def start(self) -> None:
         """Starts the runner.
         A multi-threaded runner thread is started for each
@@ -695,6 +717,7 @@ class MultiThreadedRunner(Runner[TDecision]):
             self.stop()
         return self.has_errored.is_set()
 
+    @override
     def stop(self) -> None:
         threads = self.threads.values()
         for thread in threads:
@@ -711,13 +734,16 @@ class MultiThreadedRunner(Runner[TDecision]):
             if thread.error:
                 raise thread.error
 
-    def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
+    @override
+    def get[T: AggregatesApplication[Any, Any]](self, cls: type[T]) -> T:
         app = self.apps[cls.context_name]
         assert isinstance(app, cls)
         return app
 
 
-class MultiThreadedRunnerThread(RecordingEventReceiver[TDecision], threading.Thread):
+class MultiThreadedRunnerThread[TDecision](
+    RecordingEventReceiver[TDecision], threading.Thread
+):
     """Runs one :class:`~eventsourcing.system.Follower` application in
     a :class:`~eventsourcing.system.MultiThreadedRunner`.
     """
@@ -738,6 +764,7 @@ class MultiThreadedRunnerThread(RecordingEventReceiver[TDecision], threading.Thr
         self.prompted_names_lock = threading.Lock()
         self.is_running = threading.Event()
 
+    @override
     def run(self) -> None:
         """Loops forever until stopped. The loop blocks on waiting
         for the 'is_prompted' event to be set, then calls
@@ -761,6 +788,7 @@ class MultiThreadedRunnerThread(RecordingEventReceiver[TDecision], threading.Thr
             self.error.__cause__ = e
             self.has_errored.set()
 
+    @override
     def receive_recording_event(
         self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
@@ -778,7 +806,9 @@ class MultiThreadedRunnerThread(RecordingEventReceiver[TDecision], threading.Thr
         self.is_prompted.set()
 
 
-class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision]):
+class NewMultiThreadedRunner[TDecision](
+    Runner[TDecision], RecordingEventReceiver[TDecision]
+):
     """Runs a :class:`System` with multiple threads in a new way."""
 
     QUEUE_MAX_SIZE: int = 0
@@ -790,7 +820,7 @@ class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision
     ):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, AggregatesApplication[TDecision]] = {}
+        self.apps: dict[str, AggregatesApplication[TDecision, Any]] = {}
         self.pulling_threads: dict[str, list[PullingThread[TDecision]]] = {}
         self.processing_queues: dict[
             str, Queue[list[ProcessingJob[TDecision]] | None]
@@ -821,6 +851,7 @@ class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision
             single = self.system.get_app_cls(name)(env=self.env)
             self.apps[name] = single
 
+    @override
     def start(self) -> None:
         """Starts the runner.
 
@@ -901,6 +932,7 @@ class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision
             self.stop()
         return self.has_errored.is_set()
 
+    @override
     def stop(self) -> None:
         for thread in self.all_threads:
             thread.stop()
@@ -916,11 +948,13 @@ class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision
             if thread.error:
                 raise thread.error
 
-    def get(self, cls: type[TAggregatesApplication]) -> TAggregatesApplication:
+    @override
+    def get[T: AggregatesApplication[Any, Any]](self, cls: type[T]) -> T:
         app = self.apps[cls.context_name]
         assert isinstance(app, cls)
         return app
 
+    @override
     def receive_recording_event(
         self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:
@@ -928,7 +962,7 @@ class NewMultiThreadedRunner(Runner[TDecision], RecordingEventReceiver[TDecision
             pulling_thread.receive_recording_event(new_recording_event)
 
 
-class PullingThread(threading.Thread, Generic[TDecision]):
+class PullingThread[TDecision](threading.Thread):
     """Receives or pulls notifications from the given leader, and
     puts them on a queue for conversion into processing jobs.
     """
@@ -958,6 +992,7 @@ class PullingThread(threading.Thread, Generic[TDecision]):
             context_name=self.leader_name
         )
 
+    @override
     def run(self) -> None:
         self.has_started.set()
         try:
@@ -1014,7 +1049,7 @@ class PullingThread(threading.Thread, Generic[TDecision]):
         self.recording_event_queue.put(None)
 
 
-class ConvertingThread(threading.Thread, Generic[TDecision]):
+class ConvertingThread[TDecision](threading.Thread):
     """Converts notifications into processing jobs."""
 
     def __init__(
@@ -1038,6 +1073,7 @@ class ConvertingThread(threading.Thread, Generic[TDecision]):
         self.has_started = threading.Event()
         self.mapper = self.follower.mappers[self.leader_name]
 
+    @override
     def run(self) -> None:
         self.has_started.set()
         try:
@@ -1083,7 +1119,7 @@ class ConvertingThread(threading.Thread, Generic[TDecision]):
         self.converting_queue.put(None)
 
 
-class ProcessingThread(threading.Thread, Generic[TDecision]):
+class ProcessingThread[TDecision](threading.Thread):
     """A processing thread gets events from a processing queue, and
     calls the application's process_event() method.
     """
@@ -1104,6 +1140,7 @@ class ProcessingThread(threading.Thread, Generic[TDecision]):
         self.is_stopping = threading.Event()
         self.has_started = threading.Event()
 
+    @override
     def run(self) -> None:
         self.has_started.set()
         try:

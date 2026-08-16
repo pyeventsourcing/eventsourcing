@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Self
 
 from eventsourcing.dataclasses import Aggregate, Decision
-from eventsourcing.domain import triggers
+from eventsourcing.decorator import triggers
 
 
 @dataclass

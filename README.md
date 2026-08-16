@@ -92,7 +92,8 @@ Let's start by writing an enduring object that supports registering a dog with a
 adding tricks, and reconstructing current state from the history of events.
 
 ```python
-from eventsourcing.domain import event
+
+from eventsourcing.decorator import event
 from eventsourcing.pydantic import EnduringObject
 
 
@@ -271,13 +272,13 @@ and provides a `do()` method especially for vertical slices.
 ```python
 class DogSchoolWithSlices(DcbApplication):
     def register_dog(self, name: str) -> str:
-        return self.do(RegisterDog(name=name)).dog_id
+        return self.execute(RegisterDog(name=name)).dog_id
 
     def add_trick(self, dog_id: str, trick: str) -> None:
-        self.do(AddTrick(dog_id=dog_id, trick=trick))
+        self.execute(AddTrick(dog_id=dog_id, trick=trick))
 
     def get_dog(self, dog_id: str) -> DogSummary:
-        dog = self.do(DogView(dog_id))
+        dog = self.execute(DogView(dog_id))
         return {'name': dog.name, 'tricks': tuple(dog.tricks)}
 ```
 
@@ -294,7 +295,7 @@ slices, and vice versa.
 from datetime import datetime
 from uuid import UUID
 
-from eventsourcing.domain import put_metadata_in_context
+from eventsourcing.metadata import put_metadata_in_context
 
 
 def test_dog_school(
@@ -313,7 +314,6 @@ def test_dog_school(
     # Context attributes become event metadata.
     context_attributes = {"user_id": "user-123"}
     with put_metadata_in_context(context_attributes):
-
         # Evolve application state.
         dog_id = app.register_dog('Fido')
         app.add_trick(dog_id, 'roll over')
@@ -352,7 +352,7 @@ def test_dog_school(
 
     # Print duration.
     duration = (datetime.now() - started).total_seconds()
-    print(f"Duration: {(duration*1000):.2f}ms")
+    print(f"Duration: {(duration * 1000):.2f}ms")
     print()
 ```
 

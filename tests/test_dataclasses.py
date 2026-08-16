@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 from datetime import date, datetime
+from typing import override
 from uuid import UUID, uuid4
 
-import eventsourcing.domain
 from eventsourcing.dataclasses import Decision, Transcoder
-from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.tests.persistence import (
     AggregateEventMapperTestCase,
     TaggedEventMapperTestCase,
 )
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 
 
 @dataclass
@@ -26,13 +26,14 @@ class MyDataclassDecision(Decision):
     x: CustomType
 
 
-class TestDataclassTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase):
+class TestDataclassTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase[Decision]):
     transcoder_class = Transcoder
 
     def test_tagged_event_mapper(self) -> None:
         super()._test_tagged_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
+    @override
+    def construct_decision(self) -> Decision:
         return MyDataclassDecision(
             x=CustomType(
                 a="1",
@@ -46,13 +47,16 @@ class TestDataclassTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase):
         )
 
 
-class TestDataclassTranscoderWithAggregateEventMapper(AggregateEventMapperTestCase):
+class TestDataclassTranscoderWithAggregateEventMapper(
+    AggregateEventMapperTestCase[Decision]
+):
     transcoder_class = Transcoder
 
     def test_aggregate_event_mapper(self) -> None:
         super()._test_aggregate_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
+    @override
+    def construct_decision(self) -> Decision:
         return MyDataclassDecision(
             x=CustomType(
                 a="1",

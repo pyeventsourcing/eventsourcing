@@ -1,21 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from eventsourcing.domain import (
-    MutatorFunction,
-    ProjectorFunction,
-    TEnvelope,
-    datetime_now_with_tzinfo,
-    get_metadata_from_context,
-)
+from eventsourcing.metadata import get_metadata_from_context
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from datetime import datetime
     from uuid import UUID
+
+    from eventsourcing.types import (
+        Evolver,
+        Projector,
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -48,17 +48,14 @@ class Snapshot(DomainEvent):
         )
 
 
-TAggregate = TypeVar("TAggregate", bound=Aggregate)
-
-
-def aggregate_projector(
-    mutator: MutatorFunction[TEnvelope, TAggregate],
-) -> ProjectorFunction[TAggregate, TEnvelope]:
+def aggregate_projector[TAggregate, TEvent](
+    mutator: Evolver[TAggregate, TEvent],
+) -> Projector[TAggregate, TEvent]:
     def project_aggregate(
-        aggregate: TAggregate | None, events: Iterable[TEnvelope]
+        aggregate: TAggregate | None, events: Iterable[TEvent]
     ) -> TAggregate | None:
         for event in events:
-            aggregate = mutator(event, aggregate)
+            aggregate = mutator(aggregate, event)
         return aggregate
 
     return project_aggregate

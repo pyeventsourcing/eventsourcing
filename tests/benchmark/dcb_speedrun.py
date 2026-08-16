@@ -17,11 +17,12 @@ from eventsourcing.dcb.postgres_tt import (
     DB_FUNCTION_NAME_DCB_UNCONDITIONAL_APPEND_TT,
     PostgresDcbRecorderTT,
 )
-from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.popo import POPOApplicationRecorder
 from eventsourcing.postgres import PostgresApplicationRecorder, PostgresDatastore
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 from examples.dcb_enrolment.application import EnrolmentWithAggregates
+from examples.dcb_enrolment.interface import EnrolmentInterface
 from examples.dcb_enrolment_with_basic_objects.application import (
     EnrolmentWithBasicDcbObjects,
 )
@@ -44,7 +45,6 @@ locale.setlocale(locale.LC_ALL, "")
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from examples.dcb_enrolment.interface import EnrolmentInterface
 
 env = {}
 SPEEDRUN_DB_NAME = "course_subscriptions_speedrun"
@@ -229,6 +229,7 @@ def count_events(app: EnrolmentInterface) -> int:
 
 
 if __name__ == "__main__":
+    cls: type[EnrolmentInterface]
     modes = [
         "dcb-pg-ts",
         "dcb-pg-tt",
@@ -373,8 +374,11 @@ if __name__ == "__main__":
     # print(f"Reporting interval: every {reporting_interval} iterations...")
     # print()
 
-    assert issubclass(cls, AggregatesApplication | DcbApplication)
-    with cls(env=env) as app:
+    with cast(type[AggregatesApplication[Any] | DcbApplication[Any]], cls)(
+        env=env
+    ) as app_:
+
+        app = cast(EnrolmentInterface, app_)
 
         started_event_count = count_events(app)
         print(f" Events in database at start:  {started_event_count:,d} events")

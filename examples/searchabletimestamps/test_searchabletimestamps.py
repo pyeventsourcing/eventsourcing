@@ -3,11 +3,11 @@ from __future__ import annotations
 import os
 from datetime import timedelta
 from time import sleep
-from typing import ClassVar
+from typing import ClassVar, override
 from unittest import TestCase
 
-from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.tests.postgres_utils import drop_tables
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 from examples.cargoshipping.domainmodel import Location
 from examples.searchabletimestamps.application import (
     CargoNotFoundError,
@@ -61,6 +61,7 @@ class WithPostgreSQL(SearchableTimestampsTestCase):
         "PERSISTENCE_MODULE": "examples.searchabletimestamps.postgres"
     }
 
+    @override
     def setUp(self) -> None:
         drop_tables()
         super().setUp()
@@ -70,6 +71,7 @@ class WithPostgreSQL(SearchableTimestampsTestCase):
         os.environ["POSTGRES_USER"] = "eventsourcing"
         os.environ["POSTGRES_PASSWORD"] = "eventsourcing"  # noqa: S105
 
+    @override
     def tearDown(self) -> None:
         super().tearDown()
         drop_tables()

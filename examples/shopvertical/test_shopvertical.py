@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import override
 from unittest import TestCase
 from uuid import uuid4
 
@@ -34,6 +35,7 @@ from examples.shopvertical.slices.submit_cart.cmd import (
 
 
 class TestShop(TestCase):
+    @override
     def setUp(self) -> None:
         reset_application()
 

@@ -4,7 +4,7 @@ import multiprocessing
 import multiprocessing.synchronize
 import traceback
 from threading import Thread
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, override
 
 from eventsourcing.errors import OperationalError
 from eventsourcing.msgspec import AggregatesApplication
@@ -30,25 +30,28 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
         "POSTGRES_PASSWORD": "eventsourcing",
     }
 
+    @override
     def setUp(self) -> None:
         drop_tables()
 
+    @override
     def tearDown(self) -> None:
         drop_tables()
 
+    @override
     def test_event_sourced_projection(self) -> None:
         super().test_event_sourced_projection()
 
     def test_server_closes_connections_before_run_forever(self) -> None:
         with EventSourcedProjectionRunner(
-            application_class=AggregatesApplication,
-            projection_class=Counters,
+            upstream_application_class=AggregatesApplication,
+            downstream_application_class=Counters,
             env=self.env,
         ) as runner:
             recordings = runner.app.save(Student())
             runner.wait(recordings[-1].notification.id)
-            self.assertEqual(1, runner.projection.get_count(Student.Registered))
-            self.assertEqual(0, runner.projection.get_count(Student.NameChanged))
+            self.assertEqual(1, runner.downstream.get_count(Student.Registered))
+            self.assertEqual(0, runner.downstream.get_count(Student.NameChanged))
 
             pg_close_all_connections()
 
@@ -59,14 +62,14 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
 
     def test_server_closes_connections_with_run_forever_in_thread(self) -> None:
         with EventSourcedProjectionRunner(
-            application_class=AggregatesApplication,
-            projection_class=Counters,
+            upstream_application_class=AggregatesApplication,
+            downstream_application_class=Counters,
             env=self.env,
         ) as runner:
             recordings = runner.app.save(Student())
             runner.wait(recordings[-1].notification.id)
-            self.assertEqual(1, runner.projection.get_count(Student.Registered))
-            self.assertEqual(0, runner.projection.get_count(Student.NameChanged))
+            self.assertEqual(1, runner.downstream.get_count(Student.Registered))
+            self.assertEqual(0, runner.downstream.get_count(Student.NameChanged))
 
             errors = []
 
@@ -95,8 +98,8 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
 
         def thread_target() -> None:
             with EventSourcedProjectionRunner(
-                application_class=AggregatesApplication,
-                projection_class=Counters,
+                upstream_application_class=AggregatesApplication,
+                downstream_application_class=Counters,
                 env=self.env,
             ) as runner:
                 try:
@@ -128,8 +131,8 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
     ) -> None:
         try:
             with EventSourcedProjectionRunner(
-                application_class=AggregatesApplication,
-                projection_class=Counters,
+                upstream_application_class=AggregatesApplication,
+                downstream_application_class=Counters,
                 env=TestEventSourcedProjectionWithPostgres.env,
             ) as runner:
                 projection_started.set()
@@ -147,14 +150,15 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
             target: Callable[..., object] | None = None,
             name: str | None = None,
             args: Iterable[Any] = (),
-            kwargs: Mapping[str, Any] = {},
+            kwargs: Mapping[str, Any] | None = None,
             *,
             daemon: bool | None = None,
         ) -> None:
-            super().__init__(group, target, name, args, kwargs, daemon=daemon)
+            super().__init__(group, target, name, args, kwargs or {}, daemon=daemon)
             self._parent_conn, self._child_conn = multiprocessing.Pipe()
-            self._child_error = None
+            self._child_error: tuple[BaseException, str] | None = None
 
+        @override
         def run(self) -> None:
             try:
                 super().run()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from threading import Event, Thread
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 from unittest import TestCase
 from uuid import uuid4
 
@@ -112,11 +112,13 @@ class TestDcbSubscription(TestCase):
     def test(self) -> None:
         class MyRecorder(DcbRecorder):
 
+            @override
             def subscribe(
                 self, query: DcbQuery | None = None, *, after: int | None = None
             ) -> DcbSubscription[MyRecorder]:
                 raise NotImplementedError
 
+            @override
             def append(
                 self,
                 events: Sequence[DcbEvent],
@@ -124,6 +126,7 @@ class TestDcbSubscription(TestCase):
             ) -> int:
                 raise NotImplementedError
 
+            @override
             def read(
                 self,
                 query: DcbQuery | None = None,
@@ -133,10 +136,12 @@ class TestDcbSubscription(TestCase):
             ) -> DcbReadResponse:
                 raise NotImplementedError
 
+            @override
             def head(self) -> int | None:
                 raise NotImplementedError
 
         class MySubscription(DcbSubscription[MyRecorder]):
+            @override
             def __next__(self) -> DcbSequencedEvent:
                 raise NotImplementedError
 
@@ -160,6 +165,7 @@ class WithPostgres(TestCase):
     postgres_dcb_recorder_class: type[PostgresDcbRecorderTT | PostgresDcbRecorderTS]
     pool_size: int = 1
 
+    @override
     def setUp(self) -> None:
         drop_tables()
         self.datastore = PostgresDatastore(
@@ -173,6 +179,7 @@ class WithPostgres(TestCase):
         self.recorder = self.postgres_dcb_recorder_class(self.datastore)
         self.recorder.create_table()
 
+    @override
     def tearDown(self) -> None:
         self.datastore.close()
         # Drop tables.
@@ -345,7 +352,7 @@ def test_recorder_append_one_event(
 
     def setup() -> Any:
         events = generate_events(1)
-        return (events,), {}
+        return (events,), dict[Any, Any]()
 
     class Context:
         position: int = 0
@@ -371,7 +378,7 @@ def test_recorder_append_ten_events(
 
     def setup() -> Any:
         events = generate_events(10)
-        return (events,), {}
+        return (events,), dict[Any, Any]()
 
     class Context:
         position: int = 0

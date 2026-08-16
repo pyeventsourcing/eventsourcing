@@ -1,6 +1,7 @@
 import os
 from abc import ABC
 from collections.abc import Iterator
+from typing import override
 from unittest import TestCase
 
 from eventsourcing.tests.application import (
@@ -14,12 +15,14 @@ class WithSQLite(TestCase, ABC):
     expected_factory_topic = "eventsourcing.sqlite:SQLiteFactory"
     uris: Iterator[str] = iter(())
 
+    @override
     def setUp(self) -> None:
         super().setUp()
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
         os.environ["CREATE_TABLE"] = "y"
         os.environ["SQLITE_DBNAME"] = next(self.uris)
 
+    @override
     def tearDown(self) -> None:
         del os.environ["PERSISTENCE_MODULE"]
         del os.environ["CREATE_TABLE"]
@@ -47,6 +50,7 @@ class TestApplicationWithSQLiteFile(WithSQLiteFile, ApplicationTestCase):
     def test_catchup_subscription(self) -> None:
         self.skipTest("SQLite recorder doesn't support subscriptions")
 
+    @override
     def test_application_with_cached_aggregates_and_fastforward(self) -> None:
         super().test_application_with_cached_aggregates_and_fastforward()
 

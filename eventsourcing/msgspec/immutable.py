@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABCMeta
-from typing import Any, Self, TypeVar
+from typing import Any, Self, TypeVar, override
 
 import msgspec
 
@@ -28,7 +28,8 @@ class Immutable(msgspec.Struct, metaclass=ImmutableMeta):
     pass
 
 
-class Decision(Immutable, eventsourcing.domain.AbstractDecision):
+class Decision(Immutable, eventsourcing.domain.Decision):
+    @override
     def as_dict(self) -> dict[str, Any]:
         return {key: getattr(self, key) for key in self.__struct_fields__}
 

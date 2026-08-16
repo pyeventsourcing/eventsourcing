@@ -4,7 +4,7 @@ import json
 from abc import ABC, abstractmethod
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, cast
+from typing import Any, cast, override
 from uuid import UUID
 
 from eventsourcing.dataclasses import Decision, Transcoder
@@ -41,14 +41,17 @@ class LegacyJSONTranscoder(Transcoder):
         self.types[transcoding.type] = transcoding
         self.names[transcoding.name] = transcoding
 
+    @override
     def encode(self, decision: Decision) -> bytes:
         """Encodes given object as a bytes array."""
         return self.encoder.encode(decision.as_dict()).encode("utf8")
 
+    @override
     def decode(self, data: bytes, decision_class: type[Decision]) -> Decision:
         """Decodes bytes array as previously encoded object."""
         return decision_class(**self.decoder.decode(data.decode("utf8")))
 
+    @override
     def _dump_obj(self, obj: Any) -> dict[str, Any]:
         try:
             transcoding = self.types[type(obj)]
@@ -98,9 +101,11 @@ class UUIDAsHex(Transcoding):
     type = UUID
     name = "uuid_hex"
 
+    @override
     def encode(self, obj: UUID) -> str:
         return obj.hex
 
+    @override
     def decode(self, data: str) -> UUID:
         assert isinstance(data, str)
         return UUID(data)
@@ -112,9 +117,11 @@ class DecimalAsStr(Transcoding):
     type = Decimal
     name = "decimal_str"
 
+    @override
     def encode(self, obj: Decimal) -> str:
         return str(obj)
 
+    @override
     def decode(self, data: str) -> Decimal:
         return Decimal(data)
 
@@ -125,9 +132,11 @@ class DatetimeAsISO(Transcoding):
     type = datetime
     name = "datetime_iso"
 
+    @override
     def encode(self, obj: datetime) -> str:
         return obj.isoformat()
 
+    @override
     def decode(self, data: str) -> datetime:
         assert isinstance(data, str)
         return datetime.fromisoformat(data)

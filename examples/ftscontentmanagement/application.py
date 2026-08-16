@@ -1,21 +1,24 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, override
 
 from examples.contentmanagement.application import ContentManagement, PageDetailsType
 from examples.contentmanagement.domainmodel import Page
 from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
-    from eventsourcing.domain import AggregateEvent, CollectEventsProtocol
     from eventsourcing.persistence import Recording
     from eventsourcing.pydantic import Decision
+    from eventsourcing.types import AggregateEventProtocol, EventCollectorProtocol
 
 
 class FtsContentManagement(ContentManagement):
+    @override
     def save(
         self,
-        *objs: CollectEventsProtocol[Decision] | AggregateEvent[Decision] | None,
+        *objs: EventCollectorProtocol[AggregateEventProtocol[Decision]]
+        | AggregateEventProtocol[Decision]
+        | None,
         **kwargs: Any,
     ) -> list[Recording[Decision]]:
         insert_pages: list[PageInfo] = []

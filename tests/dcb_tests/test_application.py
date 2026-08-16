@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import cast, override
 from unittest import TestCase
 from uuid import uuid4
 
@@ -8,12 +8,9 @@ from eventsourcing import msgspec
 from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.cryptography import AESCipher
 from eventsourcing.dcb.application import BasicDcbApplication
-from eventsourcing.domain import (
-    EnduringObject,
-    event,
-    get_metadata_from_context,
-    put_metadata_in_context,
-)
+from eventsourcing.decorator import event
+from eventsourcing.domain import EnduringObject
+from eventsourcing.metadata import get_metadata_from_context, put_metadata_in_context
 from eventsourcing.utils import Environment, get_topic
 
 
@@ -50,6 +47,7 @@ class TestDcbApplication(TestCase):
             class Created(msgspec.Decision):
                 my_enduring_object_id: str
 
+                @override
                 def apply(self, obj: MyEnduringObject) -> None:
                     obj.created_by = get_metadata_from_context()["user_id"]
 

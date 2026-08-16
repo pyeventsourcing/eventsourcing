@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, cast
+from typing import Generic, TypeVar, cast, override
 from unittest import TestCase
 
 import eventsourcing
@@ -17,11 +17,11 @@ from eventsourcing.utils import (
 
 class TestRetryDecorator(TestCase):
     def test_bare(self) -> None:
-        @retry  # type: ignore[arg-type]
+        @retry
         def f() -> None:
             pass
 
-        f()  # type: ignore[call-arg]
+        f()
 
     def test_no_args(self) -> None:
         @retry()
@@ -47,7 +47,7 @@ class TestRetryDecorator(TestCase):
     def test_exception_type_error(self) -> None:
         with self.assertRaises(TypeError):
 
-            @retry(1)  # type: ignore[arg-type]
+            @retry(1)  # type: ignore[call-overload]
             def _() -> None:
                 pass
 
@@ -86,7 +86,7 @@ class TestRetryDecorator(TestCase):
     def test_max_attempts_not_int(self) -> None:
         with self.assertRaises(TypeError):
 
-            @retry(ValueError, max_attempts="a")  # type: ignore[arg-type]
+            @retry(ValueError, max_attempts="a")  # type: ignore[call-overload]
             def f() -> None:
                 pass
 
@@ -106,7 +106,7 @@ class TestRetryDecorator(TestCase):
     def test_wait_not_float(self) -> None:
         with self.assertRaises(TypeError):
 
-            @retry(ValueError, max_attempts=1, wait="a")  # type: ignore[arg-type]
+            @retry(ValueError, max_attempts=1, wait="a")  # type: ignore[call-overload]
             def f() -> None:
                 pass
 
@@ -126,7 +126,7 @@ class TestRetryDecorator(TestCase):
     def test_stall_not_float(self) -> None:
         with self.assertRaises(TypeError):
 
-            @retry(ValueError, max_attempts=1, stall="a")  # type: ignore[arg-type]
+            @retry(ValueError, max_attempts=1, stall="a")  # type: ignore[call-overload]
             def f() -> None:
                 pass
 
@@ -164,9 +164,11 @@ class OuterWithTopic:
 
 
 class TestTopics(TestCase):
+    @override
     def setUp(self) -> None:
         clear_topic_cache()
 
+    @override
     def tearDown(self) -> None:
         clear_topic_cache()
 
@@ -283,6 +285,7 @@ class TestResolveMultiGenericTargets(TestCase):
             """A class injected into the MRO, but not inherited from directly."""
 
         class CustomMROMeta(type):
+            @override
             def mro(cls) -> list[type]:
                 # Standard Python behavior would just return type.mro(cls)
                 # We manually inject SneakyBase right before `object`

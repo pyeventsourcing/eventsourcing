@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 from psycopg.sql import SQL, Identifier
 
@@ -95,10 +95,12 @@ class PostgresFtsRecorder(
             Identifier(self.fts_table_name),
         )
 
+    @override
     def insert_pages(self, pages: Sequence[PageInfo]) -> None:
         with self.datastore.transaction(commit=True) as curs:
             self._insert_pages(curs, pages)
 
+    @override
     def update_pages(self, pages: Sequence[PageInfo]) -> None:
         with self.datastore.transaction(commit=True) as curs:
             self._update_pages(curs, pages)
@@ -113,11 +115,13 @@ class PostgresFtsRecorder(
             params = (page.slug, page.title, page.body, page.id)
             curs.execute(self.update_page_statement, params, prepare=True)
 
+    @override
     def search_pages(self, query: str) -> list[str]:
         with self.datastore.transaction(commit=False) as curs:
             curs.execute(self.search_pages_statement, [query], prepare=True)
             return [row["page_id"] for row in curs.fetchall()]
 
+    @override
     def select_page(self, page_id: str) -> PageInfo:
         with self.datastore.transaction(commit=False) as curs:
             curs.execute(self.select_page_statement, [str(page_id)], prepare=True)
@@ -133,6 +137,7 @@ class PostgresFtsRecorder(
 
 
 class PostgresFtsApplicationRecorder(PostgresFtsRecorder, PostgresApplicationRecorder):
+    @override
     def _insert_events(
         self,
         curs: Cursor[DictRow],

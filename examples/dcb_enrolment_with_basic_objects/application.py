@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import override
 from uuid import uuid4
 
 from eventsourcing.dcb.api import DcbAppendCondition, DcbEvent, DcbQuery, DcbQueryItem
@@ -16,6 +17,7 @@ from examples.dcb_enrolment.interface import (
 
 
 class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
+    @override
     def register_student(self, name: str, max_courses: int) -> str:
         student_id = f"student-{uuid4()}"
         consistency_boundary = DcbQuery(
@@ -36,6 +38,7 @@ class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
         )
         return student_id
 
+    @override
     def register_course(self, name: str, places: int) -> str:
         course_id = f"course-{uuid4()}"
         course_registered = DcbEvent(
@@ -56,6 +59,7 @@ class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
         )
         return course_id
 
+    @override
     def join_course(self, student_id: str, course_id: str) -> None:
         # Decide the consistency boundary.
         consistency_boundary = DcbQuery(
@@ -126,6 +130,7 @@ class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
             ),
         )
 
+    @override
     def list_students_for_course(self, course_id: str) -> list[str]:
         # Get events relevant for a list of course student IDs.
         course_students_consistency_boundary = DcbQuery(
@@ -166,6 +171,7 @@ class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
         # Return the names.
         return list(student_names.values())
 
+    @override
     def list_courses_for_student(self, student_id: str) -> list[str]:
         # Get events relevant for a list of course student IDs.
         student_courses_consistency_boundary = DcbQuery(

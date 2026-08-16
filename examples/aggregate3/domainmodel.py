@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from typing import override
+
 from eventsourcing.pydantic import Aggregate, Decision
 
 
 class Dog(Aggregate):
     class Event(Decision):
+        @override
         def apply(self, obj: Dog) -> None:
             obj.apply(self)
 

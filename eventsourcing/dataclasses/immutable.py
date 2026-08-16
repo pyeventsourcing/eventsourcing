@@ -7,18 +7,16 @@ from abc import ABCMeta
 from datetime import date, datetime
 from decimal import Decimal
 from functools import lru_cache
-from typing import Any, Self, TypeVar, dataclass_transform
+from typing import Any, Self, dataclass_transform, override
 from uuid import UUID
 
 import eventsourcing.domain
 
-_T = TypeVar("_T", bound="MetaImmutable")
-
 
 @dataclass_transform(frozen_default=True, kw_only_default=True)
 class MetaImmutable(ABCMeta):
-    def __call__(cls: MetaImmutable, **kwargs: Any) -> Any:
-        validated_kwargs = {}
+    def __call__(cls, **kwargs: Any) -> Any:
+        validated_kwargs: dict[str, Any] = {}
         init_types = get_init_types(cls)
 
         for key, value in kwargs.items():
@@ -30,14 +28,17 @@ class MetaImmutable(ABCMeta):
         return super().__call__(**validated_kwargs)
 
     def __new__(
-        mcs: type[_T],
+        mcs,
         name: str,
         bases: tuple[type, ...],
         cls_dict: dict[str, Any],
-    ) -> _T:
-        event_cls: Any = super().__new__(mcs, name, bases, cls_dict)
+    ) -> Any:
+        event_cls = typing.cast(type[Any], super().__new__(mcs, name, bases, cls_dict))
         event_cls = dataclasses.dataclass(frozen=True, kw_only=True)(event_cls)
-        event_cls.__signature__ = inspect.signature(event_cls.__init__)
+
+        typing.cast(Any, event_cls).__signature__ = inspect.signature(
+            event_cls.__init__
+        )
         return event_cls
 
 
@@ -58,7 +59,8 @@ class Immutable(metaclass=MetaImmutable):
     pass
 
 
-class Decision(Immutable, eventsourcing.domain.AbstractDecision):
+class Decision(Immutable, eventsourcing.domain.Decision):
+    @override
     def as_dict(self) -> dict[str, Any]:
         return self.__dict__.copy()
 

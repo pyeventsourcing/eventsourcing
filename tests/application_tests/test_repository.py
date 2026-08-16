@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from functools import reduce
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.case import TestCase
 from uuid import uuid4
 
@@ -12,7 +12,7 @@ from eventsourcing.application import (
     LRUCache,
     Repository,
 )
-from eventsourcing.domain import AggregateEvent, EventEnvelope
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,
@@ -23,9 +23,12 @@ from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
 from eventsourcing.tests.bank_account_with_pydantic import (
     BankAccountWithPydantic,
 )
+from eventsourcing.types import StateMutatorProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from eventsourcing.types import AggregateEventProtocol
 
 
 class TestRepository(TestCase):
@@ -88,7 +91,7 @@ class TestRepository(TestCase):
         assert copy.id == account.id
         assert copy.balance == Decimal("65.00")
 
-        snapshot = AggregateEvent(
+        snapshot: AggregateEvent[Decision] = AggregateEvent(
             originator_id=account.id,
             originator_version=account.version,
             decision=BankAccountWithPydantic.Snapshot.take(account),
@@ -218,12 +221,16 @@ class TestRepository(TestCase):
     def test_with_alternative_mutator_function(self) -> None:
         def bank_account_projector(
             initial: BankAccountWithPydantic | None,
-            envelopes: Iterable[EventEnvelope[Decision]],
+            envelopes: Iterable[AggregateEventProtocol[Decision]],
         ) -> BankAccountWithPydantic | None:
             if initial is None:
                 initial = BankAccountWithPydantic.__new__(BankAccountWithPydantic)
+
+            def evolve(state: Any, event: AggregateEventProtocol[Any]) -> Any:
+                return cast(StateMutatorProtocol, event).mutate(state)
+
             return reduce(
-                lambda a, e: e.mutate(a),
+                evolve,
                 envelopes,
                 cast(BankAccountWithPydantic | None, initial),
             )
@@ -274,7 +281,7 @@ class TestRepository(TestCase):
         assert copy.id == account.id
         assert copy.balance == Decimal("65.00")
 
-        snapshot = AggregateEvent(
+        snapshot: AggregateEvent[Decision] = AggregateEvent(
             originator_id=account.id,
             originator_version=account.version,
             decision=BankAccountWithPydantic.Snapshot.take(account),
@@ -482,8 +489,12 @@ class TestRepository(TestCase):
 
         aggregate.append_transaction(Decimal("10.00"))
         event_store.put(aggregate.collect_events())
+
+        def projector(_: Any, __: Any) -> None:
+            return None
+
         with self.assertRaises(AggregateNotFoundError):
-            repository.get(aggregate.id, projector=lambda _, __: None)
+            repository.get(aggregate.id, projector=projector)
 
     def test_fastforward_lock(self) -> None:
         repository = Repository[Decision](

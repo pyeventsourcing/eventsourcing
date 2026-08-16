@@ -3,7 +3,7 @@ from __future__ import annotations
 from concurrent.futures.thread import ThreadPoolExecutor
 from threading import Event, Thread
 from time import sleep
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal, cast, override
 from unittest import TestCase
 from unittest.mock import Mock
 from uuid import uuid4
@@ -15,7 +15,6 @@ from psycopg_pool import ConnectionPool
 from psycopg_pool.base import AttemptWithBackoff
 
 from eventsourcing.dataclasses import Transcoder
-from eventsourcing.domain import datetime_now_with_tzinfo
 from eventsourcing.errors import (
     DatabaseError,
     DataError,
@@ -56,6 +55,7 @@ from eventsourcing.tests.postgres_utils import (
     drop_tables,
     pg_close_all_connections,
 )
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 from eventsourcing.utils import Environment, get_topic
 from tests.persistence_tests.test_connection_pool import TestConnectionPool
 
@@ -426,6 +426,7 @@ class SetupPostgresDatastore(TestCase):
     originator_id_type: Literal["uuid", "text"] = "text"
     enable_db_functions = False
 
+    @override
     def setUp(self) -> None:
         drop_tables()
         super().setUp()
@@ -443,6 +444,7 @@ class SetupPostgresDatastore(TestCase):
             enable_db_functions=self.enable_db_functions,
         )
 
+    @override
     def tearDown(self) -> None:
         self.datastore.close()
         super().tearDown()
@@ -475,6 +477,7 @@ class WithDbFunctions(SetupPostgresDatastore):
 
 
 class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTestCase):
+    @override
     def create_recorder(
         self, table_name: str = EVENTS_TABLE_NAME
     ) -> PostgresAggregateRecorder:
@@ -490,9 +493,11 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
         )
         recorder.create_table()
 
+    @override
     def test_insert_and_select(self) -> None:
         super().test_insert_and_select()
 
+    @override
     def test_performance(self) -> None:
         super().test_performance()
 
@@ -684,7 +689,7 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
         recorder = self.create_recorder()
 
         # Select events without creating the table.
-        originator_id = uuid4()
+        originator_id = str(uuid4())
         with self.assertRaises(ProgrammingError):
             recorder.select_events(originator_id=originator_id)
 
@@ -697,7 +702,7 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
 
         # Select events with broken statement.
         recorder.select_events_statement = SQL("BLAH").format()
-        originator_id = uuid4()
+        originator_id = str(uuid4())
         with self.assertRaises(ProgrammingError):
             recorder.select_events(originator_id=originator_id)
 
@@ -723,6 +728,7 @@ class TestPostgresSubscription(TestCase):
 class TestPostgresApplicationRecorder(
     SetupPostgresDatastore, ApplicationRecorderTestCase[PostgresApplicationRecorder]
 ):
+    @override
     def create_recorder(
         self, table_name: str = EVENTS_TABLE_NAME
     ) -> PostgresApplicationRecorder:
@@ -732,9 +738,11 @@ class TestPostgresApplicationRecorder(
         recorder.create_table()
         return recorder
 
+    @override
     def test_insert_select(self) -> None:
         super().test_insert_select()
 
+    @override
     def test_performance(self) -> None:
         super().test_performance()
 
@@ -752,12 +760,12 @@ class TestPostgresApplicationRecorder(
         batch_size = 100
         num_events = num_batches * batch_size
 
-        def read(last_notification_id: int) -> None:
+        def read(last_notification_id: int | None) -> None:
             start = datetime_now_with_tzinfo()
             with recorder.subscribe(last_notification_id) as subscription:
-                for i, notification in enumerate(subscription):
+                for i, _ in enumerate(subscription):
                     # print("Read", i+1, "notifications")
-                    last_notification_id = notification.id
+                    # last_notification_id = notification.id
                     if i + 1 == num_events:
                         break
             duration = datetime_now_with_tzinfo() - start
@@ -868,7 +876,8 @@ class TestPostgresApplicationRecorder(
 
             # Pull thread now blocked on putting notifications on the queue...
             self.assertGreater(
-                recorder.max_notification_id(), subscription._last_notification_id
+                recorder.max_notification_id() or 0,
+                subscription._last_notification_id or 0,
             )
 
             # Stop the subscription.
@@ -920,11 +929,13 @@ class TestPostgresApplicationRecorder(
             # Check __next__ handles the ShutDown exception from Queue.get()
             self.assertEqual(0, len(errors))
 
+    @override
     def test_concurrent_no_conflicts(self, initial_position: int = 0) -> None:
         self.datastore.pool.open()
         self.datastore.pool.resize(12, 12)
         super().test_concurrent_no_conflicts()
 
+    @override
     def test_concurrent_throughput(self) -> None:
         self.datastore.pool.open()
         self.datastore.pool.resize(10, 10)
@@ -1073,6 +1084,7 @@ class TestPostgresApplicationRecorderWithDbFunctions(
 class TestPostgresApplicationRecorderWithDbFunctionsAndUuidOriginatorID(
     WithUuidOriginatorID, TestPostgresApplicationRecorderWithDbFunctions
 ):
+    @override
     def test_performance(self) -> None:
         super().test_performance()
 
@@ -1131,7 +1143,7 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
             ]
 
         # Check it actually works.
-        notification_ids = recorder.insert_events(make_events())
+        notification_ids = recorder.insert_events(make_events()) or []
         self.assertEqual(len(notification_ids), 1)
         self.assertEqual(1, notification_ids[0])
 
@@ -1160,6 +1172,7 @@ _check_identifier_is_max_len(TRACKING_TABLE_NAME)
 
 
 class TestPostgresTrackingRecorder(SetupPostgresDatastore, TrackingRecorderTestCase):
+    @override
     def create_recorder(self, *, create_table: bool = True) -> PostgresTrackingRecorder:
         tracking_table_name = TRACKING_TABLE_NAME
         recorder = PostgresTrackingRecorder(
@@ -1170,6 +1183,7 @@ class TestPostgresTrackingRecorder(SetupPostgresDatastore, TrackingRecorderTestC
             recorder.create_table()
         return recorder
 
+    @override
     def test_insert_tracking(self) -> None:
         super().test_insert_tracking()
 
@@ -1279,6 +1293,7 @@ class TestPostgresTrackingRecorder(SetupPostgresDatastore, TrackingRecorderTestC
 
 
 class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCase):
+    @override
     def create_recorder(self) -> ProcessRecorder:
         events_table_name = EVENTS_TABLE_NAME
         tracking_table_name = TRACKING_TABLE_NAME
@@ -1290,6 +1305,7 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
         recorder.create_table()
         return recorder
 
+    @override
     def test_performance(self) -> None:
         super().test_performance()
 
@@ -1368,18 +1384,23 @@ class TestPostgresProcessRecorderErrors(SetupPostgresDatastore, TestCase):
 
 
 class TestPostgresFactory(InfrastructureFactoryTestCase[PostgresFactory]):
+    @override
     def test_create_application_recorder(self) -> None:
         super().test_create_application_recorder()
 
+    @override
     def expected_factory_class(self) -> type[PostgresFactory]:
         return PostgresFactory
 
+    @override
     def expected_aggregate_recorder_class(self) -> type[AggregateRecorder]:
         return PostgresAggregateRecorder
 
+    @override
     def expected_application_recorder_class(self) -> type[ApplicationRecorder]:
         return PostgresApplicationRecorder
 
+    @override
     def expected_tracking_recorder_class(self) -> type[TrackingRecorder]:
         return PostgresTrackingRecorder
 
@@ -1392,24 +1413,30 @@ class TestPostgresFactory(InfrastructureFactoryTestCase[PostgresFactory]):
     class PostgresProcessRecorderSubclass(PostgresProcessRecorder):
         pass
 
+    @override
     def application_recorder_subclass(self) -> type[ApplicationRecorder]:
         return self.PostgresApplicationRecorderSubclass
 
-    def tracking_recorder_subclass(self) -> type[TrackingRecorder]:
+    @override
+    def tracking_recorder_subclass(self) -> type[PostgresTrackingRecorder]:
         return self.PostgresTrackingRecorderSubclass
 
+    @override
     def process_recorder_subclass(self) -> type[ProcessRecorder]:
         return self.PostgresProcessRecorderSubclass
 
+    @override
     def test_create_tracking_recorder(self) -> None:
         super().test_create_tracking_recorder()
         self.factory.datastore.schema = "myschema"
         recorder = self.factory.tracking_recorder()
         self.assertIn('"myschema".', recorder.sql_create_statements[0].as_string())
 
+    @override
     def expected_process_recorder_class(self) -> type[ProcessRecorder]:
         return PostgresProcessRecorder
 
+    @override
     def setUp(self) -> None:
         drop_tables()
         self.env = Environment("TestCase")
@@ -1423,6 +1450,7 @@ class TestPostgresFactory(InfrastructureFactoryTestCase[PostgresFactory]):
         self.env[PostgresFactory.TRANSCODER_TOPIC] = get_topic(Transcoder)
         super().setUp()
 
+    @override
     def tearDown(self) -> None:
         super().tearDown()
         drop_tables()

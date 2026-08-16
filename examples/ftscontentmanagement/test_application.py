@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import ClassVar, override
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain import put_metadata_in_context
+from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import get_topic
 from examples.ftscontentmanagement.application import FtsContentManagement
@@ -89,10 +89,12 @@ class TestWithPostgres(FtsContentManagementTestCase):
         "APPLICATION_RECORDER_TOPIC": get_topic(PostgresFtsApplicationRecorder),
     }
 
+    @override
     def setUp(self) -> None:
         drop_tables()
         super().setUp()
 
+    @override
     def tearDown(self) -> None:
         super().tearDown()
         drop_tables()

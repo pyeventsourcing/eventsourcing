@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from sqlite3 import Connection
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, override
 from unittest import TestCase
 from unittest.mock import Mock
 from uuid import uuid4
@@ -53,6 +53,7 @@ from tests.persistence_tests.test_connection_pool import TestConnectionPool
 
 
 class TestTransaction(TestCase):
+    @override
     def setUp(self) -> None:
         self.mock = Mock(Connection)
         self.t = SQLiteTransaction(self.mock, commit=True)
@@ -89,6 +90,7 @@ class TestTransaction(TestCase):
 class SQLiteConnectionPoolTestCase(TestConnectionPool):
     db_name: str
 
+    @override
     def create_pool(
         self,
         *,
@@ -108,9 +110,11 @@ class SQLiteConnectionPoolTestCase(TestConnectionPool):
             pre_ping=pre_ping,
         )
 
+    @override
     def test_close_on_server_after_returning_with_pre_ping(self) -> None:
         pass
 
+    @override
     def test_close_on_server_after_returning_without_pre_ping(self) -> None:
         pass
 
@@ -118,9 +122,11 @@ class SQLiteConnectionPoolTestCase(TestConnectionPool):
 class TestSQLiteConnectionPoolWithInMemoryDB(SQLiteConnectionPoolTestCase):
     allowed_connecting_time = 0.01
 
+    @override
     def setUp(self) -> None:
         self.db_name = ":memory:"
 
+    @override
     def test_reader_writer(self) -> None:
         super()._test_reader_writer_with_mutually_exclusive_read_write()
 
@@ -128,15 +134,18 @@ class TestSQLiteConnectionPoolWithInMemoryDB(SQLiteConnectionPoolTestCase):
 class TestSQLiteConnectionPoolWithFileDB(SQLiteConnectionPoolTestCase):
     allowed_connecting_time = 0.01
 
+    @override
     def setUp(self) -> None:
         self.tmp_urls = tmpfile_uris()
         self.db_name = next(self.tmp_urls)
 
+    @override
     def test_reader_writer(self) -> None:
         super()._test_reader_writer_without_mutually_exclusive_read_write()
 
 
 class TestSqliteDatastore(TestCase):
+    @override
     def setUp(self) -> None:
         self.datastore = SQLiteDatastore(":memory:")
 
@@ -188,6 +197,7 @@ class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
     db_name = ":memory:"
     originator_id_type: Literal["uuid", "text"] = "text"
 
+    @override
     def create_recorder(self) -> AggregateRecorder:
         recorder = SQLiteAggregateRecorder(
             SQLiteDatastore(
@@ -239,6 +249,7 @@ class TestSQLiteApplicationRecorder(
     db_uri = ":memory:"
     originator_id_type: Literal["uuid", "text"] = "text"
 
+    @override
     def create_recorder(self) -> SQLiteApplicationRecorder:
         recorder = SQLiteApplicationRecorder(
             SQLiteDatastore(
@@ -250,9 +261,11 @@ class TestSQLiteApplicationRecorder(
         recorder.create_table()
         return recorder
 
+    @override
     def test_insert_select(self) -> None:
         super().test_insert_select()
 
+    @override
     def test_concurrent_no_conflicts(self, initial_position: int = 0) -> None:
         self.uris = tmpfile_uris()
         self.db_uri = next(self.uris)
@@ -262,6 +275,7 @@ class TestSQLiteApplicationRecorder(
         self.db_uri = "file::memory:?cache=shared"
         super().test_concurrent_no_conflicts()
 
+    @override
     def test_concurrent_throughput(self) -> None:
         self.uris = tmpfile_uris()
         self.db_uri = next(self.uris)
@@ -309,6 +323,7 @@ class TestSQLiteApplicationRecorderErrors(TestCase):
 
 
 class TestSQLiteTrackingRecorder(TrackingRecorderTestCase):
+    @override
     def create_recorder(
         self,
         *,
@@ -322,6 +337,7 @@ class TestSQLiteTrackingRecorder(TrackingRecorderTestCase):
             recorder.create_table()
         return recorder
 
+    @override
     def test_insert_tracking(self) -> None:
         super().test_insert_tracking()
 
@@ -412,6 +428,7 @@ class TestSQLiteTrackingRecorder(TrackingRecorderTestCase):
 class TestSQLiteProcessRecorder(ProcessRecorderTestCase):
     originator_id_type: Literal["uuid", "text"] = "text"
 
+    @override
     def create_recorder(self) -> ProcessRecorder:
         recorder = SQLiteProcessRecorder(
             SQLiteDatastore(
@@ -451,15 +468,19 @@ class TestSQLiteProcessRecorderErrors(TestCase):
 
 
 class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase[SQLiteFactory]):
+    @override
     def expected_factory_class(self) -> type[SQLiteFactory]:
         return SQLiteFactory
 
+    @override
     def expected_aggregate_recorder_class(self) -> type[AggregateRecorder]:
         return SQLiteAggregateRecorder
 
+    @override
     def expected_application_recorder_class(self) -> type[ApplicationRecorder]:
         return SQLiteApplicationRecorder
 
+    @override
     def expected_tracking_recorder_class(self) -> type[TrackingRecorder]:
         return SQLiteTrackingRecorder
 
@@ -472,18 +493,23 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase[SQLiteFactor
     class SQLiteProcessRecorderSubclass(SQLiteProcessRecorder):
         pass
 
+    @override
     def application_recorder_subclass(self) -> type[ApplicationRecorder]:
         return self.SQLiteApplicationRecorderSubclass
 
+    @override
     def tracking_recorder_subclass(self) -> type[TrackingRecorder]:
         return self.SQLiteTrackingRecorderSubclass
 
+    @override
     def process_recorder_subclass(self) -> type[ProcessRecorder]:
         return self.SQLiteProcessRecorderSubclass
 
+    @override
     def expected_process_recorder_class(self) -> type[ProcessRecorder]:
         return SQLiteProcessRecorder
 
+    @override
     def setUp(self) -> None:
         self.env = Environment("TestCase")
         self.env[InfrastructureFactory.PERSISTENCE_MODULE] = SQLiteFactory.__module__
@@ -492,6 +518,7 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase[SQLiteFactor
         self.env[SQLiteFactory.TRANSCODER_TOPIC] = get_topic(Transcoder)
         super().setUp()
 
+    @override
     def tearDown(self) -> None:
         super().tearDown()
         if SQLiteFactory.SQLITE_DBNAME in self.env:

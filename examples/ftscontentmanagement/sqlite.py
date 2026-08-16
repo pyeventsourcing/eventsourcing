@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 from eventsourcing.sqlite import (
     SQLiteApplicationRecorder,
@@ -82,6 +82,7 @@ class SQLiteFtsRecorder(FtsRecorder, SQLiteRecorder):
             f"WHERE page_body MATCH ?"
         )
 
+    @override
     def insert_pages(self, pages: Sequence[PageInfo]) -> None:
         with self.datastore.transaction(commit=True) as c:
             self._insert_pages(c, pages=pages)
@@ -93,6 +94,7 @@ class SQLiteFtsRecorder(FtsRecorder, SQLiteRecorder):
                 (str(page.id), page.slug, page.title, page.body),
             )
 
+    @override
     def update_pages(self, pages: Sequence[PageInfo]) -> None:
         with self.datastore.transaction(commit=True) as c:
             self._update_pages(c, pages=pages)
@@ -104,11 +106,13 @@ class SQLiteFtsRecorder(FtsRecorder, SQLiteRecorder):
                 (page.slug, page.title, page.body, str(page.id)),
             )
 
+    @override
     def search_pages(self, query: str) -> list[str]:
         with self.datastore.transaction(commit=False) as c:
             c.execute(self.search_pages_statement, [query])
             return [row["page_id"] for row in c.fetchall()]
 
+    @override
     def select_page(self, page_id: str) -> PageInfo:
         with self.datastore.transaction(commit=False) as c:
             c.execute(self.select_page_statement, [str(page_id)])
@@ -124,6 +128,7 @@ class SQLiteFtsRecorder(FtsRecorder, SQLiteRecorder):
 
 
 class SQLiteFtsApplicationRecorder(SQLiteFtsRecorder, SQLiteApplicationRecorder):
+    @override
     def _insert_events(
         self,
         c: SQLiteCursor,

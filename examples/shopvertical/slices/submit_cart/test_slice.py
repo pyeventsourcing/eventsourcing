@@ -1,6 +1,6 @@
 import unittest
 from decimal import Decimal
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, override
 from uuid import uuid4
 
 from eventsourcing.domain import AggregateEvent
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
 
 class TestSubmitCart(unittest.TestCase):
+    @override
     def setUp(self) -> None:
         reset_application()
 

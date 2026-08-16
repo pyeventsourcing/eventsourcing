@@ -7,7 +7,7 @@ import weakref
 from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
 from traceback import format_exc
-from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
+from typing import TYPE_CHECKING, Any, Self, override
 from warnings import warn
 
 from eventsourcing.application import (
@@ -15,21 +15,17 @@ from eventsourcing.application import (
     AggregatesApplication,
     ProcessingEvent,
     SupportsApplicationSubscriptions,
-)
-from eventsourcing.dcb.application import DcbApplication
-from eventsourcing.domain import (
     TDecision,
-    TEnvelope,
-    put_metadata_in_context,
 )
 from eventsourcing.errors import WaitInterruptedError
+from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.persistence import (
     InfrastructureFactory,
     ProcessRecorder,
     Tracking,
     TrackingRecorder,
-    TTrackingRecorder,
 )
+from eventsourcing.types import AggregateEventProtocol
 from eventsourcing.utils import Environment, EnvType
 
 if TYPE_CHECKING:
@@ -37,27 +33,22 @@ if TYPE_CHECKING:
     from types import TracebackType
 
 
-TApplication = TypeVar("TApplication", bound=SupportsApplicationSubscriptions[Any, Any])
-TAggregatesApplication = TypeVar(
-    "TAggregatesApplication", bound=AggregatesApplication[Any]
-)
-TDcbApplication = TypeVar("TDcbApplication", bound=DcbApplication[Any])
-
-
-class AbstractProjection(AbstractContextManager[Any], Generic[TEnvelope]):
+class AbstractProjection[TEvent](AbstractContextManager[Any]):
     topics: Sequence[str] = ()
     """
     Event topics, used to filter events in database when subscribing to an application.
     """
 
     @abstractmethod
-    def process_event(self, envelope: TEnvelope, tracking: Tracking) -> None:
+    def process_event(self, envelope: TEvent, tracking: Tracking) -> None:
         """Process a domain event and track it."""
 
+    @override
     def __enter__(self) -> Self:
         # Self is perfectly valid here because it is inside the class block
         return super().__enter__()
 
+    @override
     def __exit__(
         self,
         exc_type: type[BaseException] | None,
@@ -69,9 +60,7 @@ class AbstractProjection(AbstractContextManager[Any], Generic[TEnvelope]):
         return super().__exit__(exc_type, exc_value, traceback)
 
 
-class Projection(
-    AbstractProjection[TEnvelope], ABC, Generic[TTrackingRecorder, TEnvelope]
-):
+class Projection[TEvent, TTrackingRecorder](AbstractProjection[TEvent], ABC):
     name: str = ""
     """
     Name of projection, used to pick prefixed environment
@@ -95,38 +84,41 @@ class Projection(
         return self._view
 
 
-class EventSourcedProjection(
-    AggregatesApplication[TDecision],
-    AbstractProjection[TEnvelope],
-    Generic[TDecision, TTrackingRecorder, TEnvelope],
+class EventSourcedProjection[TDecision](
+    AggregatesApplication[TDecision, ProcessRecorder],
+    AbstractProjection[AggregateEventProtocol[TDecision]],
 ):
     """Extends the :py:class:`~eventsourcing.application.AggregatesApplication` class
     by using a process recorder as its application recorder, and by
     processing domain events through a :py:func:`policy` method.
     """
 
-    recorder: ProcessRecorder
-
     def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
         super().__init__(env=env, context_name=context_name)
         self.processing_lock = threading.Lock()
 
+    @override
     def construct_recorder(self) -> ProcessRecorder:
         """Constructs and returns a :class:`~eventsourcing.persistence.ProcessRecorder`
         for the application to use as its application recorder.
         """
         return self.factory.process_recorder()
 
-    def process_event(self, envelope: TEnvelope, tracking: Tracking) -> None:
-        """Calls :func:`~eventsourcing.system.Follower.policy` method with the given
-        domain event and a new :class:`~eventsourcing.application.ProcessingEvent`
+    @override
+    def process_event(
+        self, envelope: AggregateEventProtocol[TDecision], tracking: Tracking
+    ) -> None:
+        """Calls :func:`~eventsourcing.system.EventSourcedProjection.policy`
+        method with the given domain event and a new
+        :class:`~eventsourcing.application.ProcessingEvent`
         constructed with the given tracking object.
 
-        The policy method should collect any new aggregate events on the process
-        event object.
+        The policy method should collect any new aggregate events on the
+        process event object.
 
-        After the policy method returns, the processing event object will be recorded
-        by calling :py:func:`~eventsourcing.application.Application._record`,
+        After the policy method returns, the processing event object
+        will be recorded by calling
+        :py:func:`~eventsourcing.application.AggregatesApplication._record`,
         which then returns list of :py:class:`~eventsourcing.persistence.Recording`.
 
         After calling :func:`~eventsourcing.application.Application._take_snapshots`,
@@ -146,7 +138,7 @@ class EventSourcedProjection(
 
     def policy(
         self,
-        envelope: TEnvelope,
+        envelope: AggregateEventProtocol[TDecision],
         processing_event: ProcessingEvent[TDecision],
     ) -> None:
         """Abstract domain event processing policy method. Must be
@@ -161,13 +153,7 @@ class EventSourcedProjection(
         """
 
 
-TProjection = TypeVar("TProjection", bound=Projection[Any, Any])
-TEventSourcedProjection = TypeVar(
-    "TEventSourcedProjection", bound=EventSourcedProjection[Any, Any, Any]
-)
-
-
-class BaseProjectionRunner(Generic[TApplication]):
+class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, Any]]:
     def __init__(
         self,
         *,
@@ -328,9 +314,12 @@ class BaseProjectionRunner(Generic[TApplication]):
             self.stop()
 
 
-class ProjectionRunner(
+class ProjectionRunner[
+    TApplication: SupportsApplicationSubscriptions[Any, Any],
+    TProjection: Projection[Any, Any],
+    TTrackingRecorder: TrackingRecorder,
+](
     BaseProjectionRunner[TApplication],
-    Generic[TApplication, TProjection, TTrackingRecorder],
 ):
     def __init__(
         self,
@@ -349,10 +338,8 @@ class ProjectionRunner(
         object pair received from the subscription.
         """
         # Construct the materialised view using an infrastructure factory.
-        factory: InfrastructureFactory[TTrackingRecorder] = (
-            InfrastructureFactory.construct(
-                env=self._construct_env(name=projection_class.name, env=env)
-            )
+        factory = InfrastructureFactory[TTrackingRecorder].construct(
+            env=self._construct_env(name=projection_class.name, env=env)
         )
         self.view = factory.tracking_recorder(view_class)
 
@@ -367,38 +354,44 @@ class ProjectionRunner(
         )
 
 
-class EventSourcedProjectionRunner(
-    BaseProjectionRunner[TApplication],
-    Generic[TApplication, TEventSourcedProjection],
+class EventSourcedProjectionRunner[
+    TUpstream: SupportsApplicationSubscriptions[Any, Any],
+    TDownstream: EventSourcedProjection[Any],
+](
+    BaseProjectionRunner[TUpstream],
 ):
     def __init__(
         self,
         *,
-        application_class: type[TApplication],
-        projection_class: type[TEventSourcedProjection],
+        upstream_application_class: type[TUpstream],
+        downstream_application_class: type[TDownstream],
         env: EnvType | None = None,
     ):
-        self.projection = projection_class(
-            env=self._construct_env(name=projection_class.context_name, env=env)
+        self.downstream = downstream_application_class(
+            env=self._construct_env(
+                name=downstream_application_class.context_name, env=env
+            )
         )
 
         super().__init__(
-            projection=self.projection,
-            app=application_class(env=env),
-            tracking_recorder=self.projection.recorder,
-            topics=self.projection.topics,
+            projection=self.downstream,
+            app=upstream_application_class(env=env),
+            tracking_recorder=self.downstream.recorder,
+            topics=self.downstream.topics,
         )
 
+    @override
     def __enter__(self) -> Self:
         cm = super().__enter__()
-        self.projection.__enter__()
+        self.downstream.__enter__()
         return cm
 
+    @override
     def __exit__(
         self,
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        self.projection.__exit__(exc_type, exc_val, exc_tb)
+        self.downstream.__exit__(exc_type, exc_val, exc_tb)
         return super().__exit__(exc_type, exc_val, exc_tb)

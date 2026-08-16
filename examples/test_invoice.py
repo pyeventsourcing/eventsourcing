@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any
 from unittest import TestCase
 
-from eventsourcing.domain import triggers
+from eventsourcing.decorator import triggers
 from eventsourcing.pydantic import Aggregate, AggregatesApplication
 
 

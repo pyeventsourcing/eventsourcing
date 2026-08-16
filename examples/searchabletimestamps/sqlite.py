@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 import sqlite3
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, override
 
 from eventsourcing.sqlite import (
     SQLiteApplicationRecorder,
@@ -81,6 +81,7 @@ class SearchableTimestampsApplicationRecorder(
             "LIMIT 1"
         )
 
+    @override
     def construct_create_table_statements(self) -> list[str]:
         statements = super().construct_create_table_statements()
         statements.append(
@@ -94,6 +95,7 @@ class SearchableTimestampsApplicationRecorder(
         )
         return statements
 
+    @override
     def _insert_events(
         self,
         c: SQLiteCursor,
@@ -114,6 +116,7 @@ class SearchableTimestampsApplicationRecorder(
 
         return notification_ids
 
+    @override
     def get_version_at_timestamp(
         self, originator_id: str, timestamp: datetime.datetime
     ) -> int | None:
@@ -125,6 +128,7 @@ class SearchableTimestampsApplicationRecorder(
 
 
 class SearchableTimestampsInfrastructureFactory(SQLiteFactory):
+    @override
     def application_recorder(self) -> ApplicationRecorder:
         recorder = SearchableTimestampsApplicationRecorder(datastore=self.datastore)
         recorder.create_table()

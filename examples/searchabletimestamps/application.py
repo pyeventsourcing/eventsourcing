@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, override
 
 from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.domain import AggregateEvent
@@ -21,6 +21,7 @@ class CargoNotFoundError(AggregateNotFoundError):
 
 
 class SearchableTimestampsApplication(BookingApplication):
+    @override
     def _record(
         self, processing_event: ProcessingEvent[Decision]
     ) -> list[Recording[Decision]]:

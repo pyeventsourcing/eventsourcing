@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from typing import override
 from uuid import uuid4
 
-from eventsourcing.domain import event
+from eventsourcing.decorator import event
 from eventsourcing.pydantic import DcbApplication, Decision, Selector, Slice
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
@@ -66,9 +67,11 @@ class RegisterStudent(Slice):
         self.name = name
         self.max_courses = max_courses
 
+    @override
     def consistency_boundary(self) -> Selector:
         return Selector(types=[StudentRegistered], tags=[self.student_id])
 
+    @override
     def execute(self) -> None:
         self.trigger_event(
             StudentRegistered,
@@ -85,6 +88,7 @@ class UpdateStudentName(Slice):
         self.name = name
         self.student_was_registered: bool = False
 
+    @override
     def consistency_boundary(self) -> Selector:
         return Selector(
             types=[StudentRegistered, StudentNameUpdated], tags=[self.student_id]
@@ -94,6 +98,7 @@ class UpdateStudentName(Slice):
     def _(self) -> None:
         self.student_was_registered = True
 
+    @override
     def execute(self) -> None:
         assert self.student_was_registered
         self.trigger_event(
@@ -110,6 +115,7 @@ class UpdateMaxCourses(Slice):
         self.max_courses = max_courses
         self.student_was_registered: bool = False
 
+    @override
     def consistency_boundary(self) -> Selector:
         return Selector(
             types=[StudentRegistered, StudentMaxCoursesUpdated],
@@ -120,6 +126,7 @@ class UpdateMaxCourses(Slice):
     def _(self) -> None:
         self.student_was_registered = True
 
+    @override
     def execute(self) -> None:
         assert self.student_was_registered
         self.trigger_event(
@@ -136,9 +143,11 @@ class RegisterCourse(Slice):
         self.places = places
         self.course_id = f"course-{uuid4()}"
 
+    @override
     def consistency_boundary(self) -> Selector:
         return Selector(types=[CourseRegistered], tags=[self.course_id])
 
+    @override
     def execute(self) -> None:
         self.trigger_event(
             CourseRegistered,
@@ -155,6 +164,7 @@ class UpdateCourseName(Slice):
         self.name = name
         self.course_was_registered: bool = False
 
+    @override
     def consistency_boundary(self) -> Selector:
         return Selector(
             types=[CourseRegistered, CourseNameUpdated], tags=[self.course_id]
@@ -164,6 +174,7 @@ class UpdateCourseName(Slice):
     def _(self) -> None:
         self.course_was_registered = True
 
+    @override
     def execute(self) -> None:
         assert self.course_was_registered
         self.trigger_event(
@@ -180,6 +191,7 @@ class UpdatePlaces(Slice):
         self.places = places
         self.course_was_registered: bool = False
 
+    @override
     def consistency_boundary(self) -> Selector:
         return Selector(
             types=[CourseRegistered, CoursePlacesUpdated], tags=[self.course_id]
@@ -189,6 +201,7 @@ class UpdatePlaces(Slice):
     def _(self) -> None:
         self.course_was_registered = True
 
+    @override
     def execute(self) -> None:
         assert self.course_was_registered
         self.trigger_event(
@@ -210,6 +223,7 @@ class StudentJoinsCourse(Slice):
         self.students_on_course: list[str] = []
         self.courses_for_student: list[str] = []
 
+    @override
     def consistency_boundary(self) -> list[Selector]:
         return [
             Selector(
@@ -264,6 +278,7 @@ class StudentJoinsCourse(Slice):
     def _(self, places: int) -> None:
         self.course_places = places
 
+    @override
     def execute(self) -> None:
         if not self.course_was_registered:
             raise CourseNotFoundError(self.course_id)
@@ -292,6 +307,7 @@ class StudentLeavesCourse(Slice):
         self.students_on_course: list[str] = []
         self.courses_for_student: list[str] = []
 
+    @override
     def consistency_boundary(self) -> list[Selector]:
         return [
             Selector(
@@ -326,6 +342,7 @@ class StudentLeavesCourse(Slice):
         if course_id == self.course_id:
             self.students_on_course.remove(student_id)
 
+    @override
     def execute(self) -> None:
         if not self.course_was_registered:
             raise CourseNotFoundError
@@ -346,6 +363,7 @@ class StudentsIDs(Slice):
         self.course_id = course_id
         self.student_ids: list[str] = []
 
+    @override
     def consistency_boundary(self) -> Selector:
         return Selector(
             types=[StudentJoinedCourse, StudentLeftCourse], tags=[self.course_id]
@@ -364,6 +382,7 @@ class StudentNames(Slice):
     def __init__(self, student_ids: list[str]) -> None:
         self.student_id_names: dict[str, str | None] = dict.fromkeys(student_ids, None)
 
+    @override
     def consistency_boundary(self) -> list[Selector]:
         return [
             Selector(types=[StudentRegistered, StudentNameUpdated], tags=[student_id])
@@ -388,6 +407,7 @@ class CourseIDs(Slice):
         self.student_id = student_id
         self.course_ids: list[str] = []
 
+    @override
     def consistency_boundary(self) -> Selector:
         return Selector(
             types=[StudentJoinedCourse, StudentLeftCourse], tags=[self.student_id]
@@ -406,6 +426,7 @@ class CourseNames(Slice):
     def __init__(self, course_ids: list[str]) -> None:
         self.course_id_names: dict[str, str | None] = dict.fromkeys(course_ids, None)
 
+    @override
     def consistency_boundary(self) -> list[Selector]:
         return [
             Selector(types=[CourseRegistered, CourseNameUpdated], tags=[student_id])
@@ -433,6 +454,7 @@ class Student(Slice):
         self.max_courses: int = 0
         self.course_ids: list[str] = []
 
+    @override
     def consistency_boundary(self) -> Selector:
         return Selector(tags=[self.student_id])
 
@@ -467,6 +489,7 @@ class Course(Slice):
         self.places = 0
         self.student_ids: list[str] = []
 
+    @override
     def consistency_boundary(self) -> Selector:
         return Selector(tags=[self.course_id])
 
@@ -494,38 +517,57 @@ class Course(Slice):
 
 
 class EnrolmentWithVerticalSlices(DcbApplication, EnrolmentInterface):
+    @override
     def register_student(self, name: str, max_courses: int) -> str:
-        return self.do(RegisterStudent(name, max_courses)).student_id
+        register_student = RegisterStudent(name, max_courses)
+        self.execute(register_student)
+        return register_student.student_id
 
+    @override
     def register_course(self, name: str, places: int) -> str:
-        return self.do(RegisterCourse(name, places)).course_id
+        register_course = RegisterCourse(name, places)
+        self.execute(register_course)
+        return register_course.course_id
 
+    @override
     def join_course(self, student_id: str, course_id: str) -> None:
-        self.do(StudentJoinsCourse(student_id, course_id))
+        self.execute(StudentJoinsCourse(student_id, course_id))
+
+    @override
+    def list_students_for_course(self, course_id: str) -> list[str]:
+        return self.evaluate(
+            StudentNames(self.evaluate(StudentsIDs(course_id)).student_ids)
+        ).names
+
+    @override
+    def list_courses_for_student(self, student_id: str) -> list[str]:
+        course_ids_slice = CourseIDs(student_id)
+        self.execute(course_ids_slice)
+        course_names_slice = CourseNames(course_ids_slice.course_ids)
+        self.execute(course_names_slice)
+        return course_names_slice.names
 
     def leave_course(self, student_id: str, course_id: str) -> None:
-        self.do(StudentLeavesCourse(student_id, course_id))
-
-    def list_students_for_course(self, course_id: str) -> list[str]:
-        return self.do(StudentNames(self.do(StudentsIDs(course_id)).student_ids)).names
-
-    def list_courses_for_student(self, student_id: str) -> list[str]:
-        return self.do(CourseNames(self.do(CourseIDs(student_id)).course_ids)).names
+        self.execute(StudentLeavesCourse(student_id, course_id))
 
     def update_student_name(self, student_id: str, name: str) -> None:
-        self.do(UpdateStudentName(student_id, name))
+        self.execute(UpdateStudentName(student_id, name))
 
     def update_max_courses(self, student_id: str, max_courses: int) -> None:
-        self.do(UpdateMaxCourses(student_id, max_courses))
+        self.execute(UpdateMaxCourses(student_id, max_courses))
 
     def update_course_name(self, course_id: str, name: str) -> None:
-        self.do(UpdateCourseName(course_id, name))
+        self.execute(UpdateCourseName(course_id, name))
 
     def update_places(self, course_id: str, places: int) -> None:
-        self.do(UpdatePlaces(course_id, places))
+        self.execute(UpdatePlaces(course_id, places))
 
     def get_student(self, student_id: str) -> Student:
-        return self.do(Student(student_id=student_id))
+        student_slice = Student(student_id=student_id)
+        self.execute(student_slice)
+        return student_slice
 
     def get_course(self, course_id: str) -> Course:
-        return self.do(Course(course_id=course_id))
+        course = Course(course_id=course_id)
+        self.execute(course)
+        return course

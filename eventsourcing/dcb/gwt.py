@@ -1,20 +1,23 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
-from eventsourcing.domain import AbstractDecision, Selector, Slice, TaggedEvent
+from eventsourcing.domain import (
+    Slice,
+)
+from eventsourcing.types import (
+    SelectorProtocol,
+    StateMutatorProtocol,
+    TaggedEventProtocol,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-TDecision = TypeVar("TDecision", bound=AbstractDecision)
-TSlice = TypeVar("TSlice", bound=Slice[Any])
-
-
-def selector_matches(
-    selector: Selector[AbstractDecision],
-    event: TaggedEvent[AbstractDecision],
+def selector_matches[TDecision](
+    selector: SelectorProtocol[TDecision],
+    event: TaggedEventProtocol[TDecision],
 ) -> bool:
     """
     Implements DCB selection semantics for a single Selector.
@@ -30,9 +33,9 @@ def selector_matches(
     return type_matches and tag_matches
 
 
-def boundary_matches(
-    boundary: Selector[AbstractDecision] | Sequence[Selector[AbstractDecision]],
-    event: TaggedEvent[AbstractDecision],
+def boundary_matches[TDecision](
+    boundary: SelectorProtocol[TDecision] | Sequence[SelectorProtocol[TDecision]],
+    event: TaggedEventProtocol[TDecision],
 ) -> bool:
     """
     Implements DCB selection semantics for a consistency boundary.
@@ -40,16 +43,16 @@ def boundary_matches(
     Multiple selectors are ORed.
     """
 
-    selectors = [boundary] if isinstance(boundary, Selector) else boundary
+    selectors = [boundary] if isinstance(boundary, SelectorProtocol) else boundary
 
     return any(selector_matches(selector, event) for selector in selectors)
 
 
-class Then(Generic[TSlice]):
+class Then[TSlice: Slice[Any], TDecision]:
     def __init__(
         self,
-        expected: Sequence[TaggedEvent[AbstractDecision]],
-        collected: Sequence[TaggedEvent[AbstractDecision]],
+        expected: Sequence[TaggedEventProtocol[TDecision]],
+        collected: Sequence[TaggedEventProtocol[TDecision]],
         slice_: TSlice,
     ):
         self.expected = list(expected)
@@ -70,10 +73,10 @@ class Then(Generic[TSlice]):
             ), f"Event {i} tags mismatch: expected {exp.tags}, got {actual.tags}"
 
 
-class When(Generic[TSlice]):
+class When[TSlice: Slice[Any]]:
     def __init__(
         self,
-        given_events: Sequence[TaggedEvent[AbstractDecision]],
+        given_events: Sequence[Any],
         slice_: TSlice,
     ):
         self.given_events = list(given_events)
@@ -86,6 +89,7 @@ class When(Generic[TSlice]):
                 raise AssertionError(msg)
 
         for event in self.given_events:
+            assert isinstance(event, StateMutatorProtocol)
             event.mutate(self.slice)
 
         self.slice.execute()
@@ -93,7 +97,7 @@ class When(Generic[TSlice]):
 
     def then(
         self,
-        *expected: TaggedEvent[AbstractDecision],
+        *expected: Any,
     ) -> TSlice:
         return Then(expected, self.collected, self.slice).slice
 
@@ -101,24 +105,24 @@ class When(Generic[TSlice]):
 class Given:
     def __init__(
         self,
-        *events: TaggedEvent[AbstractDecision],
+        *events: Any,
     ):
         self.events = list(events)
 
-    def when(self, slice_: TSlice, /) -> When[TSlice]:
+    def when[TSlice: Slice[Any]](self, slice_: TSlice, /) -> When[TSlice]:
         return When(
             given_events=self.events,
             slice_=slice_,
         )
 
 
-class WhenSlice(Generic[TSlice]):
+class WhenSlice[TSlice: Slice[Any]]:
     def __init__(self, slice_: TSlice):
         self.slice = slice_
 
     def given(
         self,
-        *events: TaggedEvent[AbstractDecision],
+        *events: Any,
     ) -> When[TSlice]:
         return When(
             given_events=list(events),
@@ -127,10 +131,10 @@ class WhenSlice(Generic[TSlice]):
 
 
 def given(
-    *events: TaggedEvent[AbstractDecision],
+    *events: Any,
 ) -> Given:
     return Given(*events)
 
 
-def when(slice_: TSlice, /) -> WhenSlice[TSlice]:
+def when[TSlice: Slice[Any]](slice_: TSlice, /) -> WhenSlice[TSlice]:
     return WhenSlice(slice_)

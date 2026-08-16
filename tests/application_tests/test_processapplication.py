@@ -1,20 +1,19 @@
 import types
-from typing import Any
+from typing import Any, override
 from unittest.case import TestCase
 
 from eventsourcing.application import ProcessingEvent
-from eventsourcing.domain import AggregateEvent, TDecision
 from eventsourcing.persistence import IntegrityError
-from eventsourcing.pydantic import Decision, Transcoder
+from eventsourcing.pydantic import Decision, ProcessApplication, Transcoder
 from eventsourcing.system import (
     Follower,
     Leader,
-    ProcessApplication,
     RecordingEvent,
     RecordingEventReceiver,
 )
 from eventsourcing.tests.application import BankAccountsWithPydantic
 from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
+from eventsourcing.types import AggregateEventProtocol
 from tests.application_tests.test_processingpolicy import EmailNotification
 
 
@@ -94,13 +93,15 @@ class TestProcessApplication(TestCase):
         )
 
 
-class EmailProcess(ProcessApplication[Decision]):
+class EmailProcess(ProcessApplication):
+    @override
     def construct_transcoder(self) -> Transcoder:
         return Transcoder()
 
+    @override
     def policy(
         self,
-        envelope: AggregateEvent[Decision],
+        envelope: AggregateEventProtocol[Decision],
         processing_event: ProcessingEvent[Decision],
     ) -> None:
         match envelope.decision:
@@ -115,10 +116,11 @@ class EmailProcess(ProcessApplication[Decision]):
                 processing_event.collect_events(notification)
 
 
-class PromptForwarder(RecordingEventReceiver[TDecision]):
+class PromptForwarder[TDecision](RecordingEventReceiver[TDecision]):
     def __init__(self, application: Follower[Any]):
         self.application = application
 
+    @override
     def receive_recording_event(
         self, new_recording_event: RecordingEvent[TDecision]
     ) -> None:

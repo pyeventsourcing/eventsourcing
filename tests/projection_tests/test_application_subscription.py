@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from eventsourcing.application import AggregatesApplicationSubscription
 from eventsourcing.dataclasses import Aggregate, AggregatesApplication, Decision
-from eventsourcing.domain import triggers
+from eventsourcing.decorator import triggers
 from eventsourcing.persistence import Tracking
 from eventsourcing.utils import get_topic
 

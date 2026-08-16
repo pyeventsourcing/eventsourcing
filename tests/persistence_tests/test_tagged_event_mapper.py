@@ -12,7 +12,7 @@ class StudentRegistered(Decision):
 
 class TestTaggedEventMapper(TestCase):
     def test_mapper(self) -> None:
-        mapper = TaggedEventMapper(Transcoder())
+        mapper = TaggedEventMapper[Decision](Transcoder())
 
         event = TaggedEvent[StudentRegistered](
             tags=["student-1"],

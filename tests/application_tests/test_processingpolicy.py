@@ -4,17 +4,17 @@ from typing import TYPE_CHECKING
 from unittest.case import TestCase
 
 from eventsourcing.application import ProcessingEvent
-from eventsourcing.domain import triggers
+from eventsourcing.decorator import triggers
 from eventsourcing.persistence import Tracking
 from eventsourcing.pydantic import Aggregate, Decision
 from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 
 if TYPE_CHECKING:
-    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.types import AggregateEventProtocol
 
 
 def policy(
-    envelope: AggregateEvent[Decision],
+    envelope: AggregateEventProtocol[Decision],
     processing_event: ProcessingEvent[Decision],
 ) -> None:
     match envelope.decision:

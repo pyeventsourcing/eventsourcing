@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from eventsourcing.domain import AggregateEvent
 from eventsourcing.persistence import Tracking, TrackingRecorder
@@ -31,7 +31,8 @@ class FtsViewInterface(FtsRecorder, TrackingRecorder, ABC):
         pass
 
 
-class FtsProjection(Projection[FtsViewInterface, AggregateEvent[Decision]]):
+class FtsProjection(Projection[AggregateEvent[Decision], FtsViewInterface]):
+    @override
     def process_event(
         self, envelope: AggregateEvent[Decision], tracking: Tracking
     ) -> None:
@@ -58,6 +59,7 @@ class FtsProjection(Projection[FtsViewInterface, AggregateEvent[Decision]]):
 
 
 class PostgresFtsView(PostgresFtsRecorder, PostgresTrackingRecorder, FtsViewInterface):
+    @override
     def insert_pages_with_tracking(
         self, pages: Sequence[PageInfo], tracking: Tracking
     ) -> None:
@@ -65,6 +67,7 @@ class PostgresFtsView(PostgresFtsRecorder, PostgresTrackingRecorder, FtsViewInte
             self._insert_pages(curs, pages)
             self._insert_tracking(curs, tracking)
 
+    @override
     def update_pages_with_tracking(
         self, pages: Sequence[PageInfo], tracking: Tracking
     ) -> None:

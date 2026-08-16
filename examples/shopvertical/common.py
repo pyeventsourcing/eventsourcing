@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 from eventsourcing.pydantic import AggregatesApplication, Decision, Immutable
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.types import AggregateEventProtocol
 
-    Events: TypeAlias = Sequence[AggregateEvent[Decision]]
+    type Events = Sequence[AggregateEventProtocol[Decision]]
 
 
 class Command(Immutable, ABC):

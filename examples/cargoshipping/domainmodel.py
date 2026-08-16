@@ -5,8 +5,9 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-from eventsourcing.domain import datetime_now_with_tzinfo, triggers
+from eventsourcing.decorator import triggers
 from eventsourcing.pydantic import Aggregate, Decision
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 
 
 class Location(Enum):

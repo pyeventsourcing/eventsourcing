@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import ClassVar
+from typing import ClassVar, override
 from unittest import TestCase
 from uuid import uuid4
 
@@ -72,6 +72,7 @@ class FtsRecorderTestCase(TestCase, ABC):
 
 
 class TestWithSQLite(FtsRecorderTestCase):
+    @override
     def construct_recorder(self) -> FtsRecorder:
         recorder = SQLiteFtsRecorder(SQLiteDatastore(":memory:"))
         recorder.create_table()
@@ -84,14 +85,17 @@ class TestWithPostgres(FtsRecorderTestCase):
         "APPLICATION_RECORDER_TOPIC": get_topic(PostgresFtsApplicationRecorder),
     }
 
+    @override
     def setUp(self) -> None:
         drop_tables()
         super().setUp()
 
+    @override
     def tearDown(self) -> None:
         super().tearDown()
         drop_tables()
 
+    @override
     def construct_recorder(self) -> FtsRecorder:
         datastore = PostgresDatastore(
             "eventsourcing",

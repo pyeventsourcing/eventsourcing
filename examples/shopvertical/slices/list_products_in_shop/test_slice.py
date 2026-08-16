@@ -44,7 +44,7 @@ class TestListProductsInShop(unittest.TestCase):
 
         product_id1 = str(uuid4())
         product_id2 = str(uuid4())
-        events = (
+        events: Events = (
             AggregateEvent(
                 decision=AddedProductToShop(
                     name="Coffee",
@@ -91,7 +91,7 @@ class TestListProductsInShop(unittest.TestCase):
 
         product_id1 = str(uuid4())
         product_id2 = str(uuid4())
-        events = (
+        events: Events = (
             AggregateEvent(
                 decision=AddedProductToShop(
                     name="Coffee",

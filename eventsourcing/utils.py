@@ -8,18 +8,19 @@ from inspect import isfunction
 from random import random
 from threading import Lock
 from time import sleep
-from types import ModuleType
+from types import ModuleType, get_original_bases
 from typing import (
     TYPE_CHECKING,
     Any,
     NewType,
+    Protocol,
     get_args,
     get_origin,
-    no_type_check,
     overload,
+    override,
 )
 
-from typing_extensions import TypeVar, get_original_bases
+from typing_extensions import TypeVar
 
 if TYPE_CHECKING:
     from types import FunctionType, WrapperDescriptorType
@@ -137,52 +138,63 @@ def clear_topic_cache() -> None:
     _topic_cache.clear()
 
 
-def retry(
+# Define a Protocol for the parameterized decorator's return type.
+# This allows the returned decorator to dynamically bind to ANY function it wraps.
+class _RetryDecorator(Protocol):
+    def __call__[**P, T](self, func: Callable[P, T]) -> Callable[P, T]: ...
+
+
+# Overload 1: Parameterized decorator usage -> @retry(max_attempts=3)
+@overload
+def retry(  # type: ignore[overload-overlap]
     exc: type[Exception] | tuple[type[Exception], ...] = Exception,
-    max_attempts: int = 1,
-    wait: float = 0,
-    stall: float = 0,
-) -> Callable[[Any], Any]:
-    """Retry decorator.
+    max_attempts: int | None = 1,
+    wait: float = 0.0,
+    stall: float = 0.0,
+) -> _RetryDecorator: ...
 
-    :param exc: List of exceptions that will cause the call to be retried if raised.
-    :param max_attempts: Maximum number of attempts to try.
-    :param wait: Amount of time to wait before retrying after an exception.
-    :param stall: Amount of time to wait before the first attempt.
-    :return: Returns the value returned by decorated function.
-    """
 
-    @no_type_check
-    def _retry(func: Callable) -> Callable:
+# Overload 2: Bare decorator usage -> @retry
+@overload
+def retry[**P, T](exc: Callable[P, T]) -> Callable[P, T]: ...
+
+
+# Implementation
+def retry(
+    exc: Any = Exception,
+    max_attempts: int | None = 1,
+    wait: float = 0.0,
+    stall: float = 0.0,
+) -> Any:
+    """Retry decorator."""
+
+    # Resolve the actual exception types to catch
+    actual_exc = Exception if isfunction(exc) else exc
+
+    # PEP 695 inline generics directly on the inner function
+    def _retry[**P, T](func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        def retry_decorator(*args: Any, **kwargs: Any) -> Any:
+        def retry_decorator(*args: P.args, **kwargs: P.kwargs) -> T:
             if stall:
                 sleep(stall)
             attempts = 0
             while True:
                 try:
                     return func(*args, **kwargs)
-                except exc:
+                except actual_exc:
                     attempts += 1
                     if max_attempts is None or attempts < max_attempts:
                         sleep(wait * (1 + 0.1 * (random() - 0.5)))  # noqa: S311
                     else:
-                        # Max retries exceeded.
                         raise
 
         return retry_decorator
 
-    # If using decorator in bare form, the decorated
-    # function is the first arg, so check 'exc'.
+    # 2. Bare Decorator Flow
     if isfunction(exc):
-        # Remember the given function.
-        _func = exc
-        # Set 'exc' to a sensible exception class for _retry().
-        exc = Exception
-        # Wrap and return.
-        return _retry(func=_func)
-    # Check decorator args, and return _retry,
-    # to be called with the decorated function.
+        return _retry(func=exc)
+
+    # 3. Parameterized Decorator Validation Flow
     if isinstance(exc, (list, tuple)):
         for _exc in exc:
             if not (isinstance(_exc, type) and issubclass(_exc, Exception)):
@@ -191,15 +203,18 @@ def retry(
     elif not (isinstance(exc, type) and issubclass(exc, Exception)):
         msg = f"not an exception class: {exc}"
         raise TypeError(msg)
-    if not isinstance(max_attempts, int):
-        msg = f"'max_attempts' must be an int: {max_attempts}"
+
+    if max_attempts is not None and not isinstance(max_attempts, int):
+        msg = f"'max_attempts' must be an int or None: {max_attempts}"
         raise TypeError(msg)
     if not isinstance(wait, (float, int)):
-        msg = f"'wait' must be a float: {max_attempts}"
+        msg = f"'wait' must be a float: {wait}"
         raise TypeError(msg)
     if not isinstance(stall, (float, int)):
-        msg = f"'stall' must be a float: {max_attempts}"
+        msg = f"'stall' must be a float: {stall}"
         raise TypeError(msg)
+
+    # Return the decorator factory
     return _retry
 
 
@@ -234,7 +249,6 @@ def get_method_name(
 
 
 EnvType = Mapping[str, str]
-T = TypeVar("T")
 
 
 class Environment(dict[str, str]):
@@ -242,23 +256,25 @@ class Environment(dict[str, str]):
         super().__init__(env or {})
         self.name = name
 
-    @overload  # type: ignore[override]
-    def get(self, __key: str, /) -> str | None: ...  # pragma: no cover
+    @overload
+    def get(self, key: str, default: None = None, /) -> str | None:
+        """Overload 1: No default provided, or explicitly None"""
 
     @overload
-    def get(self, __key: str, /, __default: str) -> str: ...  # pragma: no cover
+    def get(self, key: str, default: str, /) -> str:
+        """Overload 2: Default is explicitly a string"""
 
     @overload
-    def get(self, __key: str, /, __default: T) -> str | T: ...  # pragma: no cover
+    def get[T](self, key: str, default: T, /) -> str | T:
+        """# Overload 3: Default is some other type (PEP 695 syntax)"""
 
-    def get(  # pyright: ignore [reportIncompatibleMethodOverride]
-        self, __key: str, /, __default: str | T | None = None
-    ) -> str | T | None:
-        for _key in self.create_keys(__key):
+    @override
+    def get[T](self, key: str, default: str | T | None = None, /) -> str | T | None:
+        for _key in self.create_keys(key):
             value = super().get(_key, None)
             if value is not None:
                 return value
-        return __default
+        return default
 
     def create_keys(self, key: str) -> list[str]:
         keys = []
@@ -407,10 +423,7 @@ def safe_get_original_bases(cls: type) -> tuple[Any, ...]:
     return tuple(repaired_bases)
 
 
-_T = TypeVar("_T")
-
-
-def unwrap_new_type(id_type: type[_T]) -> type[_T]:
+def unwrap_new_type[T](id_type: type[T]) -> type[T]:
     while True:
         if isinstance(id_type, type):
             return id_type

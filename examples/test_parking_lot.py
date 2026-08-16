@@ -5,17 +5,18 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import override
 from unittest import TestCase
 from uuid import NAMESPACE_URL, uuid5
 
 from eventsourcing.application import AggregateNotFoundError
+from eventsourcing.decorator import triggers
 from eventsourcing.domain import (
     AggregateEvent,
-    datetime_now_with_tzinfo,
-    triggers,
 )
 from eventsourcing.pydantic import Aggregate, AggregatesApplication, Decision
 from eventsourcing.system import NotificationLogReader
+from eventsourcing.timestamp import datetime_now_with_tzinfo
 
 
 @dataclass
@@ -87,6 +88,7 @@ class Vehicle(Aggregate):
             self.fail_inspection(when)
 
     @staticmethod
+    @override
     def create_id(licence_plate_number: str) -> str:
         return str(
             uuid5(NAMESPACE_URL, f"/licence_plate_numbers/{licence_plate_number}")

@@ -5,7 +5,7 @@ import logging
 from asyncio import CancelledError
 from contextlib import contextmanager
 from threading import Thread
-from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, cast, override
 
 import psycopg
 import psycopg.errors
@@ -50,12 +50,11 @@ from eventsourcing.persistence import (
     Subscription,
     Tracking,
     TrackingRecorder,
-    TTrackingRecorder,
 )
 from eventsourcing.utils import Environment, EnvType, resolve_topic, retry, strtobool
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Callable, Generator, Sequence
     from types import TracebackType
     from typing import Self
     from uuid import UUID
@@ -84,7 +83,7 @@ class PgStoredEvent(NamedTuple):
     metadata: dict[str, str]
 
 
-class ConnectionPool(psycopg_pool.ConnectionPool[CT], Generic[CT]):
+class ConnectionPool(psycopg_pool.ConnectionPool[CT], Generic[CT]):  # noqa: UP046
     def __init__(  # noqa: PLR0913
         self,
         conninfo: ConninfoParam = "",
@@ -130,6 +129,7 @@ class ConnectionPool(psycopg_pool.ConnectionPool[CT], Generic[CT]):
             num_workers=num_workers,
         )
 
+    @override
     def _connect(self, timeout: float | None = None) -> CT:
         if self.get_password_func:
             assert isinstance(self.kwargs, dict)
@@ -241,7 +241,7 @@ class PostgresDatastore:
                 self.psycopg_python_types[name] = info.python_type
 
     @contextmanager
-    def get_connection(self) -> Iterator[Connection[DictRow]]:
+    def get_connection(self) -> Generator[Connection[DictRow]]:
         try:
             wait = self.pool_open_timeout is not None
             timeout = self.pool_open_timeout or 30.0
@@ -280,12 +280,12 @@ class PostgresDatastore:
             raise
 
     @contextmanager
-    def cursor(self) -> Iterator[Cursor[DictRow]]:
+    def cursor(self) -> Generator[Cursor[DictRow]]:
         with self.get_connection() as conn:
             yield conn.cursor()
 
     @contextmanager
-    def transaction(self, *, commit: bool = False) -> Iterator[Cursor[DictRow]]:
+    def transaction(self, *, commit: bool = False) -> Generator[Cursor[DictRow]]:
         with self.get_connection() as conn, conn.transaction(force_rollback=not commit):
             yield conn.cursor()
 
@@ -483,6 +483,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
             raise ProgrammingError(msg) from None
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
+    @override
     def insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
@@ -518,6 +519,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         )
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
+    @override
     def select_events(
         self,
         originator_id: str,
@@ -672,6 +674,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         self.sql_create_statements.append(self.sql_create_pg_function_insert_events)
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
+    @override
     def insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
@@ -730,6 +733,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
     ) -> None:
         pass
 
+    @override
     def _insert_stored_events(
         self,
         curs: Cursor[DictRow],
@@ -741,6 +745,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         super()._insert_stored_events(curs, stored_events, **kwargs)
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
+    @override
     def select_notifications(
         self,
         start: int | None,
@@ -810,6 +815,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             ]
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
+    @override
     def max_notification_id(self) -> int | None:
         """Returns the maximum notification ID."""
         with self.datastore.get_connection() as conn, conn.cursor() as curs:
@@ -863,6 +869,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             raise ProgrammingError(msg) from e
         return notification_ids
 
+    @override
     def subscribe(
         self, gt: int | None = None, topics: Sequence[str] = ()
     ) -> Subscription[ApplicationRecorder]:
@@ -881,6 +888,7 @@ class PostgresSubscription(ListenNotifySubscription[PostgresApplicationRecorder]
         self._listen_thread = Thread(target=self._listen)
         self._listen_thread.start()
 
+    @override
     def __exit__(self, *args: object, **kwargs: Any) -> None:
         try:
             super().__exit__(*args, **kwargs)
@@ -994,6 +1002,7 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
             Identifier(self.tracking_table_name),
         )
 
+    @override
     def create_table(self) -> None:
         # Get the migration version.
         try:
@@ -1012,6 +1021,7 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
             msg = "Can't do multi-row tracking with single-row tracking table"
             raise OperationalError(msg)
 
+    @override
     def _create_table(self, curs: Cursor[DictRow]) -> None:
         max_tracking_ids: dict[str, int] = {}
         if (
@@ -1071,6 +1081,7 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
                 self._insert_tracking(curs, Tracking(context_name, max_tracking_id))
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
+    @override
     def insert_tracking(self, tracking: Tracking) -> None:
         with self.datastore.transaction(commit=True) as curs:
             self._insert_tracking(curs, tracking)
@@ -1110,6 +1121,7 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
         self.has_checked_for_multi_row_tracking_table = True
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
+    @override
     def max_tracking_id(self, context_name: str) -> int | None:
         with self.datastore.get_connection() as conn, conn.cursor() as curs:
             return self._max_tracking_id(context_name, curs)
@@ -1125,6 +1137,7 @@ class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):
         return fetchone["max"]
 
     @retry((InterfaceError, OperationalError), max_attempts=10, wait=0.2)
+    @override
     def has_tracking_id(self, context_name: str, notification_id: int | None) -> bool:
         return super().has_tracking_id(context_name, notification_id)
 
@@ -1152,6 +1165,7 @@ class PostgresProcessRecorder(
             events_table_name=events_table_name,
         )
 
+    @override
     def _insert_events(
         self,
         curs: Cursor[DictRow],
@@ -1164,7 +1178,7 @@ class PostgresProcessRecorder(
         super()._insert_events(curs, stored_events, **kwargs)
 
 
-class BasePostgresFactory(BaseInfrastructureFactory[TTrackingRecorder]):
+class BasePostgresFactory(BaseInfrastructureFactory):
     POSTGRES_DBNAME = "POSTGRES_DBNAME"
     POSTGRES_HOST = "POSTGRES_HOST"
     POSTGRES_PORT = "POSTGRES_PORT"
@@ -1384,21 +1398,21 @@ class BasePostgresFactory(BaseInfrastructureFactory[TTrackingRecorder]):
     def env_create_table(self) -> bool:
         return strtobool(self.env.get(self.CREATE_TABLE) or "yes")
 
+    @override
     def close(self) -> None:
         with contextlib.suppress(AttributeError):
             self.datastore.close()
-        super().close()
 
 
 class PostgresFactory(
-    BasePostgresFactory[PostgresTrackingRecorder],
-    InfrastructureFactory[PostgresTrackingRecorder],
+    BasePostgresFactory, InfrastructureFactory[PostgresTrackingRecorder]
 ):
     aggregate_recorder_class = PostgresAggregateRecorder
     application_recorder_class = PostgresApplicationRecorder
     tracking_recorder_class = PostgresTrackingRecorder
     process_recorder_class = PostgresProcessRecorder
 
+    @override
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         prefix = self.env.name.lower() or "stored"
         events_table_name = prefix + "_" + purpose
@@ -1410,7 +1424,8 @@ class PostgresFactory(
             recorder.create_table()
         return recorder
 
-    def application_recorder(self) -> ApplicationRecorder:
+    @override
+    def application_recorder(self) -> PostgresApplicationRecorder:
         prefix = self.env.name.lower() or "stored"
         events_table_name = prefix + "_events"
         application_recorder_topic = self.env.get(self.APPLICATION_RECORDER_TOPIC)
@@ -1430,9 +1445,10 @@ class PostgresFactory(
             recorder.create_table()
         return recorder
 
+    @override
     def tracking_recorder(
-        self, tracking_recorder_class: type[TPostgresTrackingRecorder] | None = None
-    ) -> TPostgresTrackingRecorder:
+        self, tracking_recorder_class: type[PostgresTrackingRecorder] | None = None
+    ) -> PostgresTrackingRecorder:
         prefix = self.env.name.lower() or "notification"
         tracking_table_name = prefix + "_tracking"
         if tracking_recorder_class is None:
@@ -1440,10 +1456,7 @@ class PostgresFactory(
             if tracking_recorder_topic:
                 tracking_recorder_class = resolve_topic(tracking_recorder_topic)
             else:
-                tracking_recorder_class = cast(
-                    "type[TPostgresTrackingRecorder]",
-                    type(self).tracking_recorder_class,
-                )
+                tracking_recorder_class = type(self).tracking_recorder_class
         assert tracking_recorder_class is not None
         assert issubclass(tracking_recorder_class, PostgresTrackingRecorder)
         recorder = tracking_recorder_class(
@@ -1454,6 +1467,7 @@ class PostgresFactory(
             recorder.create_table()
         return recorder
 
+    @override
     def process_recorder(self) -> ProcessRecorder:
         prefix = self.env.name.lower() or "stored"
         events_table_name = prefix + "_events"

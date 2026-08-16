@@ -1,8 +1,8 @@
 from copy import deepcopy
 from threading import Thread
+from typing import override
 from unittest import TestCase
 
-import eventsourcing.domain
 from eventsourcing.pydantic import Decision, Transcoder
 from eventsourcing.tests.persistence import (
     AggregateEventMapperTestCase,
@@ -31,21 +31,25 @@ class TestDecision(TestCase):
         t.join()
 
 
-class TestPydanticTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase):
+class TestPydanticTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase[Decision]):
     transcoder_class = Transcoder
 
     def test_tagged_event_mapper(self) -> None:
         super()._test_tagged_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
+    @override
+    def construct_decision(self) -> Decision:
         return MyPydanticDecision(a="1")
 
 
-class TestPydanticTranscoderWithAggregateEventMapper(AggregateEventMapperTestCase):
+class TestPydanticTranscoderWithAggregateEventMapper(
+    AggregateEventMapperTestCase[Decision]
+):
     transcoder_class = Transcoder
 
     def test_aggregate_event_mapper(self) -> None:
         super()._test_aggregate_event_mapper()
 
-    def construct_decision(self) -> eventsourcing.domain.AbstractDecision:
+    @override
+    def construct_decision(self) -> Decision:
         return MyPydanticDecision(a="1")

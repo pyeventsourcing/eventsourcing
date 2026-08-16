@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent
-from examples.aggregate4.baseclasses import Aggregate, TimestampedDecision
+from examples.aggregate4.baseclasses import (
+    Aggregate,
+    AggregateEvent,
+    TimestampedDecision,
+)
 
 if TYPE_CHECKING:
     from eventsourcing.dataclasses import Decision
+    from eventsourcing.types import AggregateEventProtocol
 
 
 @dataclass
@@ -39,7 +43,8 @@ class Dog(Aggregate):
     def add_trick(self, trick: str) -> None:
         self.trigger_event(self.TrickAdded, trick=trick)
 
-    def apply_event(self, envelope: AggregateEvent[Decision]) -> None:
+    @override
+    def apply_event(self, envelope: AggregateEventProtocol[Decision]) -> None:
         match envelope.decision:
             case Dog.Registered(timestamp=timestamp, name=name):
                 self.id = envelope.originator_id

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import typing
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast, override
 from uuid import UUID
 
 from eventsourcing.domain import NIL_UUID
@@ -36,7 +37,7 @@ from eventsourcing.persistence import (
 from eventsourcing.utils import Environment, EnvType, resolve_topic, strtobool
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Sequence
     from types import TracebackType
 
 SQLITE3_DEFAULT_LOCK_TIMEOUT = 5
@@ -52,15 +53,18 @@ class SQLiteCursor(Cursor):
     def __exit__(self, *args: object, **kwargs: Any) -> None:
         self.sqlite_cursor.close()
 
+    @override
     def execute(self, *args: Any, **kwargs: Any) -> None:
         self.sqlite_cursor.execute(*args, **kwargs)
 
     def executemany(self, *args: Any, **kwargs: Any) -> None:
         self.sqlite_cursor.executemany(*args, **kwargs)
 
+    @override
     def fetchall(self) -> Any:
         return self.sqlite_cursor.fetchall()
 
+    @override
     def fetchone(self) -> Any:
         return self.sqlite_cursor.fetchone()
 
@@ -75,20 +79,24 @@ class SQLiteConnection(Connection[SQLiteCursor]):
         self._sqlite_conn = sqlite_conn
 
     @contextmanager
-    def transaction(self, *, commit: bool) -> Iterator[SQLiteCursor]:
+    def transaction(self, *, commit: bool) -> typing.Generator[SQLiteCursor]:
         # Context managed cursor, and context managed transaction.
         with SQLiteTransaction(self, commit=commit) as curs, curs:
             yield curs
 
+    @override
     def cursor(self) -> SQLiteCursor:
         return SQLiteCursor(self._sqlite_conn.cursor())
 
+    @override
     def rollback(self) -> None:
         self._sqlite_conn.rollback()
 
+    @override
     def commit(self) -> None:
         self._sqlite_conn.commit()
 
+    @override
     def _close(self) -> None:
         self._sqlite_conn.close()
         super()._close()
@@ -172,6 +180,7 @@ class SQLiteConnectionPool(ConnectionPool[SQLiteConnection]):
     def detect_memory_mode(db_name: str) -> bool:
         return bool(db_name) and (":memory:" in db_name or "mode=memory" in db_name)
 
+    @override
     def _create_connection(self) -> SQLiteConnection:
         # Make a connection to an SQLite database.
         try:
@@ -232,13 +241,13 @@ class SQLiteDatastore:
         self.originator_id_type = originator_id_type
 
     @contextmanager
-    def transaction(self, *, commit: bool) -> Iterator[SQLiteCursor]:
+    def transaction(self, *, commit: bool) -> typing.Generator[SQLiteCursor]:
         connection = self.get_connection(commit=commit)
         with connection as conn, conn.transaction(commit=commit) as curs:
             yield curs
 
     @contextmanager
-    def get_connection(self, *, commit: bool) -> Iterator[SQLiteConnection]:
+    def get_connection(self, *, commit: bool) -> typing.Generator[SQLiteConnection]:
         # Using reader-writer interlocking is necessary for in-memory databases,
         # but also speeds up (and provides "fairness") to file-based databases.
         conn = self.pool.get_connection(is_writer=commit)
@@ -297,6 +306,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
             f"SELECT * FROM {self.events_table_name} WHERE originator_id=? "
         )
 
+    @override
     def construct_create_table_statements(self) -> list[str]:
         statements = super().construct_create_table_statements()
         statements.append(
@@ -314,6 +324,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
         )
         return statements
 
+    @override
     def insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
     ) -> Sequence[int] | None:
@@ -344,6 +355,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
         c.executemany(self.insert_events_statement, params)
         return None
 
+    @override
     def select_events(
         self,
         originator_id: str,
@@ -364,7 +376,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
             statement += "AND originator_version<=? "
             params.append(lte)
         statement += "ORDER BY originator_version "
-        if desc is False:
+        if not desc:
             statement += "ASC "
         else:
             statement += "DESC "
@@ -403,6 +415,7 @@ class SQLiteApplicationRecorder(
             f"SELECT MAX(rowid) FROM {self.events_table_name}"
         )
 
+    @override
     def construct_create_table_statements(self) -> list[str]:
         statement = (
             "CREATE TABLE IF NOT EXISTS "
@@ -418,6 +431,7 @@ class SQLiteApplicationRecorder(
         )
         return [statement]
 
+    @override
     def _insert_events(
         self,
         c: SQLiteCursor,
@@ -444,6 +458,7 @@ class SQLiteApplicationRecorder(
             returning.append(c.lastrowid)
         return returning
 
+    @override
     def select_notifications(
         self,
         start: int | None,
@@ -506,6 +521,7 @@ class SQLiteApplicationRecorder(
                 for row in c.fetchall()
             ]
 
+    @override
     def max_notification_id(self) -> int:
         """Returns the maximum notification ID."""
         with self.datastore.transaction(commit=False) as c:
@@ -515,6 +531,7 @@ class SQLiteApplicationRecorder(
         c.execute(self.select_max_notification_id_statement)
         return c.fetchone()[0]
 
+    @override
     def subscribe(
         self, gt: int | None = None, topics: Sequence[str] = ()
     ) -> Subscription[ApplicationRecorder]:
@@ -552,6 +569,7 @@ class SQLiteTrackingRecorder(SQLiteRecorder, TrackingRecorder):
             "SELECT MAX(notification_id) FROM tracking WHERE context_name=?"
         )
 
+    @override
     def construct_create_table_statements(self) -> list[str]:
         statements = super().construct_create_table_statements()
         if self.datastore.single_row_tracking:
@@ -574,6 +592,7 @@ class SQLiteTrackingRecorder(SQLiteRecorder, TrackingRecorder):
             )
         return statements
 
+    @override
     def create_table(self) -> None:
         # Get the migration version.
         try:
@@ -592,6 +611,7 @@ class SQLiteTrackingRecorder(SQLiteRecorder, TrackingRecorder):
             msg = "Can't do multi-row tracking with single-row tracking table"
             raise OperationalError(msg)
 
+    @override
     def _create_table(self, c: SQLiteCursor) -> None:
         max_tracking_ids: dict[str, int] = {}
         if (
@@ -628,6 +648,7 @@ class SQLiteTrackingRecorder(SQLiteRecorder, TrackingRecorder):
             for context_name, max_tracking_id in max_tracking_ids.items():
                 self._insert_tracking(c, Tracking(context_name, max_tracking_id))
 
+    @override
     def insert_tracking(self, tracking: Tracking) -> None:
         with self.datastore.transaction(commit=True) as c:
             self._insert_tracking(c, tracking)
@@ -665,6 +686,7 @@ class SQLiteTrackingRecorder(SQLiteRecorder, TrackingRecorder):
             raise OperationalError(msg)
         self.has_checked_for_multi_row_tracking_table = True
 
+    @override
     def max_tracking_id(self, context_name: str) -> int | None:
         with self.datastore.transaction(commit=False) as c:
             return self._max_tracking_id(context_name, c)
@@ -688,6 +710,7 @@ class SQLiteProcessRecorder(
     ):
         super().__init__(datastore, events_table_name=events_table_name)
 
+    @override
     def _insert_events(
         self,
         c: SQLiteCursor,
@@ -763,6 +786,7 @@ class SQLiteFactory(InfrastructureFactory[SQLiteTrackingRecorder]):
             originator_id_type=originator_id_type,
         )
 
+    @override
     def aggregate_recorder(self, purpose: str = "events") -> AggregateRecorder:
         events_table_name = "stored_" + purpose
         recorder = self.aggregate_recorder_class(
@@ -773,6 +797,7 @@ class SQLiteFactory(InfrastructureFactory[SQLiteTrackingRecorder]):
             recorder.create_table()
         return recorder
 
+    @override
     def application_recorder(self) -> ApplicationRecorder:
         application_recorder_topic = self.env.get(self.APPLICATION_RECORDER_TOPIC)
 
@@ -790,6 +815,7 @@ class SQLiteFactory(InfrastructureFactory[SQLiteTrackingRecorder]):
             recorder.create_table()
         return recorder
 
+    @override
     def tracking_recorder(
         self, tracking_recorder_class: type[SQLiteTrackingRecorder] | None = None
     ) -> SQLiteTrackingRecorder:
@@ -810,6 +836,7 @@ class SQLiteFactory(InfrastructureFactory[SQLiteTrackingRecorder]):
             recorder.create_table()
         return recorder
 
+    @override
     def process_recorder(self) -> ProcessRecorder:
         process_recorder_topic = self.env.get(self.PROCESS_RECORDER_TOPIC)
 
@@ -829,11 +856,11 @@ class SQLiteFactory(InfrastructureFactory[SQLiteTrackingRecorder]):
 
     def env_create_table(self) -> bool:
         default = "yes"
-        return bool(strtobool(self.env.get(self.CREATE_TABLE, default) or default))
+        return strtobool(self.env.get(self.CREATE_TABLE, default) or default)
 
+    @override
     def close(self) -> None:
         self.datastore.close()
-        super().close()
 
 
 Factory = SQLiteFactory

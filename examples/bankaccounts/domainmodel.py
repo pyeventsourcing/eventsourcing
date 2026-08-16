@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from eventsourcing.domain import event
+from eventsourcing.decorator import event
 from eventsourcing.pydantic import Aggregate
 
 

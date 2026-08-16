@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
-from typing import TYPE_CHECKING, Generic
+from typing import TYPE_CHECKING, Any, override
 from uuid import UUID
 
-from eventsourcing.application import NotificationLog, Section, TAggregatesApplication
+from eventsourcing.application import AggregatesApplication, NotificationLog, Section
 from eventsourcing.persistence import Notification
 
 if TYPE_CHECKING:
@@ -38,8 +38,8 @@ class NotificationLogInterface(ABC):
         """
 
 
-class NotificationLogJSONService(
-    NotificationLogInterface, Generic[TAggregatesApplication]
+class NotificationLogJSONService[TAggregatesApplication: AggregatesApplication[Any]](
+    NotificationLogInterface
 ):
     """Presents serialised sections of a notification log."""
 
@@ -47,6 +47,7 @@ class NotificationLogJSONService(
         """Initialises service with given application."""
         self.app = app
 
+    @override
     def get_log_section(self, section_id: str) -> str:
         """Returns JSON serialised :class:`~eventsourcing.application.Section`
         from a notification log.
@@ -73,6 +74,7 @@ class NotificationLogJSONService(
             }
         )
 
+    @override
     def get_notifications(
         self,
         start: int | None,
@@ -112,6 +114,7 @@ class NotificationLogJSONClient(NotificationLog):
         """Initialises log with a given interface."""
         self.interface = interface
 
+    @override
     def __getitem__(self, section_id: str) -> Section:
         """Returns a :class:`Section` of
         :class:`~eventsourcing.persistence.Notification` objects
@@ -134,6 +137,7 @@ class NotificationLogJSONClient(NotificationLog):
             ],
         )
 
+    @override
     def select(
         self,
         start: int | None,

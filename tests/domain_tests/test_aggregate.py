@@ -2,14 +2,14 @@ from typing import Any, cast
 from unittest import TestCase
 
 from eventsourcing import dataclasses, msgspec, pydantic
+from eventsourcing.decorator import event
 from eventsourcing.domain import (
     NIL_UUID,
-    AbstractDecision,
     Aggregate,
-    TDecision,
-    WorksWithDecisions,
-    event,
+    AggregateEvent,
 )
+from eventsourcing.msgspec import Decision
+from eventsourcing.types import WorksWithDecisions
 
 
 class TestWorksWithDecisions(TestCase):
@@ -21,12 +21,12 @@ class TestWorksWithDecisions(TestCase):
 
         self.assertIsNone(GenericSubclassMissingTypeArg.works_with_decision_type)
 
-        class GenericSubclass(WorksWithDecisions[TDecision]):
+        class GenericSubclass[TDecision](WorksWithDecisions[TDecision]):
             pass
 
         self.assertIsNone(GenericSubclass.works_with_decision_type)
 
-        class MyDecision(AbstractDecision):
+        class MyDecision:
             def as_dict(self) -> dict[str, Any]:
                 return dict(self.__dict__)
 
@@ -213,7 +213,7 @@ class TestDataclassAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = c.mutate(copy)
+            copy = cast(AggregateEvent[Decision], c).mutate(copy)
 
         self.assertEqual(copy, a)
 
@@ -248,7 +248,7 @@ class TestDataclassAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = c.mutate(copy)
+            copy = cast(AggregateEvent[Decision], c).mutate(copy)
 
         self.assertEqual(copy, a)
 
@@ -291,7 +291,7 @@ class TestPydanticAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = c.mutate(copy)
+            copy = cast(AggregateEvent[Decision], c).mutate(copy)
 
         self.assertEqual(copy, a)
 
@@ -326,7 +326,7 @@ class TestPydanticAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = c.mutate(copy)
+            copy = cast(AggregateEvent[Decision], c).mutate(copy)
 
         self.assertEqual(copy, a)
 
@@ -369,7 +369,7 @@ class TestMsgspecAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = c.mutate(copy)
+            copy = cast(AggregateEvent[Decision], c).mutate(copy)
 
         self.assertEqual(copy, a)
 
@@ -404,6 +404,6 @@ class TestMsgspecAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = c.mutate(copy)
+            copy = cast(AggregateEvent[Decision], c).mutate(copy)
 
         self.assertEqual(copy, a)

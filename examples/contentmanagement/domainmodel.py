@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import field
+from typing import override
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from eventsourcing.domain import event, get_metadata_from_context
+from eventsourcing.decorator import event
+from eventsourcing.metadata import get_metadata_from_context
 from eventsourcing.pydantic import Aggregate, Decision
 from examples.contentmanagement.utils import apply_diff, create_diff
 
 
 class Page(Aggregate):
     class Event(Decision):
+        @override
         def apply(self, obj: Page) -> None:
             """Sets the obj's `modified_by` attribute to the
             value of the event's metadata `user_id` value.
@@ -61,6 +64,7 @@ class Slug(Aggregate):
         self.page_id = page_id
 
     @staticmethod
+    @override
     def create_id(name: str) -> str:
         return str(uuid5(NAMESPACE_URL, f"/slugs/{name}"))
 

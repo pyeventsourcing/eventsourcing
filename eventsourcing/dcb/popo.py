@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from eventsourcing.dcb.api import (
     DcbAppendCondition,
@@ -18,7 +18,7 @@ from eventsourcing.dcb.persistence import (
 )
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError
-from eventsourcing.popo import POPOFactory, POPORecorder, POPOTrackingRecorder
+from eventsourcing.popo import POPOFactory, POPORecorder
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -32,10 +32,12 @@ class InMemoryDcbRecorder(DcbRecorder, POPORecorder):
         self.position_sequence = self._position_sequence_generator()
         self._listeners: set[Event] = set()
 
+    @override
     def head(self) -> int | None:
         with self._database_lock:
             return self.events[-1].position if self.events else None
 
+    @override
     def read(
         self,
         query: DcbQuery | None = None,
@@ -71,6 +73,7 @@ class InMemoryDcbRecorder(DcbRecorder, POPORecorder):
             # TODO: Change the previous few lines to actually be an iterator.
             return SimpleDcbReadResponse(iter(events), head)
 
+    @override
     def append(
         self, events: Sequence[DcbEvent], condition: DcbAppendCondition | None = None
     ) -> int:
@@ -106,6 +109,7 @@ class InMemoryDcbRecorder(DcbRecorder, POPORecorder):
             yield position
             position += 1
 
+    @override
     def subscribe(
         self,
         query: DcbQuery | None = None,
@@ -136,6 +140,7 @@ class InMemorySubscription(DcbListenNotifySubscription[InMemoryDcbRecorder]):
         super().__init__(recorder=recorder, query=query, after=after)
         self._recorder.listen(self._has_been_notified)
 
+    @override
     def stop(self) -> None:
         super().stop()
         self._recorder.unlisten(self._has_been_notified)
@@ -148,9 +153,11 @@ class SimpleDcbReadResponse(DcbReadResponse):
         self._head = head
 
     @property
+    @override
     def head(self) -> int | None:
         return self._head
 
+    @override
     def __next__(self) -> DcbSequencedEvent:
         event = next(self.events)
         if not self._head_was_given:  # pragma: no cover
@@ -177,7 +184,15 @@ class SimpleDcbReadResponse(DcbReadResponse):
     #     return result
 
 
-class InMemoryDcbFactory(POPOFactory, DcbInfrastructureFactory[POPOTrackingRecorder]):
+class InMemoryDcbFactory(POPOFactory, DcbInfrastructureFactory):
 
+    @override
     def dcb_recorder(self) -> DcbRecorder:
         return InMemoryDcbRecorder()
+
+    @override
+    def close(self) -> None:
+        pass
+
+
+del DcbInfrastructureFactory

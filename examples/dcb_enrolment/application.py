@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import override
+
 from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.msgspec import AggregatesApplication
 from examples.dcb_enrolment.domainmodel import Course, Student
@@ -11,17 +13,19 @@ from examples.dcb_enrolment.interface import (
 
 
 class EnrolmentWithAggregates(AggregatesApplication, EnrolmentInterface):
-
+    @override
     def register_student(self, name: str, max_courses: int) -> str:
         student = Student(name, max_courses=max_courses)
         self.save(student)
         return student.id
 
+    @override
     def register_course(self, name: str, places: int) -> str:
         course = Course(name, places=places)
         self.save(course)
         return course.id
 
+    @override
     def join_course(self, student_id: str, course_id: str) -> None:
         course = self.get_course(course_id)
         student = self.get_student(student_id)
@@ -29,10 +33,12 @@ class EnrolmentWithAggregates(AggregatesApplication, EnrolmentInterface):
         student.join_course(course_id)
         self.save(course, student)
 
+    @override
     def list_students_for_course(self, course_id: str) -> list[str]:
         course = self.get_course(course_id)
         return [self.get_student(s).name for s in course.student_ids]
 
+    @override
     def list_courses_for_student(self, student_id: str) -> list[str]:
         student = self.get_student(student_id)
         return [self.get_course(s).name for s in student.course_ids]
