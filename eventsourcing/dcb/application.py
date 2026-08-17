@@ -147,7 +147,7 @@ class DcbApplication[TDecision](
         """
         Advances and executes a slice, then saves new decisions.
         """
-        if type(s).do_projection:
+        if s.__class__.do_projection:
             s = self.repository.advance(s)
         s.execute()
         if s.new_decisions:
