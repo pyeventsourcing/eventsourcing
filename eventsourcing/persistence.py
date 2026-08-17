@@ -693,15 +693,13 @@ class BaseInfrastructureFactory(ABC):
             raise InfrastructureFactoryError(msg)
         return factory_cls(env=env)
 
-    def transcoder[TDecision](
+    def transcoder(
         self,
-    ) -> Transcoder[TDecision]:
+    ) -> Transcoder[Any]:
         """Constructs a transcoder."""
         transcoder_topic = self.env.get(self.TRANSCODER_TOPIC)
         if transcoder_topic:
-            transcoder_class: type[Transcoder[TDecision]] = resolve_topic(
-                transcoder_topic
-            )
+            transcoder_class: type[Transcoder[Any]] = resolve_topic(transcoder_topic)
         else:
             msg = f"Please set {self.TRANSCODER_TOPIC} in application environment"
             raise ProgrammingError(msg)

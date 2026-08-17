@@ -177,6 +177,6 @@ def coerce_value(expected_type: type[Any], value: Any) -> Any:  # noqa: PLR0911
         return expected_type(**value)
 
     try:
-        return expected_type(value)
+        return expected_type(value)  # pyright: ignore [reportCallIssue]
     except Exception:
         return value

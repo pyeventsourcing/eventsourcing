@@ -55,9 +55,7 @@ class AbstractProjection[TEvent](AbstractContextManager[Any]):
         exc_value: BaseException | None,
         traceback: TracebackType | None,
         /,
-    ) -> bool | None:
-        # Self is perfectly valid here because it is inside the class block
-        return super().__exit__(exc_type, exc_value, traceback)
+    ) -> bool | None: ...
 
 
 class Projection[TEvent, TTrackingRecorder](AbstractProjection[TEvent], ABC):

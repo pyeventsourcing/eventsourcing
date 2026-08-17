@@ -55,13 +55,13 @@ class TestPOPOEventCounters(EventCountersViewTestCase):
 
 
 class TestAggregateEventCountersProjectionWithPOPO(
-    AggregateEventCountersProjectionTestCase
+    AggregateEventCountersProjectionTestCase[POPOEventCounters]
 ):
     env: ClassVar[dict[str, str]] = {
         "MAPPER_TOPIC": get_topic(AggregateEventMapper),
         "TRANSCODER_TOPIC": get_topic(Transcoder),
     }
-    view_class: type[EventCountersView] = POPOEventCounters
+    view_class = POPOEventCounters
 
 
 # TODO: Figure out actually what is causing segmentation violations with Python3.13.

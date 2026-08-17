@@ -55,7 +55,7 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
         new = set()
         for s in stored_events:
             # Check events don't already exist.
-            if s.originator_version in self._stored_events_index[str(s.originator_id)]:
+            if s.originator_version in self._stored_events_index[s.originator_id]:
                 msg = f"Stored event already recorded: {s}"
                 raise IntegrityError(msg)
             new.add((s.originator_id, s.originator_version))
@@ -70,7 +70,7 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
         notification_ids = []
         for s in stored_events:
             self._stored_events.append(s)
-            self._stored_events_index[str(s.originator_id)][s.originator_version] = (
+            self._stored_events_index[s.originator_id][s.originator_version] = (
                 len(self._stored_events) - 1
             )
             notification_ids.append(len(self._stored_events))
@@ -89,7 +89,7 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
         with self._database_lock:
             results = []
 
-            index = self._stored_events_index[str(originator_id)]
+            index = self._stored_events_index[originator_id]
             positions: Iterable[int]
             positions = reversed_keys(index) if desc else index.keys()
             for p in positions:

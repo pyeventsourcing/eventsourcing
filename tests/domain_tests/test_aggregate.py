@@ -205,11 +205,13 @@ class TestDataclassAggregate(TestCase):
         self.assertEqual(collected[0].originator_id, a.id)
         self.assertEqual(collected[0].originator_version, 1)
         self.assertIsInstance(collected[0].decision, Initial)
-        self.assertEqual(cast(Initial, collected[0].decision).a, 1)
+        assert isinstance(collected[0].decision, Initial)  # for mypy
+        self.assertEqual(Initial, collected[0].decision.a, 1)
         self.assertEqual(collected[1].originator_id, a.id)
         self.assertEqual(collected[1].originator_version, 2)
         self.assertIsInstance(collected[1].decision, Next)
-        self.assertEqual(cast(Next, collected[1].decision).b, 2)
+        assert isinstance(collected[1].decision, Next)  # for mypy
+        self.assertEqual(Next, collected[1].decision.b, 2)
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
@@ -361,11 +363,13 @@ class TestMsgspecAggregate(TestCase):
         self.assertEqual(collected[0].originator_id, a.id)
         self.assertEqual(collected[0].originator_version, 1)
         self.assertIsInstance(collected[0].decision, Initial)
-        self.assertEqual(cast(Initial, collected[0].decision).a, 1)
+        assert isinstance(collected[0].decision, Initial)  # for mypy
+        self.assertEqual(Initial, collected[0].decision.a, 1)
         self.assertEqual(collected[1].originator_id, a.id)
         self.assertEqual(collected[1].originator_version, 2)
         self.assertIsInstance(collected[1].decision, Next)
-        self.assertEqual(cast(Next, collected[1].decision).b, 2)
+        assert isinstance(collected[1].decision, Next)  # for mypy
+        self.assertEqual(Next, collected[1].decision.b, 2)
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:

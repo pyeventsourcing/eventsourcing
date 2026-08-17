@@ -48,11 +48,11 @@ class HandlingActivity(Enum):
 
 
 # Custom static types.
-LegDetails = dict[str, str]
+type LegDetails = dict[str, str]
 
-ItineraryDetails = dict[str, str | list[LegDetails] | None]
+type ItineraryDetails = dict[str, str | list[LegDetails] | None]
 
-NextExpectedActivity = tuple[HandlingActivity, Location, str] | None
+type NextExpectedActivity = tuple[HandlingActivity, Location, str] | None
 
 
 # Some routes from one location to another.
@@ -238,11 +238,11 @@ class Cargo(Aggregate):
             self._transport_status = "ONBOARD_CARRIER"
             self._current_voyage_number = voyage_number
             for leg in self.route.legs:
-                if leg.origin == location.value and leg.voyage_number == voyage_number:
+                if leg.origin == location.value and voyage_number == leg.voyage_number:
                     self._next_expected_activity = (
                         HandlingActivity.UNLOAD,
                         Location[leg.destination],
-                        voyage_number,
+                        leg.voyage_number,
                     )
                     break
             else:

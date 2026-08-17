@@ -133,7 +133,7 @@ class TestPostgresEventCounters(EventCountersViewTestCase):
 
 
 class TestAggregateEventCountersProjectionWithPostgres(
-    AggregateEventCountersProjectionTestCase
+    AggregateEventCountersProjectionTestCase[PostgresEventCounters]
 ):
     view_class = PostgresEventCounters
     env: ClassVar[dict[str, str]] = {
@@ -228,7 +228,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
             write_model = AggregatesApplication(env=self.env)
 
             # Construct separate instance of "read model".
-            factory: InfrastructureFactory[PostgresEventCounters] = (
+            factory: InfrastructureFactory[PostgresTrackingRecorder] = (
                 InfrastructureFactory.construct(
                     env=Environment(
                         name=StudentEventCountersProjection.context_name, env=self.env

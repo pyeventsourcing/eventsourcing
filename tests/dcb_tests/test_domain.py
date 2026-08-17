@@ -49,11 +49,13 @@ class TestEnduringObject(TestCase):
         self.assertEqual(len(pending), 1)
         event = pending[0]
         self.assertIsInstance(event, TaggedEvent)
+        assert isinstance(event, TaggedEvent)  # for mypy
         self.assertIsInstance(event.decision, ObjCreated)
-        self.assertEqual(cast(ObjCreated, event.decision).obj_id, "blah")
+        assert isinstance(event.decision, ObjCreated)  # for mypy
+        self.assertEqual(ObjCreated, event.decision.obj_id, "blah")
 
         copy: Obj | None = Obj.__new__(Obj)
-        copy = cast(TaggedEvent[Decision], event).mutate(copy)
+        copy = event.mutate(copy)
         assert copy is not None
         self.assertEqual(copy.id, "blah")
 
@@ -86,7 +88,8 @@ class TestEnduringObject(TestCase):
         event = pending[1]
         self.assertIsInstance(event, TaggedEvent)
         self.assertIsInstance(event.decision, ObjUpdated)
-        self.assertEqual(cast(ObjUpdated, event.decision).a, "a")
+        assert isinstance(event.decision, ObjUpdated)  # for mypy
+        self.assertEqual(ObjUpdated, event.decision.a, "a")
 
         copy: Obj | None = Obj.__new__(Obj)
         copy = cast(TaggedEvent[Decision], pending[0]).mutate(copy)

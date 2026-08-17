@@ -78,7 +78,7 @@ class TestDataclassMapper(TestCase):
 
         # Check the error has useful information about the event.
         self.assertIn(get_topic(type(domain_event.decision)), str(cm.exception))
-        self.assertIn(str(domain_event.originator_id), str(cm.exception))
+        self.assertIn(domain_event.originator_id, str(cm.exception))
         self.assertIn(str(domain_event.originator_version), str(cm.exception))
 
         # Check mapper raises TranscodingNotRegisteredError.

@@ -38,12 +38,12 @@ class Page(Aggregate):
         self.modified_by: UUID | None = field(init=False)
 
     def update_body(self, body: str) -> None:
-        diff = create_diff(old=self.body, new=body)
+        diff = create_diff(self.body, body)
         self._update_body(diff=diff)
 
     @event(BodyUpdated)
     def _update_body(self, diff: str) -> None:
-        new_body = apply_diff(old=self.body, diff=diff)
+        new_body = apply_diff(self.body, diff)
         self.body = new_body
 
     works_with_decision_type = Event
@@ -64,7 +64,6 @@ class Slug(Aggregate):
         self.page_id = page_id
 
     @staticmethod
-    @override
     def create_id(name: str) -> str:
         return str(uuid5(NAMESPACE_URL, f"/slugs/{name}"))
 

@@ -71,9 +71,8 @@ class Counter(Aggregate):
         self.name = name
         self.count = 0
 
-    @classmethod
-    @override
-    def create_id(cls, name: str) -> str:
+    @staticmethod
+    def create_id(name: str) -> str:
         return str(uuid5(NAMESPACE_URL, f"/counters/{name}"))
 
     @triggers(Incremented)
@@ -273,8 +272,10 @@ class StudentEventCountersProjection(
                 self.view.insert_tracking(tracking)
 
 
-class AggregateEventCountersProjectionTestCase(TestCase, ABC):
-    view_class: type[EventCountersView]
+class AggregateEventCountersProjectionTestCase[TTrackingRecorder: EventCountersView](
+    TestCase, ABC
+):
+    view_class: type[TTrackingRecorder]
     env: ClassVar[dict[str, str]] = {}
 
     def test_event_counters_projection(self) -> None:

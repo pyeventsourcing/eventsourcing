@@ -69,8 +69,9 @@ pyrefly = "*"
 pydantic = { version = "*"}
 msgspec = { version = "*"}
 pytest = { version = "*"}
-eventsourcing-umadb = { version = ">=0.4.4" }
-#eventsourcing-umadb = {path = "../eventsourcing-umadb", develop = true}
+#eventsourcing-umadb = { version = ">=0.4.4" }
+eventsourcing-umadb = {path = "../eventsourcing-umadb", develop = true}
+diff_match_patch = { version = "*"}
 
 [tool.poetry.group.docs.dependencies]
 Sphinx = { version = "*"}
@@ -246,22 +247,10 @@ pythonVersion = "3.12"
 typeCheckingMode = "standard"
 
 [tool.pyrefly]
-# Specifies the target Python version for static analysis
 python-version = "3.12"
-
-# Maps directly to your Pyright include paths
+preset = "strict"
 project-includes = [
     "eventsourcing/**/*.py",
     "examples/**/*.py",
     "tests/**/*.py",
 ]
-
-# Enables strict checks (equivalent to strict_optional, disallow_untyped_defs, disallow_any_generics, and warn_unused_ignores)
-preset = "strict"
-
-# Explicitly configures untyped function bodies to match check_untyped_defs = True
-check-unannotated-defs = true
-
-[tool.pyrefly.errors]
-# Matches your ignore_missing_imports = True configuration
-missing-import = false

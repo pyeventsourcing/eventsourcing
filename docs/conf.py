@@ -13,7 +13,7 @@
 import os
 import sys
 
-sys.path.append(str(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 os.environ["SPHINX_BUILD"] = "1"
 
@@ -52,7 +52,7 @@ from importlib.metadata import version as get_version
 __version__ = get_version(project)
 
 # The short X.Y version.
-version = __version__ 
+version = __version__
 # The full version, including alpha/beta/rc tags.
 release = __version__
 

@@ -1,27 +1,29 @@
 from __future__ import annotations
 
-import os
-from pathlib import Path
-from tempfile import TemporaryDirectory
+from diff_match_patch import diff_match_patch
+
+dmp = diff_match_patch()
 
 
 def create_diff(old: str, new: str) -> str:
-    return run("diff %s %s > %s", old, new)
+    # Generate the diff
+    diffs = dmp.diff_main(old, new)
+    # Clean up the diff to make it more human-readable/semantic
+    dmp.diff_cleanupSemantic(diffs)
+    # Convert it to a patch string
+    patches = dmp.patch_make(old, diffs)
+    return dmp.patch_toText(patches)
 
 
-def apply_diff(old: str, diff: str) -> str:
-    return run("patch -s %s %s -o %s", old, diff)
+def apply_diff(old: str, diff_text: str) -> str:
+    # Parse the patch string
+    patches = dmp.patch_fromText(diff_text)
+    # Apply it to the old text
+    new_text, results = dmp.patch_apply(patches, old)
 
+    # results is a list of booleans indicating if each chunk applied cleanly
+    if not all(results):
+        msg = "Patch failed to apply perfectly"
+        raise ValueError(msg)
 
-def run(cmd: str, a: str, b: str) -> str:
-    with TemporaryDirectory() as td:
-        a_path = Path(td) / "a"
-        b_path = Path(td) / "b"
-        c_path = Path(td) / "c"
-        with a_path.open("w") as a_file:
-            a_file.write(a)
-        with b_path.open("w") as b_file:
-            b_file.write(b)
-        os.system(cmd % (a_path, b_path, c_path))  # noqa: S605
-        with c_path.open() as c_file:
-            return c_file.read()
+    return new_text

@@ -621,7 +621,6 @@ class ProcessingEvent[TDecision]:
         self.saved_kwargs.update(kwargs)
 
 
-
 class AbstractApplicationSubscription[TEvent](Iterator[tuple[TEvent, Tracking]], ABC):
     @override
     def __iter__(self) -> Self:

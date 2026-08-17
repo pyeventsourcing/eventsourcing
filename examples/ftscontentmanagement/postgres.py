@@ -124,7 +124,7 @@ class PostgresFtsRecorder(
     @override
     def select_page(self, page_id: str) -> PageInfo:
         with self.datastore.transaction(commit=False) as curs:
-            curs.execute(self.select_page_statement, [str(page_id)], prepare=True)
+            curs.execute(self.select_page_statement, [page_id], prepare=True)
             for row in curs.fetchall():
                 return PageInfo(
                     id=page_id,

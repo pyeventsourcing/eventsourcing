@@ -186,7 +186,7 @@ def test_recorder_insert_events_2(
         recorder.insert_events(events)
 
     try:
-        benchmark.pedantic(func, setup=setup, rounds=int(rounds[env]))
+        benchmark.pedantic(func, setup=setup, rounds=rounds[env])
     finally:
         if isinstance(recorder, PostgresApplicationRecorder):
             drop_tables()

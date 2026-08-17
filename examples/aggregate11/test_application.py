@@ -8,6 +8,7 @@ from unittest import TestCase, skipIf
 from examples.aggregate11.application import DogSchool
 
 with contextlib.suppress(ImportError):
+    # pyrefly: ignore [missing-import]
     import eventsourcing_kurrentdb  # noqa: F401  # pyright: ignore[reportMissingImports]
 
 

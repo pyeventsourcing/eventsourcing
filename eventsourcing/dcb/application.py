@@ -3,8 +3,8 @@ from __future__ import annotations
 import contextlib
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, ClassVar, override
-from typing_extensions import deprecated
 
+from typing_extensions import deprecated
 
 from eventsourcing.application import (
     AbstractApplicationSubscription,

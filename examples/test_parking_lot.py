@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import override
 from unittest import TestCase
 from uuid import NAMESPACE_URL, uuid5
 
@@ -88,7 +87,6 @@ class Vehicle(Aggregate):
             self.fail_inspection(when)
 
     @staticmethod
-    @override
     def create_id(licence_plate_number: str) -> str:
         return str(
             uuid5(NAMESPACE_URL, f"/licence_plate_numbers/{licence_plate_number}")

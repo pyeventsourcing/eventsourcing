@@ -342,7 +342,7 @@ class System:
         return topic
 
 
-class Runner[TDecision](ABC):
+class Runner(ABC):
     """Abstract base class for system runners."""
 
     def __init__(self, system: System, env: EnvType | None = None):
@@ -374,8 +374,9 @@ class Runner[TDecision](ABC):
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
-    ) -> None:
+    ) -> bool | None:
         self.stop()
+        return None
 
 
 class RunnerAlreadyStartedError(Exception):
@@ -394,9 +395,7 @@ class EventProcessingError(Exception):
     """Raised when event processing fails."""
 
 
-class SingleThreadedRunner[TDecision](
-    Runner[TDecision], RecordingEventReceiver[TDecision]
-):
+class SingleThreadedRunner[TDecision](Runner, RecordingEventReceiver[TDecision]):
     """Runs a :class:`System` in a single thread."""
 
     def __init__(self, system: System, env: EnvType | None = None):
@@ -496,9 +495,7 @@ class SingleThreadedRunner[TDecision](
         return app
 
 
-class NewSingleThreadedRunner[TDecision](
-    Runner[TDecision], RecordingEventReceiver[TDecision]
-):
+class NewSingleThreadedRunner[TDecision](Runner, RecordingEventReceiver[TDecision]):
     """Runs a :class:`System` in a single thread."""
 
     def __init__(self, system: System, env: EnvType | None = None):
@@ -644,7 +641,7 @@ class NewSingleThreadedRunner[TDecision](
         return app
 
 
-class MultiThreadedRunner[TDecision](Runner[TDecision]):
+class MultiThreadedRunner[TDecision](Runner):
     """Runs a :class:`System` with one :class:`MultiThreadedRunnerThread`
     for each :class:`Follower` in the system definition.
     """
@@ -750,7 +747,7 @@ class MultiThreadedRunnerThread[TDecision](
 
     def __init__(
         self,
-        follower: Follower[Any],
+        follower: Follower[TDecision],
         has_errored: threading.Event,
     ):
         super().__init__(daemon=True)
@@ -806,9 +803,7 @@ class MultiThreadedRunnerThread[TDecision](
         self.is_prompted.set()
 
 
-class NewMultiThreadedRunner[TDecision](
-    Runner[TDecision], RecordingEventReceiver[TDecision]
-):
+class NewMultiThreadedRunner[TDecision](Runner, RecordingEventReceiver[TDecision]):
     """Runs a :class:`System` with multiple threads in a new way."""
 
     QUEUE_MAX_SIZE: int = 0

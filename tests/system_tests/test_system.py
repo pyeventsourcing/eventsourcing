@@ -242,9 +242,8 @@ class TestFollower(TestCase):
                 self.subject = subject
                 self.message = message
 
-            @staticmethod
-            @override
-            def create_id(to: str) -> str:
+            @classmethod
+            def create_id(cls, to: str, *_: Any, **__: Any) -> str:
                 return str(uuid5(NAMESPACE_URL, f"/emails/{to}"))
 
         class UUID5EmailProcess(EmailProcess):

@@ -91,7 +91,7 @@ class SQLiteFtsRecorder(FtsRecorder, SQLiteRecorder):
         for page in pages:
             c.execute(
                 self.insert_page_statement,
-                (str(page.id), page.slug, page.title, page.body),
+                (page.id, page.slug, page.title, page.body),
             )
 
     @override
@@ -103,7 +103,7 @@ class SQLiteFtsRecorder(FtsRecorder, SQLiteRecorder):
         for page in pages:
             c.execute(
                 self.update_page_statement,
-                (page.slug, page.title, page.body, str(page.id)),
+                (page.slug, page.title, page.body, page.id),
             )
 
     @override
@@ -115,7 +115,7 @@ class SQLiteFtsRecorder(FtsRecorder, SQLiteRecorder):
     @override
     def select_page(self, page_id: str) -> PageInfo:
         with self.datastore.transaction(commit=False) as c:
-            c.execute(self.select_page_statement, [str(page_id)])
+            c.execute(self.select_page_statement, [page_id])
             for row in c.fetchall():
                 return PageInfo(
                     id=page_id,

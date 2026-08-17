@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from containers.abc import Generator
+    from collections.abc import Generator
 
 _ctx_event_metadata: contextvars.ContextVar[dict[str, str] | None] = (
     contextvars.ContextVar("ctx_event_metadata", default=None)

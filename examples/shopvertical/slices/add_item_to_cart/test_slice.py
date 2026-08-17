@@ -1,6 +1,6 @@
 import unittest
 from decimal import Decimal
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from eventsourcing.domain import AggregateEvent
@@ -34,7 +34,8 @@ class TestAddItemToCart(unittest.TestCase):
         new_events = cmd.handle(cart_events)
         self.assertEqual(1, len(new_events))
         self.assertIsInstance(new_events[0].decision, AddedItemToCart)
-        new_event = cast(AddedItemToCart, new_events[0].decision)
+        assert isinstance(new_events[0].decision, AddedItemToCart)  # for mypy
+        new_event = new_events[0].decision
         self.assertEqual(cmd.product_id, new_event.product_id)
 
     def test_add_item_to_full_cart(self) -> None:

@@ -4,13 +4,15 @@ import os
 import shlex
 import subprocess
 from abc import ABC, abstractmethod
+from contextlib import AbstractContextManager
 from queue import Queue
 from threading import Event
 from time import sleep
-from typing import TYPE_CHECKING, Any, TypeVar, override
+from typing import TYPE_CHECKING, Any, Protocol, override
 from unittest.case import TestCase
 from unittest.mock import MagicMock
 
+from eventsourcing.application import AggregatesApplication
 from eventsourcing.decorator import triggers
 from eventsourcing.domain import (
     AggregateEvent,
@@ -32,7 +34,6 @@ from eventsourcing.system import (
     ProcessingJob,
     PullingThread,
     RecordingEvent,
-    Runner,
     RunnerAlreadyStartedError,
     SingleThreadedRunner,
     System,
@@ -88,7 +89,16 @@ class Result(Aggregate):
         self.error = error
 
 
-class RunnerTestCase[TRunner: Runner[Any]](TestCase, ABC):
+class RunnerProtocol[T](AbstractContextManager[T], Protocol):
+    def get[S: AggregatesApplication[Any, Any]](self, cls: type[S]) -> S: ...
+
+
+class MultiThreadedRunnerProtocol[T](RunnerProtocol[T], Protocol):
+    def reraise_thread_errors(self) -> None: ...
+    def watch_for_errors(self, timeout: float | None = None) -> bool: ...
+
+
+class RunnerTestCase[TRunner: RunnerProtocol[Any]](TestCase, ABC):
     @abstractmethod
     def construct_runner(self, system: System, env: EnvType | None = None) -> TRunner:
         raise NotImplementedError
@@ -544,12 +554,9 @@ class BrokenProcessing(EmailProcess):
         raise DeliberateError(msg)
 
 
-TMultiThreadedRunner = TypeVar(
-    "TMultiThreadedRunner", bound=MultiThreadedRunner[Any] | NewMultiThreadedRunner[Any]
-)
-
-
-class MultiThreadedRunnerTestCase(RunnerTestCase[TMultiThreadedRunner], ABC):
+class MultiThreadedRunnerTestCase[
+    TMultiThreadedRunner: MultiThreadedRunnerProtocol[Any]
+](RunnerTestCase[TMultiThreadedRunner], ABC):
     def test_ignores_recording_event_if_seen_subsequent(self) -> None:
         # Skipping this because this runner doesn't take
         # notice of attribute previous_max_notification_id.

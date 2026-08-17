@@ -733,6 +733,21 @@ cffi = {version = ">=2.0.0", markers = "platform_python_implementation != \"PyPy
 ssh = ["bcrypt (>=3.1.5)"]
 
 [[package]]
+name = "diff-match-patch"
+version = "20241021"
+description = "Repackaging of Google's Diff Match and Patch libraries."
+optional = false
+python-versions = ">=3.7"
+groups = ["dev"]
+files = [
+    {file = "diff_match_patch-20241021-py3-none-any.whl", hash = "sha256:93cea333fb8b2bc0d181b0de5e16df50dd344ce64828226bda07728818936782"},
+    {file = "diff_match_patch-20241021.tar.gz", hash = "sha256:beae57a99fa48084532935ee2968b8661db861862ec82c6f21f4acdd6d835073"},
+]
+
+[package.extras]
+dev = ["attribution (==1.8.0)", "black (==24.8.0)", "build (>=1)", "flit (==3.9.0)", "mypy (==1.12.1)", "ufmt (==2.7.3)", "usort (==1.0.8.post1)"]
+
+[[package]]
 name = "docutils"
 version = "0.22.4"
 description = "Docutils -- Python Documentation Utilities"
@@ -751,14 +766,16 @@ description = "Python package for eventsourcing with UmaDB"
 optional = false
 python-versions = ">=3.11"
 groups = ["main", "dev"]
-files = [
-    {file = "eventsourcing_umadb-0.4.4-py3-none-any.whl", hash = "sha256:58af993ec45aa93379530b6bd7afaf4cadf3778b57a8fe916ebe9a3b1643ce7e"},
-    {file = "eventsourcing_umadb-0.4.4.tar.gz", hash = "sha256:29ded969c896f0bcaad39d60f92f20cf796f894030ca1290c913631df715a7fb"},
-]
+files = []
+develop = true
 
 [package.dependencies]
 eventsourcing = ">=10.0.0a3"
 umadb = ">=0.6.10"
+
+[package.source]
+type = "directory"
+url = "../eventsourcing-umadb"
 
 [[package]]
 name = "idna"
@@ -1832,15 +1849,15 @@ histogram = ["pygal", "pygaljs", "setuptools"]
 
 [[package]]
 name = "python-dotenv"
-version = "1.2.2"
+version = "1.2.3"
 description = "Read key-value pairs from a .env file and set them as environment variables"
 optional = false
 python-versions = ">=3.10"
 groups = ["docs"]
 markers = "python_version < \"3.15\""
 files = [
-    {file = "python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a"},
-    {file = "python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3"},
+    {file = "python_dotenv-1.2.3-py3-none-any.whl", hash = "sha256:904552145e8bfed22162c09dab1c2b9b54fefa7b23ba780f4f26ca0316b0f0d9"},
+    {file = "python_dotenv-1.2.3.tar.gz", hash = "sha256:a20a594dabeaa385725aa239d5244871c143ecb356add8a20fcf23773a6c3a35"},
 ]
 
 [package.extras]
@@ -2301,4 +2318,4 @@ umadb = ["eventsourcing-umadb"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0"
-content-hash = "d3185009f72750e5a80159915397263c96ae993d61fb3f35d0aecab7cd9409c3"
+content-hash = "aeff71893e6b114af0a502846e16238444c40d1f5445b6352c35b5529c8aa2f6"

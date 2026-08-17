@@ -251,7 +251,7 @@ if __name__ == "__main__":
         sys.exit(0)
     if len(sys.argv) > 2:
         try:
-            speedrun_duration: int | None = int(cast(int, sys.argv[2]))
+            speedrun_duration: int | None = int(sys.argv[2])
         except ValueError:
             print("Invalid duration:", sys.argv[2])
             sys.exit(1)

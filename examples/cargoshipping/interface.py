@@ -32,12 +32,11 @@ class BookingService:
         destination: str,
         arrival_deadline: datetime,
     ) -> str:
-        tracking_id = self.app.book_new_cargo(
+        return self.app.book_new_cargo(
             Location[origin],
             Location[destination],
             arrival_deadline,
         )
-        return str(tracking_id)
 
     def get_cargo_details(self, tracking_id: str) -> CargoDetails:
         cargo = self.app.get_cargo(tracking_id)
@@ -69,7 +68,7 @@ class BookingService:
 
         # Present the cargo details.
         return {
-            "id": str(cargo.id),
+            "id": cargo.id,
             "origin": cargo.origin.value,
             "destination": cargo.destination.value,
             "arrival_deadline": cargo.arrival_deadline,

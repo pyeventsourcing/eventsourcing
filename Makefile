@@ -67,8 +67,12 @@ lint-pyright:
 lint-mypy:
 	$(POETRY) run mypy eventsourcing tests examples
 
+.PHONY: lint-pyrefly
+lint-pyrefly:
+	$(POETRY) run pyrefly check eventsourcing tests examples
+
 .PHONY: lint
-lint: lint-black lint-ruff lint-mypy
+lint: lint-black lint-ruff lint-mypy lint-pyrefly lint-pyright
 
 
 # .PHONY: lint-dockerfile

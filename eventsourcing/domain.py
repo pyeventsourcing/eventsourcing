@@ -418,16 +418,13 @@ class Aggregate[
         #     _coerce_args_to_kwargs(cls.create_id, args, kwargs),
         #     cls.create_id,
         # )
-        create_id_kwargs = filter_kwargs_for_method_params(kwargs, cls.create_id)
-        obj.id = cls.create_id(**create_id_kwargs)
+        create_id = getattr(cls, "create_id", lambda: str(uuid4()))
+        create_id_kwargs = filter_kwargs_for_method_params(kwargs, create_id)
+        obj.id = create_id(**create_id_kwargs)
         # Calling __init__ should trigger an event that
         # calls the original decorated __init__ method.
         obj.__init__(*args, **kwargs)  # type: ignore[misc]
         return obj
-
-    @classmethod
-    def create_id(cls, *_: Any, **__: Any) -> str:
-        return str(uuid4())
 
     @override
     def trigger_event[**P](

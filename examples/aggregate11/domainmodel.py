@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from typing import override
 
 from eventsourcing.decorator import triggers
 from eventsourcing.pydantic import Aggregate
@@ -11,7 +10,6 @@ class Dog(Aggregate):
     INITIAL_VERSION = 0
 
     @staticmethod
-    @override
     def create_id() -> str:
         return "dog-" + str(uuid.uuid4())
 
