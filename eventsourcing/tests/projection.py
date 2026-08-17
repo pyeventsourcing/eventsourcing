@@ -5,17 +5,12 @@ from typing import TYPE_CHECKING, Any, ClassVar, override
 from unittest import TestCase
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from typing_extensions import deprecated
-
 from eventsourcing.application import (
     AggregateNotFoundError,
     ProcessingEvent,
 )
 from eventsourcing.decorator import triggers
-from eventsourcing.domain import (
-    AggregateEvent,
-    TaggedEvent,
-)
+from eventsourcing.domain import EventEnvelope
 from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.msgspec import (
     Aggregate,
@@ -23,6 +18,7 @@ from eventsourcing.msgspec import (
     DcbApplication,
     Decision,
     EnduringObject,
+    EventSourcedProjection,
 )
 from eventsourcing.persistence import (
     IntegrityError,
@@ -30,57 +26,19 @@ from eventsourcing.persistence import (
     TrackingRecorder,
 )
 from eventsourcing.projection import (
-    EventSourcedProjection,
+    EventProcessor,
     EventSourcedProjectionRunner,
-    Projection,
     ProjectionRunner,
 )
 from eventsourcing.utils import get_topic
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from eventsourcing.types import AggregateEventProtocol
 
 
-class Student(Aggregate):
-    class Registered(Decision):
-        pass
-
-    class NameChanged(Decision):
-        pass
-
-    @triggers(Registered)
-    def __init__(self) -> None:
-        pass
-
-    @triggers(NameChanged)
-    def change_name(self) -> None:
-        pass
-
-
-class Counter(Aggregate):
-    class Created(Decision):
-        name: str
-
-    class Incremented(Decision):
-        pass
-
-    @triggers(Created)
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.count = 0
-
-    @staticmethod
-    def create_id(name: str) -> str:
-        return str(uuid5(NAMESPACE_URL, f"/counters/{name}"))
-
-    @triggers(Incremented)
-    def increment(self) -> None:
-        self.count += 1
-
-
-class EventCountersView(TrackingRecorder):
+class StudentAnalyticsView(TrackingRecorder):
     @abstractmethod
     def get_student_registered_counter(self) -> int:
         pass
@@ -98,39 +56,8 @@ class EventCountersView(TrackingRecorder):
         pass
 
 
-@deprecated("Use EventCountersView instead")
-class EventCountersInterface(EventCountersView, ABC):
-    pass
-
-
-class Counters(EventSourcedProjection[Decision]):
-    @override
-    def policy(
-        self,
-        envelope: AggregateEventProtocol[Decision],
-        processing_event: ProcessingEvent[Decision],
-    ) -> None:
-        topic = get_topic(type(envelope.decision))
-        try:
-            counter_id = Counter.create_id(topic)
-            counter = self.repository.get(counter_id, Counter)
-        except AggregateNotFoundError:
-            counter = Counter(name=topic)
-        counter.increment()
-        processing_event.collect_events(counter)
-
-    def get_count(self, domain_event_class: type[Any]) -> int:
-        topic = get_topic(domain_event_class)
-        counter_id = Counter.create_id(topic)
-        try:
-            counter = self.repository.get(counter_id, Counter)
-        except AggregateNotFoundError:
-            return 0
-        return counter.count
-
-
-class EventCountersViewTestCase(TestCase):
-    def construct_event_counters_view(self) -> EventCountersView:
+class StudentAnalyticsViewTestCase(TestCase):
+    def construct_event_counters_view(self) -> StudentAnalyticsView:
         raise NotImplementedError
 
     def test(self) -> None:
@@ -194,76 +121,82 @@ class EventCountersViewTestCase(TestCase):
             view.wait("upstream", 4, timeout=0.5)
 
 
-class SpannerThrown(Decision):
-    pass
-
-
 class SpannerThrownError(Exception):
     pass
 
 
-class DcbSpannerThrown(Decision):
-    # Avoid segmentation violation with Python 3.13
-    # and MsgStruct instances with zero attributes.
-    thing_id: str
-    a: str
+class SpannerThrown(Decision):
+    student_id: str
+    # # Avoid segmentation violation with Python 3.13
+    # # and MsgStruct instances with zero attributes.
+    # thing_id: str
+    # a: str
+
+
+class StudentRegistered(Decision):
+    student_id: str
+
+
+class StudentNameChanged(Decision):
+    student_id: str
+
+
+class StudentAggregate(Aggregate):
+    @triggers(StudentRegistered)
+    def __init__(self, student_id: str) -> None:
+        pass
+
+    @staticmethod
+    def create_id(student_id: str) -> str:
+        return student_id
+
+    @triggers(StudentNameChanged)
+    def change_name(self) -> None:
+        pass
+
+    @override
+    def trigger_event[**P](
+        self,
+        decision_cls: Callable[P, Decision],
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> None:
+        if "student_id" not in kwargs:
+            kwargs["student_id"] = self.id
+        super().trigger_event(decision_cls, *args, **kwargs)
 
 
 # Define a perspective.
-class Thing(EnduringObject):
-    class Created(Decision):
-        thing_id: str
+class StudentEntity(EnduringObject):
+    continuity_id_name = "student_id"
 
-    class Next(Decision):
-        thing_id: str
+    @triggers(StudentRegistered)
+    def __init__(self) -> None:
+        pass
 
-    @triggers(Created)
-    def __init__(self, thing_id: str) -> None:
-        self.id = thing_id
-
-
-class DecisionCountersProjection(Projection[TaggedEvent[Decision], EventCountersView]):
-    context_name = "eventcounters"
-    topics: Sequence[str] = (
-        get_topic(Thing.Created),
-        get_topic(Thing.Next),
-        get_topic(DcbSpannerThrown),
-    )
-
-    @override
-    def process_event(
-        self, envelope: TaggedEvent[Decision], tracking: Tracking
-    ) -> None:
-        match envelope.decision:
-            case Thing.Created:
-                self.view.incr_student_registered_counter(tracking)
-            case Thing.Next:
-                self.view.incr_student_name_changed_counter(tracking)
-            case DcbSpannerThrown():
-                msg = "This is a deliberate bug"
-                raise SpannerThrownError(msg)
-            case _:
-                self.view.insert_tracking(tracking)
+    @triggers(StudentNameChanged)
+    def change_name(self) -> None:
+        pass
 
 
-class StudentEventCountersProjection(
-    Projection[AggregateEvent[Decision], EventCountersView]
+class StudentAnalyticsEventProcessor(
+    EventProcessor[EventEnvelope[Decision], StudentAnalyticsView]
 ):
     context_name = "eventcounters"
     topics: Sequence[str] = (
-        get_topic(Student.Registered),
-        get_topic(Student.NameChanged),
+        get_topic(StudentRegistered),
+        get_topic(StudentNameChanged),
         get_topic(SpannerThrown),
     )
 
     @override
     def process_event(
-        self, envelope: AggregateEvent[Decision], tracking: Tracking
+        self, envelope: EventEnvelope[Decision], tracking: Tracking
     ) -> None:
         match envelope.decision:
-            case Student.Registered():
+            case StudentRegistered():
                 self.view.incr_student_registered_counter(tracking)
-            case Student.NameChanged():
+            case StudentNameChanged():
                 self.view.incr_student_name_changed_counter(tracking)
             case SpannerThrown():
                 msg = "This is a deliberate bug"
@@ -272,7 +205,7 @@ class StudentEventCountersProjection(
                 self.view.insert_tracking(tracking)
 
 
-class AggregateEventCountersProjectionTestCase[TTrackingRecorder: EventCountersView](
+class AggregateEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
     TestCase, ABC
 ):
     view_class: type[TTrackingRecorder]
@@ -282,7 +215,7 @@ class AggregateEventCountersProjectionTestCase[TTrackingRecorder: EventCountersV
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
+            projection_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
@@ -292,9 +225,9 @@ class AggregateEventCountersProjectionTestCase[TTrackingRecorder: EventCountersV
             read_model = runner.view
 
             # Write some events.
-            aggregate = Student()
-            aggregate.trigger_event(Student.NameChanged)
-            aggregate.trigger_event(Student.NameChanged)
+            aggregate = StudentAggregate(student_id=str(uuid4()))
+            aggregate.change_name()
+            aggregate.change_name()
             recordings = write_model.save(aggregate)
 
             # Wait for the events to be processed.
@@ -309,9 +242,9 @@ class AggregateEventCountersProjectionTestCase[TTrackingRecorder: EventCountersV
             self.assertEqual(read_model.get_student_name_changed_counter(), 2)
 
             # Write some more events.
-            aggregate = Student()
-            aggregate.trigger_event(Student.NameChanged)
-            aggregate.trigger_event(Student.NameChanged)
+            aggregate = StudentAggregate(student_id=str(uuid4()))
+            aggregate.change_name()
+            aggregate.change_name()
             recordings = write_model.save(aggregate)
 
             # Wait for the events to be processed.
@@ -329,7 +262,7 @@ class AggregateEventCountersProjectionTestCase[TTrackingRecorder: EventCountersV
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
+            projection_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
@@ -337,8 +270,8 @@ class AggregateEventCountersProjectionTestCase[TTrackingRecorder: EventCountersV
             read_model = runner.view
 
             # Write some events.
-            aggregate = Student()
-            aggregate.trigger_event(SpannerThrown)
+            aggregate = StudentAggregate(student_id=str(uuid4()))
+            aggregate.trigger_event(SpannerThrown, student_id=aggregate.id)
             recordings = write_model.save(aggregate)
 
             # Projection runner terminates with projection error.
@@ -353,8 +286,8 @@ class AggregateEventCountersProjectionTestCase[TTrackingRecorder: EventCountersV
                 )
 
 
-class DecisionCountersProjectionTestCase(TestCase, ABC):
-    view_class: type[EventCountersView]
+class TaggedEventProjectionTestCase(TestCase, ABC):
+    view_class: type[StudentAnalyticsView]
     env: ClassVar[dict[str, str]]
 
     def test_event_counters_projection(self) -> None:
@@ -362,7 +295,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=DcbApplication,
-            projection_class=DecisionCountersProjection,
+            projection_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
@@ -372,11 +305,11 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
             read_model = runner.view
 
             # Write some events.
-            perspective = Thing(thing_id="thing-" + str(uuid4()))
-            perspective.trigger_event(Thing.Next, thing_id=perspective.id)
-            perspective.trigger_event(Thing.Next, thing_id=perspective.id)
-            self.assertEqual(3, len(perspective.new_decisions))
-            position = write_model.repository.save(perspective)
+            student = StudentEntity()
+            student.change_name()
+            student.change_name()
+            self.assertEqual(3, len(student.new_decisions))
+            position = write_model.repository.save(student)
 
             # Wait for the events to be processed.
             read_model.wait(
@@ -389,10 +322,10 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
             self.assertEqual(read_model.get_student_name_changed_counter(), 2)
 
             # Write some more events.
-            perspective = Thing(thing_id="thing-" + str(uuid4()))
-            perspective.trigger_event(Thing.Next, thing_id=perspective.id)
-            perspective.trigger_event(Thing.Next, thing_id=perspective.id)
-            position = write_model.repository.save(perspective)
+            student = StudentEntity()
+            student.change_name()
+            student.change_name()
+            position = write_model.repository.save(student)
 
             # Wait for the events to be processed.
             read_model.wait(
@@ -408,7 +341,7 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=DcbApplication,
-            projection_class=DecisionCountersProjection,
+            projection_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
@@ -416,9 +349,10 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
             read_model = runner.view
 
             # Write some events.
-            perspective = Thing(thing_id="thing-" + str(uuid4()))
-            perspective.trigger_event(DcbSpannerThrown, a="", thing_id=perspective.id)
-            position = write_model.repository.save(perspective)
+            student = StudentEntity()
+            student.change_name()
+            student.trigger_event(SpannerThrown, student_id=student.id)
+            position = write_model.repository.save(student)
 
             # Projection runner terminates with projection error.
             with self.assertRaises(SpannerThrownError):
@@ -432,13 +366,60 @@ class DecisionCountersProjectionTestCase(TestCase, ABC):
                 )
 
 
+class CounterAggregate(Aggregate):
+    class Created(Decision):
+        name: str
+
+    class Incremented(Decision):
+        pass
+
+    @triggers(Created)
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.count = 0
+
+    @staticmethod
+    def create_id(name: str) -> str:
+        return str(uuid5(NAMESPACE_URL, f"/counters/{name}"))
+
+    @triggers(Incremented)
+    def increment(self) -> None:
+        self.count += 1
+
+
+class CounterAggregatesApplication(EventSourcedProjection):
+    @override
+    def policy(
+        self,
+        envelope: AggregateEventProtocol[Decision],
+        processing_event: ProcessingEvent[Decision],
+    ) -> None:
+        topic = get_topic(type(envelope.decision))
+        try:
+            counter_id = CounterAggregate.create_id(topic)
+            counter = self.repository.get(counter_id, CounterAggregate)
+        except AggregateNotFoundError:
+            counter = CounterAggregate(name=topic)
+        counter.increment()
+        processing_event.collect_events(counter)
+
+    def get_count(self, domain_event_class: type[Any]) -> int:
+        topic = get_topic(domain_event_class)
+        counter_id = CounterAggregate.create_id(topic)
+        try:
+            counter = self.repository.get(counter_id, CounterAggregate)
+        except AggregateNotFoundError:
+            return 0
+        return counter.count
+
+
 class EventSourcedProjectionTestCase(TestCase):
     env: ClassVar[dict[str, str]] = {}
 
     def test_event_sourced_projection(self) -> None:
         with EventSourcedProjectionRunner(
             upstream_application_class=AggregatesApplication,
-            downstream_application_class=Counters,
+            downstream_application_class=CounterAggregatesApplication,
             env=self.env,
         ) as runner:
             app_max_id = runner.app.recorder.max_notification_id()
@@ -452,30 +433,30 @@ class EventSourcedProjectionTestCase(TestCase):
                 }
 
             with put_metadata_in_context(fresh_metadata()):
-                recordings = runner.app.save(Student())
+                recordings = runner.app.save(StudentAggregate(student_id=str(uuid4())))
             runner.wait(recordings[-1].notification.id)
-            self.assertEqual(1, runner.downstream.get_count(Student.Registered))
-            self.assertEqual(0, runner.downstream.get_count(Student.NameChanged))
+            self.assertEqual(1, runner.downstream.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
 
             with put_metadata_in_context(fresh_metadata()):
-                recordings = runner.app.save(Student())
+                recordings = runner.app.save(StudentAggregate(student_id=str(uuid4())))
             runner.wait(recordings[-1].notification.id)
-            self.assertEqual(2, runner.downstream.get_count(Student.Registered))
-            self.assertEqual(0, runner.downstream.get_count(Student.NameChanged))
+            self.assertEqual(2, runner.downstream.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
 
             with put_metadata_in_context(fresh_metadata()):
-                recordings = runner.app.save(Student())
+                recordings = runner.app.save(StudentAggregate(student_id=str(uuid4())))
             runner.wait(recordings[-1].notification.id)
-            self.assertEqual(3, runner.downstream.get_count(Student.Registered))
-            self.assertEqual(0, runner.downstream.get_count(Student.NameChanged))
+            self.assertEqual(3, runner.downstream.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
 
             with put_metadata_in_context(fresh_metadata()):
-                aggregate = Student()
-                aggregate.trigger_event(Student.NameChanged)
+                aggregate = StudentAggregate(student_id=str(uuid4()))
+                aggregate.change_name()
             recordings = runner.app.save(aggregate)
             runner.wait(recordings[-1].notification.id)
-            self.assertEqual(4, runner.downstream.get_count(Student.Registered))
-            self.assertEqual(1, runner.downstream.get_count(Student.NameChanged))
+            self.assertEqual(4, runner.downstream.get_count(StudentRegistered))
+            self.assertEqual(1, runner.downstream.get_count(StudentNameChanged))
 
             # Check the correlation and causation IDs.
             original_events: dict[str, AggregateEventProtocol[Decision]] = {}

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, override
 
-from eventsourcing.dataclasses import AggregatesApplication
+from eventsourcing.dataclasses import AggregatesApplication, Transcoder
 from examples.aggregate6.domainmodel import (
     add_trick,
     mutate_dog,
@@ -12,6 +12,10 @@ from examples.aggregate6.domainmodel import (
 
 class DogSchool(AggregatesApplication):
     is_snapshotting_enabled = True
+
+    @override
+    def construct_transcoder(self) -> Transcoder:
+        return Transcoder()
 
     def register_dog(self, name: str) -> str:
         event = register_dog(name)

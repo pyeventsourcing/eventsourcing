@@ -680,7 +680,7 @@ class BaseInfrastructureFactory(ABC):
             else:
                 msg = (
                     f"Found {len(factory_classes)} infrastructure factory classes in"
-                    f" '{topic}', expected 1: {factory_classes}"
+                    f" '{topic}', expected 1."
                 )
                 raise InfrastructureFactoryError(msg)
         elif isinstance(obj, type) and issubclass(obj, cls):

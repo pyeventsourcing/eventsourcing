@@ -8,9 +8,9 @@ from pydantic import BaseModel
 from eventsourcing.decorator import triggers
 from eventsourcing.pydantic import (
     Aggregate,
-    AggregateSnapshot,
     AggregateState,
     Decision,
+    MutableAggregateSnapshot,
 )
 
 
@@ -42,7 +42,7 @@ class BankAccountWithPydantic(Aggregate):
     class Closed(Decision):
         pass
 
-    class Snapshot(AggregateSnapshot):
+    class Snapshot(MutableAggregateSnapshot):
         state: BankAccountState
 
     @triggers(Opened)

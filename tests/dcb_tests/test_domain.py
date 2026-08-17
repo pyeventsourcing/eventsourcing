@@ -52,7 +52,7 @@ class TestEnduringObject(TestCase):
         assert isinstance(event, TaggedEvent)  # for mypy
         self.assertIsInstance(event.decision, ObjCreated)
         assert isinstance(event.decision, ObjCreated)  # for mypy
-        self.assertEqual(ObjCreated, event.decision.obj_id, "blah")
+        self.assertEqual(event.decision.obj_id, "blah")
 
         copy: Obj | None = Obj.__new__(Obj)
         copy = event.mutate(copy)
@@ -89,7 +89,7 @@ class TestEnduringObject(TestCase):
         self.assertIsInstance(event, TaggedEvent)
         self.assertIsInstance(event.decision, ObjUpdated)
         assert isinstance(event.decision, ObjUpdated)  # for mypy
-        self.assertEqual(ObjUpdated, event.decision.a, "a")
+        self.assertEqual(event.decision.a, "a")
 
         copy: Obj | None = Obj.__new__(Obj)
         copy = cast(TaggedEvent[Decision], pending[0]).mutate(copy)

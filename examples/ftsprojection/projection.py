@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, override
 from eventsourcing.domain import AggregateEvent
 from eventsourcing.persistence import Tracking, TrackingRecorder
 from eventsourcing.postgres import PostgresTrackingRecorder
-from eventsourcing.projection import Projection
+from eventsourcing.projection import EventProcessor
 from eventsourcing.pydantic import Decision
 from examples.contentmanagement.domainmodel import Page
 from examples.contentmanagement.utils import apply_diff
@@ -31,7 +31,7 @@ class FtsViewInterface(FtsRecorder, TrackingRecorder, ABC):
         pass
 
 
-class FtsProjection(Projection[AggregateEvent[Decision], FtsViewInterface]):
+class FtsProjection(EventProcessor[AggregateEvent[Decision], FtsViewInterface]):
     @override
     def process_event(
         self, envelope: AggregateEvent[Decision], tracking: Tracking

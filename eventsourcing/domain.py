@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, ABCMeta, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from types import NoneType
 from typing import (
@@ -40,6 +41,9 @@ from eventsourcing.utils import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
+
+    from eventsourcing.persistence import EventStore
+
 
 NIL_UUID = UUID("00000000-0000-0000-0000-000000000000")
 NIL_UUID_STR = str(NIL_UUID)
@@ -477,3 +481,98 @@ def evolve_aggregate[
     envelope: AggregateEvent[Any],
 ) -> TState | None:
     return envelope.mutate(obj)
+
+
+class EventSourcedLog[TDecision, SDecision]:
+    """Constructs a sequence of domain events, like an aggregate.
+    But unlike an aggregate the events can be triggered
+    and selected for use in an application without
+    reconstructing a current state from all the events.
+
+    This allows an indefinitely long sequence of events to be
+    generated and used without the practical restrictions of
+    projecting the events into a current state before they
+    can be used, which is useful e.g. for logging and
+    progressively discovering all the aggregate IDs of a
+    particular type in an application.
+    """
+
+    def __init__(
+        self,
+        events: EventStore[TDecision],
+        originator_id: str,
+        event_cls: type[SDecision],
+    ):
+        # TODO: Change `EventStore` to subclass WorksWithDecisions, then
+        #  assert that event_cls is a subclass of its decision class.
+        self.events = events
+        self.originator_id = originator_id
+        self.event_cls = event_cls
+
+    def trigger_event(
+        self,
+        next_originator_version: int | None = None,
+        **kwargs: Any,
+    ) -> AggregateEventProtocol[TDecision]:
+        """Constructs and returns a new log event."""
+        return self._trigger_event(
+            logged_cls=self.event_cls,
+            next_originator_version=next_originator_version,
+            **kwargs,
+        )
+
+    def _trigger_event(
+        self,
+        logged_cls: type[SDecision],
+        next_originator_version: int | None = None,
+        **kwargs: Any,
+    ) -> AggregateEventProtocol[TDecision]:
+        """Constructs and returns a new log event."""
+        if next_originator_version is None:
+            last_logged = self.get_last()
+            if last_logged is None:
+                next_originator_version = Aggregate.INITIAL_VERSION
+            else:
+                next_originator_version = last_logged.originator_version + 1
+
+        return AggregateEvent(
+            originator_id=self.originator_id,
+            originator_version=next_originator_version,
+            decision=cast(TDecision, logged_cls(**kwargs)),
+        )
+
+    def get_first(self) -> AggregateEventProtocol[SDecision] | None:
+        """Selects the first logged event."""
+        try:
+            return next(self.get(limit=1))
+        except StopIteration:
+            return None
+
+    def get_last(self) -> AggregateEventProtocol[SDecision] | None:
+        """Selects the last logged event."""
+        try:
+            return next(self.get(desc=True, limit=1))
+        except StopIteration:
+            return None
+
+    def get(
+        self,
+        *,
+        gt: int | None = None,
+        lte: int | None = None,
+        desc: bool = False,
+        limit: int | None = None,
+    ) -> Iterator[AggregateEventProtocol[SDecision]]:
+        """Selects a range of logged events with limit,
+        with ascending or descending order.
+        """
+        return cast(
+            Iterator[AggregateEventProtocol[SDecision]],
+            self.events.get(
+                originator_id=self.originator_id,
+                gt=gt,
+                lte=lte,
+                desc=desc,
+                limit=limit,
+            ),
+        )

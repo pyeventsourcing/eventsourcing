@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABCMeta
-from typing import Any, Self, TypeVar, override
+from typing import Any, TypeVar, override
 
 import msgspec
 
@@ -34,6 +34,14 @@ class Decision(Immutable, eventsourcing.domain.Decision):
         return {key: getattr(self, key) for key in self.__struct_fields__}
 
 
+class TaggedEvent(eventsourcing.domain.TaggedEvent[Decision]):
+    pass
+
+
+class AggregateEvent(eventsourcing.domain.AggregateEvent[Decision]):
+    pass
+
+
 class ImmutableAggregate(Immutable):
     id: str
     version: int
@@ -44,8 +52,13 @@ class ImmutableAggregateSnapshot(Decision):
     state: bytes
 
     @classmethod
-    def take(cls, aggregate: ImmutableAggregate) -> Self:
-        return cls(
+    def take(cls, aggregate: ImmutableAggregate) -> AggregateEvent:
+        decision = cls(
             topic=get_topic(type(aggregate)),
             state=msgspec.json.encode(aggregate),
+        )
+        return AggregateEvent(
+            decision=decision,
+            originator_id=aggregate.id,
+            originator_version=aggregate.version,
         )

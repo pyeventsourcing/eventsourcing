@@ -131,3 +131,10 @@ class WorksWithDecisions[TDecision]:
         if not issubclass(requirement, cls.works_with_decision_type):
             msg = f"{requirement} mismatches {cls.works_with_decision_type}"
             raise TypeError(msg)
+
+
+@runtime_checkable
+class SnapshotProtocol[TDecision](Protocol):
+    def take(
+        self, obj: MutableAggregateProtocol[Any] | ImmutableAggregateProtocol
+    ) -> AggregateEventProtocol[TDecision]: ...

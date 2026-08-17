@@ -26,7 +26,7 @@ from eventsourcing.persistence import (
     Recording,
     Tracking,
 )
-from eventsourcing.projection import EventSourcedProjection
+from eventsourcing.projection import EventSourcedEventProcessor
 from eventsourcing.types import AggregateEventProtocol, EventCollectorProtocol
 from eventsourcing.utils import EnvType, get_topic, resolve_topic
 
@@ -56,7 +56,7 @@ type ConvertingJob[TDecision] = RecordingEvent[TDecision] | Sequence[
 ] | None
 
 
-class Follower[TDecision](EventSourcedProjection[TDecision]):
+class Follower[TDecision](EventSourcedEventProcessor[TDecision]):
     """Extends the :class:`~eventsourcing.projection.EventSourcedProjection` class
     by pulling notification objects from its notification log readers, by converting
     the notification objects to domain events and tracking objects and by processing

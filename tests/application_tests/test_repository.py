@@ -12,7 +12,6 @@ from eventsourcing.application import (
     LRUCache,
     Repository,
 )
-from eventsourcing.domain import AggregateEvent
 from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,
@@ -91,12 +90,7 @@ class TestRepository(TestCase):
         assert copy.id == account.id
         assert copy.balance == Decimal("65.00")
 
-        snapshot: AggregateEvent[Decision] = AggregateEvent(
-            originator_id=account.id,
-            originator_version=account.version,
-            decision=BankAccountWithPydantic.Snapshot.take(account),
-        )
-        snapshot_store.put([snapshot])
+        snapshot_store.put([BankAccountWithPydantic.Snapshot.take(account)])
 
         copy2 = repository.get(account.id, BankAccountWithPydantic)
         assert isinstance(copy2, BankAccountWithPydantic)
@@ -281,12 +275,7 @@ class TestRepository(TestCase):
         assert copy.id == account.id
         assert copy.balance == Decimal("65.00")
 
-        snapshot: AggregateEvent[Decision] = AggregateEvent(
-            originator_id=account.id,
-            originator_version=account.version,
-            decision=BankAccountWithPydantic.Snapshot.take(account),
-        )
-        snapshot_store.put([snapshot])
+        snapshot_store.put([BankAccountWithPydantic.Snapshot.take(account)])
 
         copy2 = repository.get(account.id, projector=bank_account_projector)
         assert isinstance(copy2, BankAccountWithPydantic)

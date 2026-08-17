@@ -4,9 +4,11 @@ import eventsourcing.domain
 from eventsourcing.pydantic.application import (
     AggregatesApplication,
     DcbApplication,
+    EventSourcedProjection,
     ProcessApplication,
 )
 from eventsourcing.pydantic.immutable import (
+    AggregateEvent,
     Decision,
     Immutable,
     ImmutableAggregate,
@@ -14,10 +16,10 @@ from eventsourcing.pydantic.immutable import (
 )
 from eventsourcing.pydantic.mutable import (
     Aggregate,
-    AggregateSnapshot,
     AggregateState,
     EnduringObject,
     Group,
+    MutableAggregateSnapshot,
     Slice,
 )
 from eventsourcing.pydantic.transcoder import Transcoder
@@ -30,16 +32,18 @@ class Selector(eventsourcing.domain.Selector[Decision]):
 
 __all__ = [
     "Aggregate",
-    "AggregateSnapshot",
+    "AggregateEvent",
     "AggregateState",
     "AggregatesApplication",
     "DcbApplication",
     "Decision",
     "EnduringObject",
+    "EventSourcedProjection",
     "Group",
     "Immutable",
     "ImmutableAggregate",
     "ImmutableAggregateSnapshot",
+    "MutableAggregateSnapshot",
     "ProcessApplication",
     "Selector",
     "Slice",

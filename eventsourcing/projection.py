@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from types import TracebackType
 
 
-class AbstractProjection[TEvent](AbstractContextManager[Any]):
+class AbstractEventProcessor[TEvent](AbstractContextManager[Any]):
     topics: Sequence[str] = ()
     """
     Event topics, used to filter events in database when subscribing to an application.
@@ -58,7 +58,8 @@ class AbstractProjection[TEvent](AbstractContextManager[Any]):
     ) -> bool | None: ...
 
 
-class Projection[TEvent, TTrackingRecorder](AbstractProjection[TEvent], ABC):
+class EventProcessor[TEvent, TTrackingRecorder](AbstractEventProcessor[TEvent], ABC):
+    # TODO: Maybe rename this.
     name: str = ""
     """
     Name of projection, used to pick prefixed environment
@@ -82,9 +83,9 @@ class Projection[TEvent, TTrackingRecorder](AbstractProjection[TEvent], ABC):
         return self._view
 
 
-class EventSourcedProjection[TDecision](
+class EventSourcedEventProcessor[TDecision](
     AggregatesApplication[TDecision, ProcessRecorder],
-    AbstractProjection[AggregateEventProtocol[TDecision]],
+    AbstractEventProcessor[AggregateEventProtocol[TDecision]],
 ):
     """Extends the :py:class:`~eventsourcing.application.AggregatesApplication` class
     by using a process recorder as its application recorder, and by
@@ -155,7 +156,7 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
     def __init__(
         self,
         *,
-        projection: AbstractProjection[Any],
+        projection: AbstractEventProcessor[Any],
         app: TApplication,
         tracking_recorder: TrackingRecorder,
         topics: Sequence[str],
@@ -229,7 +230,7 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
     @staticmethod
     def _process_events_loop(
         subscription: AbstractApplicationSubscription[Any],
-        projection: AbstractProjection[Any],
+        projection: AbstractEventProcessor[Any],
         is_stopping: threading.Event,
         runner: weakref.ReferenceType[Any],
     ) -> None:
@@ -314,7 +315,7 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
 
 class ProjectionRunner[
     TApplication: SupportsApplicationSubscriptions[Any, Any],
-    TProjection: Projection[Any, Any],
+    TProjection: EventProcessor[Any, Any],
     TTrackingRecorder: TrackingRecorder,
 ](
     BaseProjectionRunner[TApplication],
@@ -354,7 +355,7 @@ class ProjectionRunner[
 
 class EventSourcedProjectionRunner[
     TUpstream: SupportsApplicationSubscriptions[Any, Any],
-    TDownstream: EventSourcedProjection[Any],
+    TDownstream: EventSourcedEventProcessor[Any],
 ](
     BaseProjectionRunner[TUpstream],
 ):

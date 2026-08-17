@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import override
 
+from eventsourcing_umadb.server_fixture import temp_umadb_server
+
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import IntegrityError
 from eventsourcing.tests.postgres_utils import drop_tables
@@ -39,11 +41,12 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
             drop_tables()
 
     def test_enrolment_with_umadb(self) -> None:
-        env = {
-            "PERSISTENCE_MODULE": "eventsourcing_umadb",
-            "UMADB_URI": "http://127.0.0.1:50051",
-        }
-        self.assert_implementation(EnrolmentWithVerticalSlices(env=env))
+        with temp_umadb_server() as url:
+            env = {
+                "PERSISTENCE_MODULE": "eventsourcing_umadb",
+                "UMADB_URI": url,
+            }
+            self.assert_implementation(EnrolmentWithVerticalSlices(env=env))
 
     @override
     def assert_implementation(self, app: EnrolmentInterface) -> None:

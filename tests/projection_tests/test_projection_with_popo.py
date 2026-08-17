@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING, ClassVar, override
 from unittest import skipIf
 
 from eventsourcing.msgspec.transcoder import Transcoder
-from eventsourcing.persistence import AggregateEventMapper, TaggedEventMapper
+from eventsourcing.persistence import AggregateEventMapper
 from eventsourcing.popo import POPOTrackingRecorder
 from eventsourcing.tests.projection import (
-    AggregateEventCountersProjectionTestCase,
-    DecisionCountersProjectionTestCase,
-    EventCountersView,
-    EventCountersViewTestCase,
+    AggregateEventProjectionTestCase,
+    StudentAnalyticsView,
+    StudentAnalyticsViewTestCase,
+    TaggedEventProjectionTestCase,
 )
 from eventsourcing.utils import get_topic
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from eventsourcing.persistence import Tracking
 
 
-class POPOEventCounters(POPOTrackingRecorder, EventCountersView):
+class POPOStudentAnalyticsView(POPOTrackingRecorder, StudentAnalyticsView):
     def __init__(self) -> None:
         super().__init__()
         self._created_event_counter = 0
@@ -48,20 +48,20 @@ class POPOEventCounters(POPOTrackingRecorder, EventCountersView):
             self._subsequent_event_counter += 1
 
 
-class TestPOPOEventCounters(EventCountersViewTestCase):
+class TestPOPOStudentAnalytics(StudentAnalyticsViewTestCase):
     @override
-    def construct_event_counters_view(self) -> EventCountersView:
-        return POPOEventCounters()
+    def construct_event_counters_view(self) -> StudentAnalyticsView:
+        return POPOStudentAnalyticsView()
 
 
-class TestAggregateEventCountersProjectionWithPOPO(
-    AggregateEventCountersProjectionTestCase[POPOEventCounters]
+class TestAggregateEventProjectionWithPOPO(
+    AggregateEventProjectionTestCase[POPOStudentAnalyticsView]
 ):
     env: ClassVar[dict[str, str]] = {
         "MAPPER_TOPIC": get_topic(AggregateEventMapper),
         "TRANSCODER_TOPIC": get_topic(Transcoder),
     }
-    view_class = POPOEventCounters
+    view_class = POPOStudentAnalyticsView
 
 
 # TODO: Figure out actually what is causing segmentation violations with Python3.13.
@@ -69,15 +69,15 @@ class TestAggregateEventCountersProjectionWithPOPO(
 #  - was happening when run alone when DcbSpannerThrown has no attributes
 #  - maybe something to do with deepcopy() in InMemoryRecorder?
 @skipIf(sys.version_info[0:2] == (3, 13), "Weird occasional segmentation violation")
-class TestTaggedEventCountersProjectionWithPOPO(DecisionCountersProjectionTestCase):
+class TestTaggedEventCountersProjectionWithPOPO(TaggedEventProjectionTestCase):
 
     env: ClassVar[dict[str, str]] = {
-        "MAPPER_TOPIC": get_topic(TaggedEventMapper),
-        "TRANSCODER_TOPIC": get_topic(Transcoder),
+        # "MAPPER_TOPIC": get_topic(TaggedEventMapper),
+        # "TRANSCODER_TOPIC": get_topic(Transcoder),
     }
-    view_class: type[EventCountersView] = POPOEventCounters
+    view_class: type[StudentAnalyticsView] = POPOStudentAnalyticsView
 
 
-del DecisionCountersProjectionTestCase
-del AggregateEventCountersProjectionTestCase
-del EventCountersViewTestCase
+del TaggedEventProjectionTestCase
+del AggregateEventProjectionTestCase
+del StudentAnalyticsViewTestCase

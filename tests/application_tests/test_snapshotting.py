@@ -39,17 +39,8 @@ class TestSnapshotting(TestCase):
         # Clear pending events.
         account.collect_events()
 
-        # Take a snapshot.
-        # Store snapshot.
-        snapshot_store.put(
-            [
-                AggregateEvent(
-                    decision=BankAccountWithPydantic.Snapshot.take(account),
-                    originator_id=account.id,
-                    originator_version=account.version,
-                )
-            ]
-        )
+        # Take and store snapshot.
+        snapshot_store.put([BankAccountWithPydantic.Snapshot.take(account)])
 
         # Get snapshot.
         snapshots = snapshot_store.get(account.id, desc=True, limit=1)

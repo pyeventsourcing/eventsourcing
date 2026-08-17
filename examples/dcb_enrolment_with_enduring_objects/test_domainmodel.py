@@ -48,7 +48,7 @@ class TestEnduringObjects(TestCase):
         self.assertEqual(copy1.max_courses, student.max_courses)
 
         # Check the enduring object's consistency boundary.
-        self.assertEqual(student.consistency_boundary(), [Selector(tags=[student.id])])
+        self.assertEqual(student.consistency_boundary(), Selector(tags=[student.id]))
 
         # Check the name can be changed.
         student.update_name(name="Maxine")

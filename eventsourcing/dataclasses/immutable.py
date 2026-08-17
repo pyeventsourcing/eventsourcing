@@ -7,7 +7,7 @@ from abc import ABCMeta
 from datetime import date, datetime
 from decimal import Decimal
 from functools import lru_cache
-from typing import Any, Self, dataclass_transform, override
+from typing import Any, dataclass_transform, override
 from uuid import UUID
 
 import eventsourcing.domain
@@ -65,6 +65,14 @@ class Decision(Immutable, eventsourcing.domain.Decision):
         return self.__dict__.copy()
 
 
+class TaggedEvent(eventsourcing.domain.AggregateEvent[Decision]):
+    pass
+
+
+class AggregateEvent(eventsourcing.domain.AggregateEvent[Decision]):
+    pass
+
+
 class ImmutableAggregate(Immutable):
     id: str
     version: int
@@ -74,9 +82,14 @@ class ImmutableAggregateSnapshot(Decision):
     state: dict[str, Any]
 
     @classmethod
-    def take(cls, aggregate: ImmutableAggregate) -> Self:
-        return cls(
+    def take(cls, aggregate: ImmutableAggregate) -> AggregateEvent:
+        decision = cls(
             state=aggregate.__dict__.copy(),
+        )
+        return AggregateEvent(
+            decision=decision,
+            originator_id=aggregate.id,
+            originator_version=aggregate.version,
         )
 
 

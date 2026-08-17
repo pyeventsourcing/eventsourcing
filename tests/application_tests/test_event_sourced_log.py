@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, override
 from unittest import TestCase
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from eventsourcing.application import EventSourcedLog
 from eventsourcing.dataclasses import AggregatesApplication, Decision, Transcoder
 from eventsourcing.dataclasses.legacy import (
     DatetimeAsISO,
@@ -13,7 +12,7 @@ from eventsourcing.dataclasses.legacy import (
     UUIDAsHex,
 )
 from eventsourcing.decorator import triggers
-from eventsourcing.domain import Aggregate
+from eventsourcing.domain import Aggregate, EventSourcedLog
 from eventsourcing.persistence import (
     AggregateEventMapper,
     EventStore,

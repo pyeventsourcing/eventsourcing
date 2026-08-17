@@ -2,20 +2,23 @@ import eventsourcing.domain
 from eventsourcing.msgspec.application import (
     AggregatesApplication,
     DcbApplication,
+    EventSourcedProjection,
     ProcessApplication,
 )
 from eventsourcing.msgspec.immutable import (
+    AggregateEvent,
     Decision,
     Immutable,
     ImmutableAggregate,
     ImmutableAggregateSnapshot,
+    TaggedEvent,
 )
 from eventsourcing.msgspec.mutable import (
     Aggregate,
-    AggregateSnapshot,
     AggregateState,
     EnduringObject,
     Group,
+    MuetableAggregateSnapshot,
     Slice,
 )
 from eventsourcing.msgspec.transcoder import Transcoder
@@ -27,18 +30,21 @@ class Selector(eventsourcing.domain.Selector[Decision]):
 
 __all__ = [
     "Aggregate",
-    "AggregateSnapshot",
+    "AggregateEvent",
     "AggregateState",
     "AggregatesApplication",
     "DcbApplication",
     "Decision",
     "EnduringObject",
+    "EventSourcedProjection",
     "Group",
     "Immutable",
     "ImmutableAggregate",
     "ImmutableAggregateSnapshot",
+    "MuetableAggregateSnapshot",
     "ProcessApplication",
     "Selector",
     "Slice",
+    "TaggedEvent",
     "Transcoder",
 ]

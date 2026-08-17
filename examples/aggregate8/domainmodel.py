@@ -3,9 +3,9 @@ from __future__ import annotations
 from eventsourcing.decorator import event
 from eventsourcing.pydantic import (
     Aggregate,
-    AggregateSnapshot,
     AggregateState,
     Immutable,
+    MutableAggregateSnapshot,
 )
 
 
@@ -19,7 +19,7 @@ class DogSnapshotState(AggregateState):
 
 
 class Dog(Aggregate):
-    class Snapshot(AggregateSnapshot):
+    class Snapshot(MutableAggregateSnapshot):
         state: DogSnapshotState
 
     @event("Registered")

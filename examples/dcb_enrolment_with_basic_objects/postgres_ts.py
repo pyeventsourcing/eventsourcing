@@ -518,3 +518,6 @@ class PostgresTSDcbFactory(
         if self.env_create_table():
             recorder.create_table()
         return recorder
+
+
+del DcbInfrastructureFactory

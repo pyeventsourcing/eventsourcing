@@ -7,24 +7,26 @@ from threading import Event
 from time import sleep
 from typing import TYPE_CHECKING, Any, ClassVar, override
 from unittest import TestCase
+from uuid import uuid4
 
 from eventsourcing.errors import WaitInterruptedError
 from eventsourcing.msgspec import AggregatesApplication, Transcoder
 from eventsourcing.persistence import AggregateEventMapper, TrackingRecorder
 from eventsourcing.projection import (
-    Projection,
+    EventProcessor,
     ProjectionRunner,
 )
 from eventsourcing.tests.projection import (
-    EventCountersView,
     SpannerThrown,
     SpannerThrownError,
-    Student,
-    StudentEventCountersProjection,
+    StudentAggregate,
+    StudentAnalyticsEventProcessor,
+    StudentAnalyticsView,
+    StudentNameChanged,
 )
 from eventsourcing.utils import get_topic
 from tests.projection_tests.test_projection_with_popo import (
-    POPOEventCounters,
+    POPOStudentAnalyticsView,
 )
 
 if TYPE_CHECKING:
@@ -41,25 +43,25 @@ class TestProjectionRunner(TestCase):
     def test_runner(self) -> None:
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
-            view_class=POPOEventCounters,
+            projection_class=StudentAnalyticsEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
 
         self.assertFalse(runner.is_interrupted.is_set())
 
-        aggregate = Student()
-        aggregate.trigger_event(Student.NameChanged)
-        aggregate.trigger_event(Student.NameChanged)
+        aggregate = StudentAggregate(student_id=str(uuid4()))
+        aggregate.change_name()
+        aggregate.change_name()
         recordings = runner.app.save(aggregate)
 
         runner.wait(recordings[-1].notification.id)
         self.assertEqual(runner.view.get_student_registered_counter(), 1)
         self.assertEqual(runner.view.get_student_name_changed_counter(), 2)
 
-        aggregate = Student()
-        aggregate.trigger_event(Student.NameChanged)
-        aggregate.trigger_event(Student.NameChanged)
+        aggregate = StudentAggregate(student_id=str(uuid4()))
+        aggregate.change_name()
+        aggregate.change_name()
         recordings = runner.app.save(aggregate)
 
         runner.wait(recordings[-1].notification.id)
@@ -74,7 +76,7 @@ class TestProjectionRunner(TestCase):
                 timeout=0.1,
             )
 
-        aggregate.trigger_event(SpannerThrown)
+        aggregate.trigger_event(SpannerThrown, student_id=aggregate.id)
         runner.app.save(aggregate)
 
         with self.assertRaises(SpannerThrownError):
@@ -82,12 +84,12 @@ class TestProjectionRunner(TestCase):
 
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
-            view_class=POPOEventCounters,
+            projection_class=StudentAnalyticsEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
-        aggregate = Student()
-        aggregate.trigger_event(SpannerThrown)
+        aggregate = StudentAggregate(student_id=str(uuid4()))
+        aggregate.trigger_event(SpannerThrown, student_id=aggregate.id)
         runner.app.save(aggregate)
 
         with self.assertRaises(SpannerThrownError):
@@ -96,22 +98,22 @@ class TestProjectionRunner(TestCase):
         self.assertTrue(runner.is_interrupted.is_set())
 
     def test_runner_with_topics(self) -> None:
-        class AggregateEventCountersProjectionWithTopics(
-            StudentEventCountersProjection
+        class AggregateAnalyticsEventProcessorWithTopics(
+            StudentAnalyticsEventProcessor
         ):
-            topics = (get_topic(Student.NameChanged),)
+            topics = (get_topic(StudentNameChanged),)
 
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=AggregateEventCountersProjectionWithTopics,
-            view_class=POPOEventCounters,
+            projection_class=AggregateAnalyticsEventProcessorWithTopics,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
 
         app = runner.app
-        aggregate = Student()
-        aggregate.trigger_event(Student.NameChanged)
-        aggregate.trigger_event(Student.NameChanged)
+        aggregate = StudentAggregate(student_id=str(uuid4()))
+        aggregate.change_name()
+        aggregate.change_name()
         recordings = app.save(aggregate)
 
         runner.wait(recordings[-1].notification.id)
@@ -124,8 +126,8 @@ class TestProjectionRunner(TestCase):
         # Call stop() before run_forever().
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
-            view_class=POPOEventCounters,
+            projection_class=StudentAnalyticsEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
         runner.stop()
@@ -134,8 +136,8 @@ class TestProjectionRunner(TestCase):
         # Call stop() before wait().
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
-            view_class=POPOEventCounters,
+            projection_class=StudentAnalyticsEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
         runner.stop()
@@ -147,7 +149,9 @@ class TestProjectionRunner(TestCase):
 
         def call_runforever(
             r: ProjectionRunner[
-                AggregatesApplication, StudentEventCountersProjection, EventCountersView
+                AggregatesApplication,
+                StudentAnalyticsEventProcessor,
+                StudentAnalyticsView,
             ],
         ) -> None:
             errors.clear()
@@ -163,7 +167,9 @@ class TestProjectionRunner(TestCase):
 
         def call_wait(
             r: ProjectionRunner[
-                AggregatesApplication, StudentEventCountersProjection, EventCountersView
+                AggregatesApplication,
+                StudentAnalyticsEventProcessor,
+                StudentAnalyticsView,
             ],
         ) -> None:
             errors.clear()
@@ -180,8 +186,8 @@ class TestProjectionRunner(TestCase):
         # Call stop() after run_forever().
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
-            view_class=POPOEventCounters,
+            projection_class=StudentAnalyticsEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
         thread = threading.Thread(target=call_runforever, args=(runner,))
@@ -196,8 +202,8 @@ class TestProjectionRunner(TestCase):
         # Call stop() after wait().
         ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
-            view_class=POPOEventCounters,
+            projection_class=StudentAnalyticsEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
         thread = threading.Thread(target=call_wait, args=(runner,))
@@ -212,8 +218,8 @@ class TestProjectionRunner(TestCase):
     def test_enter_returns_runner(self) -> None:
         with ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
-            view_class=POPOEventCounters,
+            projection_class=StudentAnalyticsEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         ) as runner:
             self.assertIsInstance(runner, ProjectionRunner)
@@ -221,8 +227,8 @@ class TestProjectionRunner(TestCase):
     def test_exit_stops_runner(self) -> None:
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
-            view_class=POPOEventCounters,
+            projection_class=StudentAnalyticsEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
         self.assertFalse(runner.is_interrupted.is_set())
@@ -238,8 +244,8 @@ class TestProjectionRunner(TestCase):
             self.assertRaises(TestError),
             ProjectionRunner(
                 application_class=AggregatesApplication,
-                projection_class=StudentEventCountersProjection,
-                view_class=POPOEventCounters,
+                projection_class=StudentAnalyticsEventProcessor,
+                view_class=POPOStudentAnalyticsView,
                 env=self.env,
             ),
         ):
@@ -250,13 +256,13 @@ class TestProjectionRunner(TestCase):
             self.assertRaises(BrokenProjectionError),
             ProjectionRunner(
                 application_class=AggregatesApplication,
-                projection_class=BrokenProjection,
-                view_class=POPOEventCounters,
+                projection_class=BrokenEventProcessor,
+                view_class=POPOStudentAnalyticsView,
                 env=self.env,
             ) as runner,
         ):
             # Write an event.
-            runner.app.save(Student())
+            runner.app.save(StudentAggregate(student_id=str(uuid4())))
             runner.is_interrupted.wait()
 
     def test_warning_error_not_assigned_to_deleted_runner(self) -> None:
@@ -264,20 +270,20 @@ class TestProjectionRunner(TestCase):
         # Construct a runner.
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=BrokenProjection,
-            view_class=POPOEventCounters,
+            projection_class=BrokenEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
 
         # Write an event.
-        runner.app.save(Student())
+        runner.app.save(StudentAggregate(student_id=str(uuid4())))
 
         # Error should be assigned to the runner.
         with self.assertRaises(BrokenProjectionError):
             runner.run_forever()
 
         # Write another event.
-        runner.app.save(Student())
+        runner.app.save(StudentAggregate(student_id=str(uuid4())))
 
         # Get another application subscription
         subscription = runner.app.application_subscription()
@@ -300,7 +306,7 @@ class TestProjectionRunner(TestCase):
         # Call _process_events_loop and catch warning.
         with warnings.catch_warnings(record=True) as w:
             ProjectionRunner[
-                AggregatesApplication, Projection[Any, Any], TrackingRecorder
+                AggregatesApplication, EventProcessor[Any, Any], TrackingRecorder
             ]._process_events_loop(
                 subscription,
                 projection,
@@ -323,11 +329,11 @@ class TestProjectionRunner(TestCase):
     def test_wait_raises_wait_interrupted_error(self) -> None:
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=VerySlowProjection,
-            view_class=POPOEventCounters,
+            projection_class=VerySlowEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
-        runner.app.save(Student())
+        runner.app.save(StudentAggregate(student_id=str(uuid4())))
         with self.assertRaises(WaitInterruptedError):
             sleep(0.5)
             runner.is_interrupted.set()
@@ -335,11 +341,11 @@ class TestProjectionRunner(TestCase):
 
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=VerySlowProjection,
-            view_class=POPOEventCounters,
+            projection_class=VerySlowEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
-        runner.app.save(Student())
+        runner.app.save(StudentAggregate(student_id=str(uuid4())))
         with self.assertRaises(WaitInterruptedError), runner:
             sleep(0.5)
             runner.is_interrupted.set()
@@ -348,22 +354,22 @@ class TestProjectionRunner(TestCase):
     def test_wait_raises_timeout_error(self) -> None:
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=VerySlowProjection,
-            view_class=POPOEventCounters,
+            projection_class=VerySlowEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
-        runner.app.save(Student())
+        runner.app.save(StudentAggregate(student_id=str(uuid4())))
         with self.assertRaises(TimeoutError):
             sleep(0.5)
             runner.wait(1000, timeout=0.1)
 
         runner = ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=VerySlowProjection,
-            view_class=POPOEventCounters,
+            projection_class=VerySlowEventProcessor,
+            view_class=POPOStudentAnalyticsView,
             env=self.env,
         )
-        runner.app.save(Student())
+        runner.app.save(StudentAggregate(student_id=str(uuid4())))
         with self.assertRaises(TimeoutError), runner:
             sleep(0.5)
             runner.wait(1000, timeout=0.1)
@@ -374,14 +380,14 @@ class BrokenProjectionError(Exception):
 
 
 # Define a projection that raises an exception.
-class BrokenProjection(Projection[TrackingRecorder, Any]):
+class BrokenEventProcessor(EventProcessor[TrackingRecorder, Any]):
     @override
     def process_event(self, envelope: Any, tracking: Tracking) -> None:
         raise BrokenProjectionError
 
 
 # Define a projection that stalls.
-class VerySlowProjection(Projection[TrackingRecorder, Any]):
+class VerySlowEventProcessor(EventProcessor[TrackingRecorder, Any]):
     @override
     def process_event(self, envelope: Any, tracking: Tracking) -> None:
         sleep(2)

@@ -48,12 +48,16 @@ class Aggregate(WorksWithDecisions[Decision]):
         def take(
             cls,
             aggregate: Aggregate,
-        ) -> Aggregate.Snapshot:
+        ) -> AggregateEvent:
             aggregate_state = dict(aggregate.__dict__)
             aggregate_state.pop("_pending_events")
-            return Aggregate.Snapshot(
-                topic=get_topic(type(aggregate)),
-                state=aggregate_state,
+            return AggregateEvent(
+                decision=Aggregate.Snapshot(
+                    topic=get_topic(type(aggregate)),
+                    state=aggregate_state,
+                ),
+                originator_id=aggregate.id,
+                originator_version=aggregate.version,
             )
 
     def trigger_event(

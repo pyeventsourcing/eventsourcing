@@ -5,15 +5,18 @@ import multiprocessing.synchronize
 import traceback
 from threading import Thread
 from typing import TYPE_CHECKING, Any, ClassVar, override
+from uuid import uuid4
 
 from eventsourcing.errors import OperationalError
 from eventsourcing.msgspec import AggregatesApplication
 from eventsourcing.projection import EventSourcedProjectionRunner
 from eventsourcing.tests.postgres_utils import drop_tables, pg_close_all_connections
 from eventsourcing.tests.projection import (
-    Counters,
+    CounterAggregatesApplication,
     EventSourcedProjectionTestCase,
-    Student,
+    StudentAggregate,
+    StudentNameChanged,
+    StudentRegistered,
 )
 
 if TYPE_CHECKING:
@@ -45,13 +48,13 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
     def test_server_closes_connections_before_run_forever(self) -> None:
         with EventSourcedProjectionRunner(
             upstream_application_class=AggregatesApplication,
-            downstream_application_class=Counters,
+            downstream_application_class=CounterAggregatesApplication,
             env=self.env,
         ) as runner:
-            recordings = runner.app.save(Student())
+            recordings = runner.app.save(StudentAggregate(student_id=str(uuid4())))
             runner.wait(recordings[-1].notification.id)
-            self.assertEqual(1, runner.downstream.get_count(Student.Registered))
-            self.assertEqual(0, runner.downstream.get_count(Student.NameChanged))
+            self.assertEqual(1, runner.downstream.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
 
             pg_close_all_connections()
 
@@ -63,13 +66,13 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
     def test_server_closes_connections_with_run_forever_in_thread(self) -> None:
         with EventSourcedProjectionRunner(
             upstream_application_class=AggregatesApplication,
-            downstream_application_class=Counters,
+            downstream_application_class=CounterAggregatesApplication,
             env=self.env,
         ) as runner:
-            recordings = runner.app.save(Student())
+            recordings = runner.app.save(StudentAggregate(student_id=str(uuid4())))
             runner.wait(recordings[-1].notification.id)
-            self.assertEqual(1, runner.downstream.get_count(Student.Registered))
-            self.assertEqual(0, runner.downstream.get_count(Student.NameChanged))
+            self.assertEqual(1, runner.downstream.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
 
             errors = []
 
@@ -92,14 +95,14 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
 
     def test_server_closes_connections_with_projection_in_thread(self) -> None:
         app = AggregatesApplication(env=self.env)
-        projection = Counters(env=self.env)
+        projection = CounterAggregatesApplication(env=self.env)
 
         errors = []
 
         def thread_target() -> None:
             with EventSourcedProjectionRunner(
                 upstream_application_class=AggregatesApplication,
-                downstream_application_class=Counters,
+                downstream_application_class=CounterAggregatesApplication,
                 env=self.env,
             ) as runner:
                 try:
@@ -110,10 +113,10 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
         projection_thread = Thread(target=thread_target)
         projection_thread.start()
 
-        recordings = app.save(Student())
+        recordings = app.save(StudentAggregate(student_id=str(uuid4())))
         projection.recorder.wait(app.context_name, recordings[-1].notification.id)
-        self.assertEqual(1, projection.get_count(Student.Registered))
-        self.assertEqual(0, projection.get_count(Student.NameChanged))
+        self.assertEqual(1, projection.get_count(StudentRegistered))
+        self.assertEqual(0, projection.get_count(StudentNameChanged))
 
         pg_close_all_connections()
 
@@ -132,7 +135,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
         try:
             with EventSourcedProjectionRunner(
                 upstream_application_class=AggregatesApplication,
-                downstream_application_class=Counters,
+                downstream_application_class=CounterAggregatesApplication,
                 env=TestEventSourcedProjectionWithPostgres.env,
             ) as runner:
                 projection_started.set()
@@ -180,7 +183,7 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
 
         with (
             AggregatesApplication(env=self.env) as app,
-            Counters(env=self.env) as projection,
+            CounterAggregatesApplication(env=self.env) as projection,
         ):
 
             projection_process = self.MonitoredProcess(
@@ -189,10 +192,10 @@ class TestEventSourcedProjectionWithPostgres(EventSourcedProjectionTestCase):
             )
             projection_process.start()
 
-            recordings = app.save(Student())
+            recordings = app.save(StudentAggregate(student_id=str(uuid4())))
             projection.recorder.wait(app.context_name, recordings[-1].notification.id)
-            self.assertEqual(1, projection.get_count(Student.Registered))
-            self.assertEqual(0, projection.get_count(Student.NameChanged))
+            self.assertEqual(1, projection.get_count(StudentRegistered))
+            self.assertEqual(0, projection.get_count(StudentNameChanged))
 
             self.assertTrue(projection_started.wait(timeout=1))
 

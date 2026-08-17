@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, ClassVar, override
+from uuid import uuid4
 
 from psycopg.sql import SQL, Identifier
 
@@ -18,17 +19,17 @@ from eventsourcing.projection import (
 )
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.tests.projection import (
-    AggregateEventCountersProjectionTestCase,
-    EventCountersView,
-    EventCountersViewTestCase,
+    AggregateEventProjectionTestCase,
     SpannerThrownError,
-    Student,
-    StudentEventCountersProjection,
+    StudentAggregate,
+    StudentAnalyticsEventProcessor,
+    StudentAnalyticsView,
+    StudentAnalyticsViewTestCase,
 )
 from eventsourcing.utils import Environment
 
 
-class PostgresEventCounters(PostgresTrackingRecorder, EventCountersView):
+class PostgresStudentAnalyticsView(PostgresTrackingRecorder, StudentAnalyticsView):
     _created_event_counter_name = "CREATED_EVENTS"
     _subsequent_event_counter_name = "SUBSEQUENT_EVENTS"
 
@@ -106,7 +107,7 @@ class PostgresEventCounters(PostgresTrackingRecorder, EventCountersView):
             )
 
 
-class TestPostgresEventCounters(EventCountersViewTestCase):
+class TestPostgresStudentAnalytics(StudentAnalyticsViewTestCase):
     expected_factory_topic = "eventsourcing.postgres:PostgresFactory"
     env: ClassVar[dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.postgres",
@@ -120,7 +121,7 @@ class TestPostgresEventCounters(EventCountersViewTestCase):
 
     @override
     def setUp(self) -> None:
-        self.factory = InfrastructureFactory[EventCountersView].construct(self.env)
+        self.factory = InfrastructureFactory[StudentAnalyticsView].construct(self.env)
 
     @override
     def tearDown(self) -> None:
@@ -128,14 +129,14 @@ class TestPostgresEventCounters(EventCountersViewTestCase):
         drop_tables()
 
     @override
-    def construct_event_counters_view(self) -> EventCountersView:
-        return self.factory.tracking_recorder(PostgresEventCounters)
+    def construct_event_counters_view(self) -> StudentAnalyticsView:
+        return self.factory.tracking_recorder(PostgresStudentAnalyticsView)
 
 
-class TestAggregateEventCountersProjectionWithPostgres(
-    AggregateEventCountersProjectionTestCase[PostgresEventCounters]
+class TestAggregateEventProjectionWithPostgres(
+    AggregateEventProjectionTestCase[PostgresStudentAnalyticsView]
 ):
-    view_class = PostgresEventCounters
+    view_class = PostgresStudentAnalyticsView
     env: ClassVar[dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.postgres",
         "POSTGRES_DBNAME": "eventsourcing",
@@ -162,7 +163,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
         # Resume....
         with ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
+            projection_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ):
@@ -171,19 +172,19 @@ class TestAggregateEventCountersProjectionWithPostgres(
             write_model = AggregatesApplication(env=self.env)
 
             # Construct separate instance of "read model".
-            factory: InfrastructureFactory[EventCountersView] = (
+            factory: InfrastructureFactory[StudentAnalyticsView] = (
                 InfrastructureFactory.construct(
                     env=Environment(
-                        name=StudentEventCountersProjection.name, env=self.env
+                        name=StudentAnalyticsEventProcessor.name, env=self.env
                     )
                 )
             )
             read_model = factory.tracking_recorder(self.view_class)
 
             # Write some events.
-            aggregate = Student()
-            aggregate.trigger_event(Student.NameChanged)
-            aggregate.trigger_event(Student.NameChanged)
+            aggregate = StudentAggregate(student_id=str(uuid4()))
+            aggregate.change_name()
+            aggregate.change_name()
             recordings = write_model.save(aggregate)
 
             # Wait for events to be processed.
@@ -197,9 +198,9 @@ class TestAggregateEventCountersProjectionWithPostgres(
             self.assertEqual(read_model.get_student_name_changed_counter(), 6)
 
             # Write some more events.
-            aggregate = Student()
-            aggregate.trigger_event(Student.NameChanged)
-            aggregate.trigger_event(Student.NameChanged)
+            aggregate = StudentAggregate(student_id=str(uuid4()))
+            aggregate.change_name()
+            aggregate.change_name()
             recordings = write_model.save(aggregate)
 
             # Wait for events to be processed.
@@ -219,7 +220,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
         # Resume...
         with ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentEventCountersProjection,
+            projection_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
@@ -231,7 +232,7 @@ class TestAggregateEventCountersProjectionWithPostgres(
             factory: InfrastructureFactory[PostgresTrackingRecorder] = (
                 InfrastructureFactory.construct(
                     env=Environment(
-                        name=StudentEventCountersProjection.context_name, env=self.env
+                        name=StudentAnalyticsEventProcessor.context_name, env=self.env
                     )
                 )
             )
@@ -249,5 +250,5 @@ class TestAggregateEventCountersProjectionWithPostgres(
                 )
 
 
-del AggregateEventCountersProjectionTestCase
-del EventCountersViewTestCase
+del AggregateEventProjectionTestCase
+del StudentAnalyticsViewTestCase

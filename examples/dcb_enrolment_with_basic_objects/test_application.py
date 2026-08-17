@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from eventsourcing_umadb.server_fixture import temp_umadb_server
+
 from eventsourcing.tests.postgres_utils import drop_tables
 from examples.dcb_enrolment.test_enrolment import EnrolmentTestCase
 from examples.dcb_enrolment_with_basic_objects.application import (
@@ -28,11 +30,12 @@ class TestEnrolmentWithBasicDcbObjects(EnrolmentTestCase):
             drop_tables()
 
     def test_enrolment_with_umadb(self) -> None:
-        env = {
-            "PERSISTENCE_MODULE": "eventsourcing_umadb",
-            "UMADB_URI": "http://127.0.0.1:50051",
-        }
-        self.assert_implementation(EnrolmentWithBasicDcbObjects(env=env))
+        with temp_umadb_server() as url:
+            env = {
+                "PERSISTENCE_MODULE": "eventsourcing_umadb",
+                "UMADB_URI": url,
+            }
+            self.assert_implementation(EnrolmentWithBasicDcbObjects(env=env))
 
 
 del EnrolmentTestCase

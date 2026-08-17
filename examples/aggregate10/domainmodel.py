@@ -3,10 +3,10 @@ from __future__ import annotations
 from eventsourcing.decorator import event
 from eventsourcing.msgspec import (
     Aggregate,
-    AggregateSnapshot,
     AggregateState,
     Decision,
     Immutable,
+    MuetableAggregateSnapshot,
 )
 
 
@@ -26,7 +26,7 @@ class Dog(Aggregate):
     class TrickAdded(Decision):
         trick: Trick
 
-    class Snapshot(AggregateSnapshot):
+    class Snapshot(MuetableAggregateSnapshot):
         state: DogSnapshotState
 
     @event(Registered)

@@ -5,8 +5,8 @@ from uuid import NAMESPACE_URL, uuid5
 
 from eventsourcing.application import (
     AggregateNotFoundError,
-    EventSourcedLog,
 )
+from eventsourcing.domain import EventSourcedLog
 from eventsourcing.pydantic import AggregatesApplication
 from examples.contentmanagement.domainmodel import Page, PageLogged, Slug
 

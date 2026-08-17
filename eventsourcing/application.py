@@ -4,7 +4,7 @@ import contextlib
 import os
 import typing
 from abc import ABC, abstractmethod
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator
 from copy import deepcopy
 from dataclasses import dataclass
 from itertools import chain
@@ -13,7 +13,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Self,
     cast,
     overload,
     override,
@@ -23,8 +22,6 @@ from typing_extensions import TypeVar
 
 from eventsourcing.domain import (
     NIL_UUID_STR,
-    Aggregate,
-    AggregateEvent,
     evolve_aggregate,
 )
 from eventsourcing.errors import EventSourcingError, ProgrammingError
@@ -45,6 +42,7 @@ from eventsourcing.types import (
     EventCollectorProtocol,
     MutableAggregateProtocol,
     Projector,
+    SnapshotProtocol,
     WorksWithDecisions,
 )
 from eventsourcing.utils import (
@@ -595,7 +593,9 @@ class ProcessingEvent[TDecision]:
         """Initialises the process event with the given tracking object."""
         self.tracking = tracking
         self.events = list[AggregateEventProtocol[TDecision]]()
-        self.aggregates = dict[str, Aggregate[TDecision]]()
+        self.aggregates = dict[
+            str, MutableAggregateProtocol[AggregateEventProtocol[TDecision]]
+        ]()
         self.saved_kwargs: dict[Any, Any] = {}
 
     def collect_events(
@@ -609,13 +609,13 @@ class ProcessingEvent[TDecision]:
         for obj in objs:
             if obj is None:
                 continue
-            if isinstance(obj, AggregateEvent):
+            if isinstance(obj, AggregateEventProtocol):
                 self.events.append(obj)
             else:
                 if isinstance(obj, EventCollectorProtocol):
                     for event in obj.collect_events():
                         self.events.append(event)
-                if isinstance(obj, Aggregate):
+                if isinstance(obj, MutableAggregateProtocol):
                     self.aggregates[obj.id] = obj
 
         self.saved_kwargs.update(kwargs)
@@ -691,6 +691,11 @@ class BoundedContext:
         exc_tb: TracebackType | None,
     ) -> None:
         pass
+
+
+class SupportsTranscoding[TDecision](ABC):
+    @abstractmethod
+    def construct_transcoder(self) -> Transcoder[TDecision]: ...
 
 
 class SupportsApplicationSubscriptions[
@@ -787,6 +792,7 @@ class AggregatesApplicationSubscription(
 
 
 class AggregatesApplication(
+    SupportsTranscoding[TDecision],
     SupportsApplicationSubscriptions[
         TDecision,
         AggregatesApplicationSubscription[TDecision, TRecorder],
@@ -909,6 +915,7 @@ class AggregatesApplication(
         # self._check_decision_type(transcoder)
         return self.factory.mapper(transcoder=transcoder)
 
+    @override
     def construct_transcoder(self) -> Transcoder[TDecision]:
         """Constructs a :class:`~eventsourcing.persistence.Transcoder`
         for use by the application.
@@ -977,7 +984,7 @@ class AggregatesApplication(
             match obj:
                 case None:
                     continue
-                case AggregateEvent(decision=decision):
+                case AggregateEventProtocol(decision=decision):
                     self.check_decision_type(type(decision))
                 case _:
                     self.check_decision_type(type(obj))
@@ -1015,7 +1022,7 @@ class AggregatesApplication(
                     try:
                         projector = self.snapshotting_projectors[type(aggregate)]
                     except KeyError:
-                        if not isinstance(event, AggregateEvent):
+                        if not isinstance(event, AggregateEventProtocol):
                             msg = (
                                 f"Cannot take snapshot for {type(aggregate)} with "
                                 "default project_aggregate() function, because its "
@@ -1032,12 +1039,12 @@ class AggregatesApplication(
                         projector = evolve_aggregate
                     self.take_snapshot(
                         aggregate_id=event.originator_id,
-                        aggregate_cls=type(aggregate),
+                        aggregate_cls=aggregate.__class__,
                         version=event.originator_version,
                         projector=projector,
                     )
 
-    def take_snapshot[T: Aggregate[Any]](
+    def take_snapshot[T: MutableAggregateProtocol[Any]](
         self,
         aggregate_id: str,
         aggregate_cls: type[T] | None = None,
@@ -1067,15 +1074,16 @@ class AggregatesApplication(
                 f"Please define a nested 'Snapshot' class on {type(aggregate)}."
             )
             raise AssertionError(msg)
+        if not isinstance(snapshot_class, SnapshotProtocol):
+            msg = (
+                f"Snapshot class {snapshot_class} does not"
+                f"implement the snapshot protocol"
+            )
+            raise TypeError(msg)
 
-        snapshot_decision = snapshot_class.take(aggregate)
-        snapshot_envelope = AggregateEvent(
-            decision=snapshot_decision,
-            originator_id=aggregate.id,
-            originator_version=aggregate.version,
-        )
+        snapshot = snapshot_class.take(aggregate)
 
-        self.snapshots.put([snapshot_envelope])
+        self.snapshots.put([snapshot])
 
     def _notify(self, recordings: list[Recording[TDecision]]) -> None:
         """Called after new aggregate events have been saved. This
@@ -1123,98 +1131,3 @@ class AggregateNotFoundError(EventSourcingError):
     """Raised when an :class:`~eventsourcing.domain.Aggregate`
     object is not found in a :class:`Repository`.
     """
-
-
-class EventSourcedLog[TDecision, SDecision]:
-    """Constructs a sequence of domain events, like an aggregate.
-    But unlike an aggregate the events can be triggered
-    and selected for use in an application without
-    reconstructing a current state from all the events.
-
-    This allows an indefinitely long sequence of events to be
-    generated and used without the practical restrictions of
-    projecting the events into a current state before they
-    can be used, which is useful e.g. for logging and
-    progressively discovering all the aggregate IDs of a
-    particular type in an application.
-    """
-
-    def __init__(
-        self,
-        events: EventStore[TDecision],
-        originator_id: str,
-        event_cls: type[SDecision],
-    ):
-        # TODO: Change `EventStore` to subclass WorksWithDecisions, then
-        #  assert that event_cls is a subclass of its decision class.
-        self.events = events
-        self.originator_id = originator_id
-        self.event_cls = event_cls
-
-    def trigger_event(
-        self,
-        next_originator_version: int | None = None,
-        **kwargs: Any,
-    ) -> AggregateEventProtocol[TDecision]:
-        """Constructs and returns a new log event."""
-        return self._trigger_event(
-            logged_cls=self.event_cls,
-            next_originator_version=next_originator_version,
-            **kwargs,
-        )
-
-    def _trigger_event(
-        self,
-        logged_cls: type[SDecision],
-        next_originator_version: int | None = None,
-        **kwargs: Any,
-    ) -> AggregateEventProtocol[TDecision]:
-        """Constructs and returns a new log event."""
-        if next_originator_version is None:
-            last_logged = self.get_last()
-            if last_logged is None:
-                next_originator_version = Aggregate.INITIAL_VERSION
-            else:
-                next_originator_version = last_logged.originator_version + 1
-
-        return AggregateEvent(
-            originator_id=self.originator_id,
-            originator_version=next_originator_version,
-            decision=cast(TDecision, logged_cls(**kwargs)),
-        )
-
-    def get_first(self) -> AggregateEventProtocol[SDecision] | None:
-        """Selects the first logged event."""
-        try:
-            return next(self.get(limit=1))
-        except StopIteration:
-            return None
-
-    def get_last(self) -> AggregateEventProtocol[SDecision] | None:
-        """Selects the last logged event."""
-        try:
-            return next(self.get(desc=True, limit=1))
-        except StopIteration:
-            return None
-
-    def get(
-        self,
-        *,
-        gt: int | None = None,
-        lte: int | None = None,
-        desc: bool = False,
-        limit: int | None = None,
-    ) -> Iterator[AggregateEventProtocol[SDecision]]:
-        """Selects a range of logged events with limit,
-        with ascending or descending order.
-        """
-        return cast(
-            Iterator[AggregateEventProtocol[SDecision]],
-            self.events.get(
-                originator_id=self.originator_id,
-                gt=gt,
-                lte=lte,
-                desc=desc,
-                limit=limit,
-            ),
-        )

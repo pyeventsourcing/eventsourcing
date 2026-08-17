@@ -1,45 +1,44 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from eventsourcing.dataclasses import Decision, Immutable
-from eventsourcing.domain import AggregateEvent, projector
+from eventsourcing.domain import projector
+from examples.aggregate6.baseclasses import AggregateEvent, DomainEvent
 
 if TYPE_CHECKING:
+    from eventsourcing.dataclasses import Decision
     from eventsourcing.types import AggregateEventProtocol
 
 
-class Dog(Immutable):
+@dataclass(kw_only=True, frozen=True)
+class Dog:
     id: str
     version: int
     name: str
     tricks: tuple[str, ...]
 
 
-class DogRegistered(Decision):
+class DogRegistered(DomainEvent):
     name: str
 
 
-class TrickAdded(Decision):
+class TrickAdded(DomainEvent):
     trick: str
 
 
-def register_dog(name: str) -> AggregateEvent[Decision]:
+def register_dog(name: str) -> AggregateEvent:
     return AggregateEvent(
-        decision=DogRegistered(
-            name=name,
-        ),
+        decision=DogRegistered(name=name),
         originator_id=str(uuid4()),
         originator_version=1,
     )
 
 
-def add_trick(dog: Dog, trick: str) -> AggregateEvent[Decision]:
+def add_trick(dog: Dog, trick: str) -> AggregateEvent:
     return AggregateEvent(
-        decision=TrickAdded(
-            trick=trick,
-        ),
+        decision=TrickAdded(trick=trick),
         originator_id=dog.id,
         originator_version=dog.version + 1,
     )
