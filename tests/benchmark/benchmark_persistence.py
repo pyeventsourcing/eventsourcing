@@ -128,9 +128,10 @@ def test_uuid4(num_events: int, benchmark: BenchmarkFixture) -> None:
 def test_recorder_insert_events_1(
     env: str, num_events: int, benchmark: BenchmarkFixture
 ) -> None:
-    recorder = InfrastructureFactory.construct(
+    factory = InfrastructureFactory[Any].construct(
         env=Environment(name="benchmark", env=envs[env])
-    ).application_recorder()
+    )
+    recorder = factory.application_recorder()
 
     def setup() -> Any:
         # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
@@ -161,9 +162,10 @@ def test_recorder_insert_events_1(
 def test_recorder_insert_events_2(
     env: str, num_events: int, benchmark: BenchmarkFixture
 ) -> None:
-    recorder = InfrastructureFactory.construct(
+    factory = InfrastructureFactory[Any].construct(
         env=Environment(name="benchmark", env=envs[env])
-    ).application_recorder()
+    )
+    recorder = factory.application_recorder()
 
     num_events *= 2
 
@@ -197,7 +199,7 @@ def test_recorder_insert_events_2(
 def test_recorder_insert_events_100(
     env: str, num_events: int, benchmark: BenchmarkFixture
 ) -> None:
-    factory: InfrastructureFactory[Any] = InfrastructureFactory.construct(
+    factory = InfrastructureFactory[Any].construct(
         env=Environment(name="benchmark", env=envs[env])
     )
     recorder = factory.application_recorder()
@@ -233,7 +235,7 @@ def test_recorder_insert_events_100(
 def test_recorder_select_events(
     env: str, num_events: int, benchmark: BenchmarkFixture
 ) -> None:
-    factory: InfrastructureFactory[Any] = InfrastructureFactory.construct(
+    factory = InfrastructureFactory[Any].construct(
         env=Environment(name="benchmark", env=envs[env])
     )
     recorder = factory.application_recorder()
