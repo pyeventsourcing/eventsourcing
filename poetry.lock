@@ -746,19 +746,21 @@ files = [
 
 [[package]]
 name = "eventsourcing-umadb"
-version = "0.3.2"
+version = "0.3.4"
 description = "Python package for eventsourcing with UmaDB"
 optional = false
-python-versions = ">=3.10"
+python-versions = ">=3.11"
 groups = ["dev"]
-files = [
-    {file = "eventsourcing_umadb-0.3.2-py3-none-any.whl", hash = "sha256:e43626d4a5f5da1aef2a32a3dc7f3ae41a9a7c870a6a3187c8ea2616dab7ac57"},
-    {file = "eventsourcing_umadb-0.3.2.tar.gz", hash = "sha256:ec4eab654f95bc3d71c06fb6ad4702ed12167250f61592e1043e4b18781fa72e"},
-]
+files = []
+develop = true
 
 [package.dependencies]
-eventsourcing = ">=9.5.0"
-umadb = ">=0.2.0"
+eventsourcing = ">=9.5.4,<9.6"
+umadb = ">=0.5.8"
+
+[package.source]
+type = "directory"
+url = "../eventsourcing-umadb"
 
 [[package]]
 name = "idna"
@@ -2366,4 +2368,4 @@ postgres = ["psycopg"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11.0"
-content-hash = "864a6469b3024f4c6af8fb9adfbe0195fc51a4fb5c3335f82d6195f59243fb0b"
+content-hash = "12f70cd302a8ccf582fb1105c86fc44994a0bcdd6913c3c4760683a977a22b38"

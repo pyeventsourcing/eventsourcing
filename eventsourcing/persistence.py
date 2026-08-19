@@ -14,7 +14,8 @@ from functools import lru_cache
 from threading import Condition, Event, Lock, Semaphore, Thread, Timer
 from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
-from typing import Any, Generic, Self, TypeVar, cast
+from typing import Any, Generic, Self, cast
+from typing_extensions import TypeVar
 from uuid import UUID
 
 from eventsourcing.domain import (
