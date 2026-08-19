@@ -15,8 +15,9 @@ from threading import Condition, Event, Lock, Semaphore, Thread, Timer
 from time import monotonic, sleep, time
 from types import GenericAlias, ModuleType, TracebackType
 from typing import Any, Generic, Self, cast
-from typing_extensions import TypeVar
 from uuid import UUID
+
+from typing_extensions import TypeVar
 
 from eventsourcing.domain import (
     DomainEventProtocol,

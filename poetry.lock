@@ -755,7 +755,7 @@ files = []
 develop = true
 
 [package.dependencies]
-eventsourcing = ">=9.5.4,<9.6"
+eventsourcing = ">=9.5.5,<9.6"
 umadb = ">=0.5.8"
 
 [package.source]
