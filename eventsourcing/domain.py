@@ -393,7 +393,7 @@ class Aggregate[
     id: str
     version: int
     INITIAL_VERSION = 1
-    new_decisions: list[AggregateEventProtocol[TDecision]]
+    new_decisions: list[AggregateEvent[TDecision]]
 
     def __new__(cls, *_: Any, **__: Any) -> Self:
         self = super().__new__(cls)
@@ -404,13 +404,13 @@ class Aggregate[
 
     def collect_events(
         self,
-    ) -> Sequence[AggregateEventProtocol[TDecision]]:
+    ) -> Sequence[AggregateEvent[TDecision]]:
         """
         Drains list of triggered events.
         """
         collected, self.new_decisions = (
             self.new_decisions,
-            list[AggregateEventProtocol[TDecision]](),
+            list[AggregateEvent[TDecision]](),
         )
         return collected
 
@@ -513,7 +513,7 @@ class EventSourcedLog[TDecision, SDecision]:
         self,
         next_originator_version: int | None = None,
         **kwargs: Any,
-    ) -> AggregateEventProtocol[TDecision]:
+    ) -> AggregateEvent[TDecision]:
         """Constructs and returns a new log event."""
         return self._trigger_event(
             logged_cls=self.event_cls,
@@ -526,7 +526,7 @@ class EventSourcedLog[TDecision, SDecision]:
         logged_cls: type[SDecision],
         next_originator_version: int | None = None,
         **kwargs: Any,
-    ) -> AggregateEventProtocol[TDecision]:
+    ) -> AggregateEvent[TDecision]:
         """Constructs and returns a new log event."""
         if next_originator_version is None:
             last_logged = self.get_last()

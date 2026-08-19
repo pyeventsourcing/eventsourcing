@@ -137,8 +137,8 @@ class SQLiteFtsApplicationRecorder(SQLiteFtsRecorder, SQLiteApplicationRecorder)
         insert_pages: Sequence[PageInfo] = (),
         update_pages: Sequence[PageInfo] = (),
         **kwargs: Any,
-    ) -> Sequence[int] | None:
-        notification_ids = super()._insert_events(c, stored_events, **kwargs)
+    ) -> int | None:
+        notification_id = super()._insert_events(c, stored_events, **kwargs)
         self._insert_pages(c, pages=insert_pages)
         self._update_pages(c, pages=update_pages)
-        return notification_ids
+        return notification_id

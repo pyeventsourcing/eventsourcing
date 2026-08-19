@@ -35,8 +35,12 @@ class TestApplicationSubscription(TestCase):
         aggregate.do()
         app.save(aggregate)
 
-        subscription = AggregatesApplicationSubscription(
-            app=app, gt=max_notification_id
+        subscription = AggregatesApplicationSubscription[Decision](
+            subscription=app.recorder.subscribe(
+                gt=max_notification_id,
+            ),
+            mapper=app.mapper,
+            context_name=app.context_name,
         )
 
         # Catch up.
@@ -81,9 +85,12 @@ class TestApplicationSubscription(TestCase):
         app.save(aggregate)
 
         subscription = AggregatesApplicationSubscription(
-            app=app,
-            gt=max_notification_id,
-            topics=[get_topic(FilteredEvent)],
+            subscription=app.recorder.subscribe(
+                gt=max_notification_id,
+                topics=[get_topic(FilteredEvent)],
+            ),
+            mapper=app.mapper,
+            context_name=app.context_name,
         )
 
         for event, _ in subscription:

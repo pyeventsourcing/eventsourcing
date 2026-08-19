@@ -17,6 +17,7 @@ from eventsourcing.domain import Aggregate
 from eventsourcing.errors import InfrastructureFactoryError
 from eventsourcing.persistence import (
     AggregateEventMapper,
+    ApplicationRecorder,
     InfrastructureFactory,
     IntegrityError,
 )
@@ -191,7 +192,9 @@ class ApplicationTestCase(TestCase):
 
         my_context_name = "MyBoundedContext"
 
-        class MyAggregatesApplication2(AggregatesApplication[dataclasses.Decision]):
+        class MyAggregatesApplication2(
+            AggregatesApplication[ApplicationRecorder, dataclasses.Decision]
+        ):
             context_name = my_context_name
 
         self.assertEqual(MyAggregatesApplication2.context_name, my_context_name)
@@ -238,27 +241,23 @@ class ApplicationTestCase(TestCase):
             cm.exception.args[0],
         )
 
-    def test_save_returns_recording_event(self) -> None:
+    def test_save_returns_notification_id(self) -> None:
         app = pydantic.AggregatesApplication(env=self.env)
 
-        recordings = app.save()
-        self.assertEqual(recordings, [])
+        notification_id = app.save()
+        self.assertIsNone(notification_id)
 
-        recordings = app.save(None)
-        self.assertEqual(recordings, [])
+        notification_id = app.save(None)
+        self.assertIsNone(notification_id)
 
-        recordings = app.save(self.MyAggregate())
-        self.assertEqual(len(recordings), 1)
-        self.assertEqual(recordings[0].notification.id, 1)
+        notification_id = app.save(self.MyAggregate())
+        self.assertEqual(notification_id, 1)
 
-        recordings = app.save(self.MyAggregate())
-        self.assertEqual(len(recordings), 1)
-        self.assertEqual(recordings[0].notification.id, 2)
+        notification_id = app.save(self.MyAggregate())
+        self.assertEqual(notification_id, 2)
 
-        recordings = app.save(self.MyAggregate(), self.MyAggregate())
-        self.assertEqual(len(recordings), 2)
-        self.assertEqual(recordings[0].notification.id, 3)
-        self.assertEqual(recordings[1].notification.id, 4)
+        notification_id = app.save(self.MyAggregate(), self.MyAggregate())
+        self.assertEqual(notification_id, 4)
 
     def test_take_snapshot_raises_assertion_error_if_snapshotting_not_enabled(
         self,

@@ -373,7 +373,7 @@ class TestMsgspecAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = cast(AggregateEvent[Decision], c).mutate(copy)
+            copy = c.mutate(copy)
 
         self.assertEqual(copy, a)
 
@@ -408,6 +408,6 @@ class TestMsgspecAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = cast(AggregateEvent[Decision], c).mutate(copy)
+            copy = c.mutate(copy)
 
         self.assertEqual(copy, a)

@@ -8,13 +8,17 @@ from eventsourcing import dataclasses, pydantic
 from eventsourcing.application import AggregatesApplication, ProcessingEvent
 from eventsourcing.decorator import triggers
 from eventsourcing.errors import ProgrammingError
-from eventsourcing.persistence import IntegrityError, Notification, Tracking
+from eventsourcing.persistence import (
+    ApplicationRecorder,
+    IntegrityError,
+    Notification,
+    Tracking,
+)
 from eventsourcing.system import (
     Follower,
     Leader,
     ProcessApplication,
-    RecordingEvent,
-    RecordingEventReceiver,
+    PromptReceiver,
     System,
 )
 from eventsourcing.tests.application import BankAccountsWithPydantic
@@ -25,7 +29,7 @@ from tests.application_tests.test_processapplication import EmailProcess
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from eventsourcing.types import AggregateEventProtocol
+    from eventsourcing.domain import AggregateEvent
 
 
 system_defined_as_global = System(
@@ -182,19 +186,17 @@ class TestSystem(TestCase):
 class TestLeader(TestCase):
     def test(self) -> None:
         # Define fixture that receives prompts.
-        class FollowerFixture(RecordingEventReceiver[dataclasses.Decision]):
+        class FollowerFixture(PromptReceiver[dataclasses.Decision]):
             def __init__(self) -> None:
                 self.num_received = 0
 
             @override
-            def receive_recording_event(
-                self, new_recording_event: RecordingEvent[dataclasses.Decision]
-            ) -> None:
+            def receive_prompt(self, context_name: str, notification_id: int) -> None:
                 self.num_received += 1
 
         # Test fixture is working.
         follower = FollowerFixture()
-        follower.receive_recording_event(RecordingEvent("Leader", [], 1))
+        follower.receive_prompt("Leader", 1)
         self.assertEqual(follower.num_received, 1)
 
         class MyAggregate(dataclasses.Aggregate):
@@ -208,7 +210,7 @@ class TestLeader(TestCase):
         env = {"TRANSCODER_TOPIC": get_topic(dataclasses.Transcoder)}
 
         # Construct leader.
-        class DataclassLeader(Leader[dataclasses.Decision]):
+        class DataclassLeader(Leader[ApplicationRecorder, dataclasses.Decision]):
             pass
 
         leader = DataclassLeader(env=env)
@@ -220,11 +222,6 @@ class TestLeader(TestCase):
 
         # Check follower doesn't receive prompt when no new events.
         leader.save()
-        self.assertEqual(follower.num_received, 2)
-
-        # Check follower doesn't receive prompt when recordings are filtered out.
-        leader.notify_topics = ["topic1"]
-        leader.save(MyAggregate())
         self.assertEqual(follower.num_received, 2)
 
 
@@ -250,7 +247,7 @@ class TestFollower(TestCase):
             @override
             def policy(
                 self,
-                envelope: AggregateEventProtocol[pydantic.Decision],
+                envelope: AggregateEvent[pydantic.Decision],
                 processing_event: ProcessingEvent[pydantic.Decision],
             ) -> None:
                 match envelope.decision:
@@ -273,19 +270,17 @@ class TestFollower(TestCase):
             email_address="alice@example.com",
         )
 
-        recordings = bank_accounts.save(account)
+        aggregate_event = account.new_decisions[0]
+        notification_id = bank_accounts.save(account)
+        assert isinstance(notification_id, int)
 
-        self.assertEqual(len(recordings), 1)
-
-        aggregate_event = recordings[0].domain_event
-        notification = recordings[0].notification
-        tracking = Tracking(bank_accounts.context_name, notification.id)
+        tracking = Tracking(bank_accounts.context_name, notification_id)
 
         # Process the event.
         email_process.process_event(aggregate_event, tracking)
         self.assertEqual(
             email_process.recorder.max_tracking_id(bank_accounts.context_name),
-            notification.id,
+            notification_id,
         )
 
         # Raises IntegrityError when attempting to process the event again.
@@ -293,7 +288,7 @@ class TestFollower(TestCase):
             email_process.process_event(aggregate_event, tracking)
         self.assertEqual(
             email_process.recorder.max_tracking_id(bank_accounts.context_name),
-            notification.id,
+            notification_id,
         )
 
         # Create another event that will cause conflict with email processing.
@@ -301,12 +296,12 @@ class TestFollower(TestCase):
             full_name="Alice",
             email_address="alice@example.com",
         )
-        recordings = bank_accounts.save(account)
+        aggregate_event = account.new_decisions[0]
+        notification_id = bank_accounts.save(account)
+        assert isinstance(notification_id, int)
 
         # Process the event and expect an integrity error.
-        aggregate_event = recordings[0].domain_event
-        notification = recordings[0].notification
-        tracking = Tracking(bank_accounts.context_name, notification.id)
+        tracking = Tracking(bank_accounts.context_name, notification_id)
         with self.assertRaises(IntegrityError):
             email_process.process_event(aggregate_event, tracking)
 

@@ -38,10 +38,10 @@ from eventsourcing.persistence import (
 from eventsourcing.postgres import (
     PostgresAggregateRecorder,
     PostgresApplicationRecorder,
+    PostgresApplicationRecorderSubscription,
     PostgresDatastore,
     PostgresFactory,
     PostgresProcessRecorder,
-    PostgresSubscription,
     PostgresTrackingRecorder,
 )
 from eventsourcing.tests.persistence import (
@@ -711,7 +711,7 @@ class TestPostgresSubscription(TestCase):
     def test_listen_catches_error(self) -> None:
         mock_recorder = Mock(spec=PostgresApplicationRecorder)
 
-        subscription = PostgresSubscription(mock_recorder, 0)
+        subscription = PostgresApplicationRecorderSubscription(mock_recorder, 0)
 
         subscription._thread_error = None
 
@@ -719,7 +719,7 @@ class TestPostgresSubscription(TestCase):
         self.assertIsInstance(subscription._thread_error, AttributeError)
 
         # Check _listen_for_notifications() preserves first error.
-        subscription = PostgresSubscription(mock_recorder, 0)
+        subscription = PostgresApplicationRecorderSubscription(mock_recorder, 0)
         subscription._thread_error = ValueError()
         subscription._listen()
         self.assertIsInstance(subscription._thread_error, ValueError)
@@ -822,7 +822,7 @@ class TestPostgresApplicationRecorder(
     def test_subscribe_terminate_connection_on_server(self) -> None:
         recorder = self.create_recorder()
         with recorder.subscribe() as subscription:
-            assert isinstance(subscription, PostgresSubscription)
+            assert isinstance(subscription, PostgresApplicationRecorderSubscription)
 
             # Close the LISTEN connection from the server.
             pg_close_all_connections()
@@ -853,7 +853,7 @@ class TestPostgresApplicationRecorder(
         recorder = self.create_recorder()
 
         with recorder.subscribe() as subscription:
-            assert isinstance(subscription, PostgresSubscription)
+            assert isinstance(subscription, PostgresApplicationRecorderSubscription)
 
             # Fill up the notifications queue.
             batch_size = subscription._select_limit = 5
@@ -896,7 +896,7 @@ class TestPostgresApplicationRecorder(
         recorder = self.create_recorder()
 
         with recorder.subscribe() as subscription:
-            assert isinstance(subscription, PostgresSubscription)
+            assert isinstance(subscription, PostgresApplicationRecorderSubscription)
 
             errors = []
             started_iterating = Event()
@@ -1143,9 +1143,8 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
             ]
 
         # Check it actually works.
-        notification_ids = recorder.insert_events(make_events()) or []
-        self.assertEqual(len(notification_ids), 1)
-        self.assertEqual(1, notification_ids[0])
+        notification_id = recorder.insert_events(make_events())
+        self.assertEqual(1, notification_id)
 
         # Break insert statement (no RETURNING clause) and check error handling.
         recorder = PostgresApplicationRecorder(

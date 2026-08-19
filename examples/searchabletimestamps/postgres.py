@@ -38,8 +38,8 @@ class SearchableTimestampsApplicationRecorder(
             SQL(
                 "CREATE TABLE IF NOT EXISTS {0}.{1} ("
                 "originator_id uuid NOT NULL, "
-                "timestamp timestamp with time zone, "
                 "originator_version bigint NOT NULL, "
+                "timestamp timestamp with time zone, "
                 "PRIMARY KEY "
                 "(originator_id, timestamp))"
             ).format(
@@ -75,13 +75,13 @@ class SearchableTimestampsApplicationRecorder(
     ) -> None:
         # Insert event timestamps.
         event_timestamps_data = cast(
-            list[tuple[str, datetime, int]],
+            list[tuple[str, int, datetime]],
             kwargs.get("event_timestamps_data"),
         )
-        for event_timestamp_data in event_timestamps_data:
+        for (originator_id, originator_version, timestamp) in event_timestamps_data:
             curs.execute(
                 query=self.insert_event_timestamp_statement,
-                params=event_timestamp_data,
+                params=(originator_id, originator_version, timestamp),
                 prepare=True,
             )
         super()._insert_events(curs, stored_events, **kwargs)

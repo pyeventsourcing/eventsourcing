@@ -65,7 +65,7 @@ class Decision(Immutable, eventsourcing.domain.Decision):
         return self.__dict__.copy()
 
 
-class TaggedEvent(eventsourcing.domain.AggregateEvent[Decision]):
+class TaggedEvent(eventsourcing.domain.TaggedEvent[Decision]):
     pass
 
 

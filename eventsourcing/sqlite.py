@@ -20,6 +20,7 @@ from eventsourcing.errors import (
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
+    ApplicationRecorderSubscription,
     Connection,
     ConnectionPool,
     Cursor,
@@ -30,7 +31,6 @@ from eventsourcing.persistence import (
     ProcessRecorder,
     Recorder,
     StoredEvent,
-    Subscription,
     Tracking,
     TrackingRecorder,
 )
@@ -327,7 +327,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
     @override
     def insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
-    ) -> Sequence[int] | None:
+    ) -> int | None:
         with self.datastore.transaction(commit=True) as c:
             return self._insert_events(c, stored_events, **kwargs)
 
@@ -336,7 +336,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
         c: SQLiteCursor,
         stored_events: Sequence[StoredEvent],
         **_: Any,
-    ) -> Sequence[int] | None:
+    ) -> int | None:
         params = [
             (
                 (
@@ -437,8 +437,8 @@ class SQLiteApplicationRecorder(
         c: SQLiteCursor,
         stored_events: Sequence[StoredEvent],
         **_: Any,
-    ) -> Sequence[int] | None:
-        returning = []
+    ) -> int | None:
+        notification_id: int | None = None
         for s in stored_events:
             c.execute(
                 self.insert_events_statement,
@@ -455,8 +455,8 @@ class SQLiteApplicationRecorder(
                     json.dumps(s.metadata).encode("utf-8"),
                 ),
             )
-            returning.append(c.lastrowid)
-        return returning
+            notification_id = c.lastrowid
+        return notification_id
 
     @override
     def select_notifications(
@@ -534,7 +534,7 @@ class SQLiteApplicationRecorder(
     @override
     def subscribe(
         self, gt: int | None = None, topics: Sequence[str] = ()
-    ) -> Subscription[ApplicationRecorder]:
+    ) -> ApplicationRecorderSubscription[ApplicationRecorder]:
         """This method is not implemented on this class."""
         msg = f"The {type(self).__qualname__} recorder does not support subscriptions"
         raise NotImplementedError(msg)
@@ -716,12 +716,12 @@ class SQLiteProcessRecorder(
         c: SQLiteCursor,
         stored_events: Sequence[StoredEvent],
         **kwargs: Any,
-    ) -> Sequence[int] | None:
-        returning = super()._insert_events(c, stored_events, **kwargs)
+    ) -> int | None:
+        notification_id = super()._insert_events(c, stored_events, **kwargs)
         tracking: Tracking | None = kwargs.get("tracking")
         if tracking is not None:
             self._insert_tracking(c, tracking)
-        return returning
+        return notification_id
 
 
 class SQLiteFactory(InfrastructureFactory[SQLiteTrackingRecorder]):

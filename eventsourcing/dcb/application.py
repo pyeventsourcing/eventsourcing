@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, ClassVar, override
 
@@ -11,7 +10,7 @@ from eventsourcing.application import (
     BoundedContext,
     SupportsApplicationSubscriptions,
 )
-from eventsourcing.dcb.api import DcbQuery, DcbQueryItem
+from eventsourcing.dcb.api import DcbQuery, DcbQueryItem, DcbRecorder, DcbSubscription
 from eventsourcing.dcb.persistence import (
     DcbEventStore,
     DcbInfrastructureFactory,
@@ -23,6 +22,7 @@ from eventsourcing.domain import (
     Perspective,
     Selector,
     Slice,
+    TaggedEvent,
 )
 from eventsourcing.metadata import null_metadata_in_context
 from eventsourcing.persistence import (
@@ -30,19 +30,18 @@ from eventsourcing.persistence import (
     Tracking,
     Transcoder,
 )
-from eventsourcing.types import StateMutatorProtocol, TaggedEventProtocol
+from eventsourcing.types import ClosingContextManager, StateMutatorProtocol
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from types import TracebackType
-    from typing import Self
 
     from eventsourcing.utils import EnvType
 
 
-class DcbApplicationSubscription[TDecision](
-    AbstractApplicationSubscription[TaggedEventProtocol[TDecision]]
-):
+class DcbApplicationSubscription[
+    TRecorder: DcbRecorder,
+    TDecision,
+](AbstractApplicationSubscription[TaggedEvent[TDecision]]):
     """An iterator that yields all events recorded in an application
     sequence that have sequence numbers greater than a given value. The iterator
     will block when all events have been yielded, and then
@@ -52,45 +51,21 @@ class DcbApplicationSubscription[TDecision](
 
     def __init__(
         self,
-        app: DcbApplication[TDecision],
-        gt: int | None = None,
-        topics: Sequence[str] = (),
+        subscription: DcbSubscription[TRecorder],
+        mapper: TaggedEventMapper[TDecision],
+        context_name: str,
     ):
         """
         Starts a subscription to application's recorder.
         """
-        self.name = app.context_name
-        self.recorder = app.recorder
-        self.mapper = app.mapper
-        self.subscription = self.recorder.subscribe(
-            query=DcbQuery(items=[DcbQueryItem(types=list(topics))]),
-            after=gt,
-        )
-
-    @override
-    def stop(self) -> None:
-        """Stops the subscription to the application's recorder."""
-        self.subscription.stop()
-
-    @override
-    def __enter__(self) -> Self:
-        """Calls __enter__ on the stored event subscription."""
-        self.subscription.__enter__()
-        return self
-
-    @override
-    def __exit__(self, *args: object, **kwargs: Any) -> None:
-        """Calls __exit__ on the stored event subscription."""
-        self.subscription.__exit__(*args, **kwargs)
-
-    @override
-    def __iter__(self) -> Self:
-        return self
+        self.subscription = subscription
+        self.mapper = mapper
+        self.context_name = context_name
 
     @override
     def __next__(
         self,
-    ) -> tuple[TaggedEventProtocol[TDecision], Tracking]:
+    ) -> tuple[TaggedEvent[TDecision], Tracking]:
         """Returns the next stored event from subscription to the application's
         recorder. Constructs a tracking object that identifies the position of
         the event in the application sequence. Constructs a domain event object
@@ -98,19 +73,19 @@ class DcbApplicationSubscription[TDecision](
         tuple of the domain event object and the tracking object.
         """
         sequenced = next(self.subscription)
-        tracking = Tracking(self.name, sequenced.position)
+        tracking = Tracking(self.context_name, sequenced.position)
         with null_metadata_in_context():
             event = self.mapper.to_tagged_event(sequenced.event)
         return event, tracking
 
-    def __del__(self) -> None:
-        """Stops the stored event subscription."""
-        # Seems this doesn't get called with Python 3.13, hence 'no cover':
-        with contextlib.suppress(AttributeError):  # pragma: no cover
-            self.stop()
+    @override
+    def stop(self) -> None:
+        """Stops the subscription to the application's recorder."""
+        self.subscription.stop()
 
 
 class BasicDcbApplication(
+    ClosingContextManager,
     BoundedContext,
 ):
     env: ClassVar[dict[str, str]] = {"PERSISTENCE_MODULE": "eventsourcing.dcb.popo"}
@@ -120,12 +95,16 @@ class BasicDcbApplication(
         self.factory = DcbInfrastructureFactory.construct(self.env)
         self.recorder = self.factory.dcb_recorder()
 
+    @override
+    def close(self) -> None:
+        self.factory.close()
+
 
 class DcbApplication[TDecision](
     BasicDcbApplication,
     SupportsApplicationSubscriptions[
         TDecision,
-        DcbApplicationSubscription[TDecision],
+        DcbApplicationSubscription[DcbRecorder, TDecision],
     ],
 ):
     def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
@@ -176,29 +155,15 @@ class DcbApplication[TDecision](
         self,
         gt: int | None = None,
         topics: Sequence[str] = (),
-    ) -> DcbApplicationSubscription[TDecision]:
+    ) -> DcbApplicationSubscription[DcbRecorder, TDecision]:
         return DcbApplicationSubscription(
-            app=self,
-            gt=gt,
-            topics=topics,
+            subscription=self.recorder.subscribe(
+                query=DcbQuery(items=[DcbQueryItem(types=list(topics))]),
+                after=gt,
+            ),
+            mapper=self.mapper,
+            context_name=self.context_name,
         )
-
-    @override
-    def close(self) -> None:
-        self.factory.close()
-
-    @override
-    def __enter__(self) -> Self:
-        return self
-
-    @override
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        self.close()
 
 
 class DcbRepository[TDecision]:

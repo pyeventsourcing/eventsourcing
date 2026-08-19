@@ -14,7 +14,6 @@ from examples.searchabletimestamps.persistence import SearchableTimestampsRecord
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from uuid import UUID
 
     from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 
@@ -101,20 +100,20 @@ class SearchableTimestampsApplicationRecorder(
         c: SQLiteCursor,
         stored_events: Sequence[StoredEvent],
         **kwargs: Any,
-    ) -> Sequence[int] | None:
-        notification_ids = super()._insert_events(c, stored_events, **kwargs)
+    ) -> int | None:
+        notification_id = super()._insert_events(c, stored_events, **kwargs)
 
         # Insert event timestamps.
         event_timestamps_data = cast(
-            "list[tuple[UUID, datetime.datetime, int]]", kwargs["event_timestamps_data"]
+            "list[tuple[str, int, datetime.datetime]]", kwargs["event_timestamps_data"]
         )
         for originator_id, timestamp, originator_version in event_timestamps_data:
             c.execute(
                 self.insert_event_timestamp_statement,
-                (originator_id, timestamp, originator_version),
+                (originator_id, originator_version, timestamp),
             )
 
-        return notification_ids
+        return notification_id
 
     @override
     def get_version_at_timestamp(

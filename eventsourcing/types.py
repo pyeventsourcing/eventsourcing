@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import contextlib
+from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Sequence
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, Self, runtime_checkable
 
 from eventsourcing.utils import resolve_multi_generic_target
+
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from eventsourcing.domain import AggregateEvent
 
 type Evolver[TState, TEvent] = Callable[
     [TState | None, TEvent],
@@ -20,7 +27,7 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
-class EventCollectorProtocol[TEvent](Protocol):
+class EventCollectorProtocol[TEvent: EventEnvelopeProtocol[Any]](Protocol):
     """Protocol for objects that support collecting pending events."""
 
     def collect_events(self) -> Sequence[TEvent]:
@@ -137,4 +144,52 @@ class WorksWithDecisions[TDecision]:
 class SnapshotProtocol[TDecision](Protocol):
     def take(
         self, obj: MutableAggregateProtocol[Any] | ImmutableAggregateProtocol
-    ) -> AggregateEventProtocol[TDecision]: ...
+    ) -> AggregateEvent[TDecision]: ...
+
+
+class ClosingContextManager(ABC):
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+        /,
+    ) -> bool | None:
+        self.close()
+        return None
+
+    @abstractmethod
+    def close(self) -> None:
+        pass
+
+    def __del__(self) -> None:
+        """Calls stop()."""
+        with contextlib.suppress(AttributeError):
+            self.close()
+
+
+class StoppingContextManager(ABC):
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+        /,
+    ) -> bool | None:
+        self.stop()
+        return None
+
+    @abstractmethod
+    def stop(self) -> None:
+        pass
+
+    def __del__(self) -> None:
+        """Calls stop()."""
+        with contextlib.suppress(AttributeError):
+            self.stop()

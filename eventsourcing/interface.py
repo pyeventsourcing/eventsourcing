@@ -38,9 +38,9 @@ class NotificationLogInterface(ABC):
         """
 
 
-class NotificationLogJSONService[TAggregatesApplication: AggregatesApplication[Any]](
-    NotificationLogInterface
-):
+class NotificationLogJSONService[
+    TAggregatesApplication: AggregatesApplication[Any, Any]
+](NotificationLogInterface):
     """Presents serialised sections of a notification log."""
 
     def __init__(self, app: TAggregatesApplication):

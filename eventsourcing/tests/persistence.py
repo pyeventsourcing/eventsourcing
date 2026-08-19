@@ -256,8 +256,8 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
             state=b"state2",
         )
 
-        notification_ids = recorder.insert_events([event1, event2])
-        self.assertEqual(notification_ids, [1, 2])
+        notification_id = recorder.insert_events([event1, event2])
+        self.assertEqual(notification_id, 2)
 
         # Store a third event.
         event3 = StoredEvent(
@@ -267,7 +267,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
             state=b"state3",
         )
         notification_ids = recorder.insert_events([event3])
-        self.assertEqual(notification_ids, [3])
+        self.assertEqual(notification_ids, 3)
 
         events1 = recorder.select_events(originator_id1)
         events2 = recorder.select_events(originator_id2)
@@ -649,9 +649,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
 
         notification_ids = recorder.insert_events([event1, event2])
         if self.EXPECT_CONTIGUOUS_NOTIFICATION_IDS:
-            self.assertEqual(
-                notification_ids, [1 + initial_position, 2 + initial_position]
-            )
+            self.assertEqual(notification_ids, 2 + initial_position)
 
         # Get the max notification ID.
         max_notification_id2 = recorder.max_notification_id()
@@ -702,7 +700,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
             )
             notification_ids = recorder.insert_events([event3])
             if self.EXPECT_CONTIGUOUS_NOTIFICATION_IDS:
-                self.assertEqual(notification_ids, [3 + initial_position])
+                self.assertEqual(notification_ids, 3 + initial_position)
 
             # Receive events from the subscription.
             for notification in subscription:
@@ -1401,10 +1399,8 @@ class InfrastructureFactoryTestCase[TFactory: InfrastructureFactory[Any]](
         self.assertEqual(type(recorder), subclass)
 
     def test_factory_as_context_manager(self) -> None:
-        self.assertFalse(self.factory.is_entered)
-        with self.factory:
-            self.assertTrue(self.factory.is_entered)
-        self.assertFalse(self.factory.is_entered)
+        with self.factory as factory:
+            self.assertIs(self.factory, factory)
 
 
 def tmpfile_uris() -> Iterator[str]:

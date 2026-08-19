@@ -10,7 +10,7 @@ from eventsourcing.application import (
     ProcessingEvent,
 )
 from eventsourcing.decorator import triggers
-from eventsourcing.domain import EventEnvelope
+from eventsourcing.domain import AggregateEvent, EventEnvelope
 from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.msgspec import (
     Aggregate,
@@ -215,25 +215,25 @@ class AggregateEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentAnalyticsEventProcessor,
+            event_processor_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
 
             # Get "read" and "write" model instances from the runner.
-            write_model = runner.app
+            write_model = runner.upstream_app
             read_model = runner.view
 
             # Write some events.
             aggregate = StudentAggregate(student_id=str(uuid4()))
             aggregate.change_name()
             aggregate.change_name()
-            recordings = write_model.save(aggregate)
+            notication_id = write_model.save(aggregate)
 
             # Wait for the events to be processed.
             read_model.wait(
                 context_name=write_model.context_name,
-                notification_id=recordings[-1].notification.id,
+                notification_id=notication_id,
                 timeout=100,
             )
 
@@ -245,12 +245,12 @@ class AggregateEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
             aggregate = StudentAggregate(student_id=str(uuid4()))
             aggregate.change_name()
             aggregate.change_name()
-            recordings = write_model.save(aggregate)
+            notification_id = write_model.save(aggregate)
 
             # Wait for the events to be processed.
             read_model.wait(
                 context_name=write_model.context_name,
-                notification_id=recordings[-1].notification.id,
+                notification_id=notification_id,
                 timeout=100,
             )
 
@@ -262,17 +262,17 @@ class AggregateEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentAnalyticsEventProcessor,
+            event_processor_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
-            write_model = runner.app
+            write_model = runner.upstream_app
             read_model = runner.view
 
             # Write some events.
             aggregate = StudentAggregate(student_id=str(uuid4()))
             aggregate.trigger_event(SpannerThrown, student_id=aggregate.id)
-            recordings = write_model.save(aggregate)
+            notification_id = write_model.save(aggregate)
 
             # Projection runner terminates with projection error.
             with self.assertRaises(SpannerThrownError):
@@ -282,7 +282,7 @@ class AggregateEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
             with self.assertRaises(TimeoutError):
                 read_model.wait(
                     context_name=write_model.context_name,
-                    notification_id=recordings[-1].notification.id,
+                    notification_id=notification_id,
                 )
 
 
@@ -295,13 +295,13 @@ class TaggedEventProjectionTestCase(TestCase, ABC):
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=DcbApplication,
-            projection_class=StudentAnalyticsEventProcessor,
+            event_processor_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
 
             # Get "read" and "write" model instances from the runner.
-            write_model = runner.app
+            write_model = runner.upstream_app
             read_model = runner.view
 
             # Write some events.
@@ -341,11 +341,11 @@ class TaggedEventProjectionTestCase(TestCase, ABC):
         # Construct runner with application, projection, and recorder.
         with ProjectionRunner(
             application_class=DcbApplication,
-            projection_class=StudentAnalyticsEventProcessor,
+            event_processor_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ) as runner:
-            write_model = runner.app
+            write_model = runner.upstream_app
             read_model = runner.view
 
             # Write some events.
@@ -391,7 +391,7 @@ class CounterAggregatesApplication(EventSourcedProjection):
     @override
     def policy(
         self,
-        envelope: AggregateEventProtocol[Decision],
+        envelope: AggregateEvent[Decision],
         processing_event: ProcessingEvent[Decision],
     ) -> None:
         topic = get_topic(type(envelope.decision))
@@ -422,8 +422,8 @@ class EventSourcedProjectionTestCase(TestCase):
             downstream_application_class=CounterAggregatesApplication,
             env=self.env,
         ) as runner:
-            app_max_id = runner.app.recorder.max_notification_id()
-            projection_max_id = runner.downstream.recorder.max_notification_id()
+            app_max_id = runner.upstream_app.recorder.max_notification_id()
+            projection_max_id = runner.downstream_app.recorder.max_notification_id()
 
             def fresh_metadata() -> dict[str, str]:
                 correlation_id = uuid4()
@@ -433,51 +433,61 @@ class EventSourcedProjectionTestCase(TestCase):
                 }
 
             with put_metadata_in_context(fresh_metadata()):
-                recordings = runner.app.save(StudentAggregate(student_id=str(uuid4())))
-            runner.wait(recordings[-1].notification.id)
-            self.assertEqual(1, runner.downstream.get_count(StudentRegistered))
-            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
+                notification_id = runner.upstream_app.save(
+                    StudentAggregate(student_id=str(uuid4()))
+                )
+            runner.wait(notification_id)
+            self.assertEqual(1, runner.downstream_app.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream_app.get_count(StudentNameChanged))
 
             with put_metadata_in_context(fresh_metadata()):
-                recordings = runner.app.save(StudentAggregate(student_id=str(uuid4())))
-            runner.wait(recordings[-1].notification.id)
-            self.assertEqual(2, runner.downstream.get_count(StudentRegistered))
-            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
+                notification_id = runner.upstream_app.save(
+                    StudentAggregate(student_id=str(uuid4()))
+                )
+            runner.wait(notification_id)
+            self.assertEqual(2, runner.downstream_app.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream_app.get_count(StudentNameChanged))
 
             with put_metadata_in_context(fresh_metadata()):
-                recordings = runner.app.save(StudentAggregate(student_id=str(uuid4())))
-            runner.wait(recordings[-1].notification.id)
-            self.assertEqual(3, runner.downstream.get_count(StudentRegistered))
-            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
+                notification_id = runner.upstream_app.save(
+                    StudentAggregate(student_id=str(uuid4()))
+                )
+            runner.wait(notification_id)
+            self.assertEqual(3, runner.downstream_app.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream_app.get_count(StudentNameChanged))
 
             with put_metadata_in_context(fresh_metadata()):
                 aggregate = StudentAggregate(student_id=str(uuid4()))
                 aggregate.change_name()
-            recordings = runner.app.save(aggregate)
-            runner.wait(recordings[-1].notification.id)
-            self.assertEqual(4, runner.downstream.get_count(StudentRegistered))
-            self.assertEqual(1, runner.downstream.get_count(StudentNameChanged))
+            notification_id = runner.upstream_app.save(aggregate)
+            runner.wait(notification_id)
+            self.assertEqual(4, runner.downstream_app.get_count(StudentRegistered))
+            self.assertEqual(1, runner.downstream_app.get_count(StudentNameChanged))
 
             # Check the correlation and causation IDs.
             original_events: dict[str, AggregateEventProtocol[Decision]] = {}
-            for notification in runner.app.notification_log.select(
+            for notification in runner.upstream_app.notification_log.select(
                 start=app_max_id,
                 limit=10,
                 inclusive_of_start=False,
             ):
-                domain_event = runner.downstream.mapper.to_domain_event(notification)
+                domain_event = runner.downstream_app.mapper.to_domain_event(
+                    notification
+                )
                 self.assertEqual(
                     domain_event.metadata["correlation_id"],
                     domain_event.metadata["causation_id"],
                 )
                 original_events[str(domain_event.uuid)] = domain_event
 
-            for notification in runner.downstream.notification_log.select(
+            for notification in runner.downstream_app.notification_log.select(
                 start=projection_max_id,
                 limit=10,
                 inclusive_of_start=False,
             ):
-                domain_event = runner.downstream.mapper.to_domain_event(notification)
+                domain_event = runner.downstream_app.mapper.to_domain_event(
+                    notification
+                )
                 self.assertIn(domain_event.metadata["causation_id"], original_events)
                 causal_event = original_events[domain_event.metadata["causation_id"]]
                 self.assertEqual(

@@ -30,12 +30,11 @@ class ContentManagement(AggregatesApplication):
             self.events, str(uuid5(NAMESPACE_URL, "/page_log")), PageLogged
         )
 
-    def create_page(self, title: str, slug: str) -> int:
+    def create_page(self, title: str, slug: str) -> int | None:
         page = Page(title=title, slug=slug, body="")
         page_logged = self.page_log.trigger_event(page_id=page.id)
         index_entry = Slug(name=slug, page_id=page.id)
-        recordings = self.save(page, page_logged, index_entry)
-        return recordings[-1].notification.id
+        return self.save(page, page_logged, index_entry)
 
     def get_page_by_slug(self, slug: str) -> PageDetailsType:
         page = self._get_page_by_slug(slug)
@@ -53,13 +52,12 @@ class ContentManagement(AggregatesApplication):
             "modified_by": page.modified_by,
         }
 
-    def update_title(self, slug: str, title: str) -> int:
+    def update_title(self, slug: str, title: str) -> int | None:
         page = self._get_page_by_slug(slug)
         page.update_title(title=title)
-        recordings = self.save(page)
-        return recordings[-1].notification.id
+        return self.save(page)
 
-    def update_slug(self, old_slug: str, new_slug: str) -> int:
+    def update_slug(self, old_slug: str, new_slug: str) -> int | None:
         page = self._get_page_by_slug(old_slug)
         page.update_slug(new_slug)
         old_slug_aggregate = self._get_slug(old_slug)
@@ -73,14 +71,12 @@ class ContentManagement(AggregatesApplication):
                 new_slug_aggregate.update_page(page.id)
             else:
                 raise SlugConflictError
-        recordings = self.save(page, old_slug_aggregate, new_slug_aggregate)
-        return recordings[-1].notification.id
+        return self.save(page, old_slug_aggregate, new_slug_aggregate)
 
-    def update_body(self, slug: str, body: str) -> int:
+    def update_body(self, slug: str, body: str) -> int | None:
         page = self._get_page_by_slug(slug)
         page.update_body(body)
-        recordings = self.save(page)
-        return recordings[-1].notification.id
+        return self.save(page)
 
     def _get_page_by_slug(self, slug: str) -> Page:
         try:

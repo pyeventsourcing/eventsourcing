@@ -163,7 +163,7 @@ class TestAggregateEventProjectionWithPostgres(
         # Resume....
         with ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentAnalyticsEventProcessor,
+            event_processor_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ):
@@ -185,12 +185,12 @@ class TestAggregateEventProjectionWithPostgres(
             aggregate = StudentAggregate(student_id=str(uuid4()))
             aggregate.change_name()
             aggregate.change_name()
-            recordings = write_model.save(aggregate)
+            notification_id = write_model.save(aggregate)
 
             # Wait for events to be processed.
             read_model.wait(
                 context_name=write_model.context_name,
-                notification_id=recordings[-1].notification.id,
+                notification_id=notification_id,
             )
 
             # Query the read model.
@@ -201,12 +201,12 @@ class TestAggregateEventProjectionWithPostgres(
             aggregate = StudentAggregate(student_id=str(uuid4()))
             aggregate.change_name()
             aggregate.change_name()
-            recordings = write_model.save(aggregate)
+            notification_id = write_model.save(aggregate)
 
             # Wait for events to be processed.
             read_model.wait(
                 context_name=write_model.context_name,
-                notification_id=recordings[-1].notification.id,
+                notification_id=notification_id,
             )
 
             # Query the read model.
@@ -220,7 +220,7 @@ class TestAggregateEventProjectionWithPostgres(
         # Resume...
         with ProjectionRunner(
             application_class=AggregatesApplication,
-            projection_class=StudentAnalyticsEventProcessor,
+            event_processor_class=StudentAnalyticsEventProcessor,
             view_class=self.view_class,
             env=self.env,
         ) as runner:

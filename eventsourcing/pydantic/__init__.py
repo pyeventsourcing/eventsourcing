@@ -13,6 +13,7 @@ from eventsourcing.pydantic.immutable import (
     Immutable,
     ImmutableAggregate,
     ImmutableAggregateSnapshot,
+    TaggedEvent,
 )
 from eventsourcing.pydantic.mutable import (
     Aggregate,
@@ -47,5 +48,6 @@ __all__ = [
     "ProcessApplication",
     "Selector",
     "Slice",
+    "TaggedEvent",
     "Transcoder",
 ]

@@ -67,13 +67,13 @@ class TestFtsProjection(unittest.TestCase):
         # Run the projection (independently of read and write model objects).
         _ = ProjectionRunner(
             application_class=ContentManagement,
-            projection_class=FtsProjection,
+            event_processor_class=FtsProjection,
             view_class=PostgresFtsView,
             env=self.env,
         )
 
         # Wait for content to be processed (projection catches up).
-        read_model.wait(write_model.context_name, notification_id)
+        read_model.wait(write_model.context_name, notification_id, timeout=10)
 
         # Search in the read model, expect results.
         pages = read_model.search("dog")

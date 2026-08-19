@@ -7,6 +7,7 @@ import eventsourcing.dcb.application
 import eventsourcing.projection
 import eventsourcing.system
 from eventsourcing.application import SupportsTranscoding
+from eventsourcing.persistence import ApplicationRecorder
 from eventsourcing.pydantic.immutable import Decision
 from eventsourcing.pydantic.transcoder import Transcoder
 
@@ -18,13 +19,15 @@ class WithTranscoder(SupportsTranscoding[Decision]):
 
 
 class AggregatesApplication(
-    WithTranscoder, eventsourcing.application.AggregatesApplication[Decision]
+    WithTranscoder,
+    eventsourcing.application.AggregatesApplication[ApplicationRecorder, Decision],
 ):
     pass
 
 
 class EventSourcedProjection(
-    WithTranscoder, eventsourcing.projection.EventSourcedEventProcessor[Decision]
+    WithTranscoder,
+    eventsourcing.projection.EventSourcedEventProcessor[Decision],
 ):
     pass
 

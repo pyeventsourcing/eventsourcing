@@ -5,9 +5,8 @@ import os
 import threading
 import weakref
 from abc import ABC, abstractmethod
-from contextlib import AbstractContextManager
 from traceback import format_exc
-from typing import TYPE_CHECKING, Any, Self, override
+from typing import TYPE_CHECKING, Any, override
 from warnings import warn
 
 from eventsourcing.application import (
@@ -15,8 +14,8 @@ from eventsourcing.application import (
     AggregatesApplication,
     ProcessingEvent,
     SupportsApplicationSubscriptions,
-    TDecision,
 )
+from eventsourcing.domain import AggregateEvent
 from eventsourcing.errors import WaitInterruptedError
 from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.persistence import (
@@ -25,15 +24,14 @@ from eventsourcing.persistence import (
     Tracking,
     TrackingRecorder,
 )
-from eventsourcing.types import AggregateEventProtocol
+from eventsourcing.types import ClosingContextManager
 from eventsourcing.utils import Environment, EnvType
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from types import TracebackType
 
 
-class AbstractEventProcessor[TEvent](AbstractContextManager[Any]):
+class AbstractEventProcessor[TEvent](ABC):
     topics: Sequence[str] = ()
     """
     Event topics, used to filter events in database when subscribing to an application.
@@ -42,20 +40,6 @@ class AbstractEventProcessor[TEvent](AbstractContextManager[Any]):
     @abstractmethod
     def process_event(self, envelope: TEvent, tracking: Tracking) -> None:
         """Process a domain event and track it."""
-
-    @override
-    def __enter__(self) -> Self:
-        # Self is perfectly valid here because it is inside the class block
-        return super().__enter__()
-
-    @override
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-        /,
-    ) -> bool | None: ...
 
 
 class EventProcessor[TEvent, TTrackingRecorder](AbstractEventProcessor[TEvent], ABC):
@@ -84,8 +68,8 @@ class EventProcessor[TEvent, TTrackingRecorder](AbstractEventProcessor[TEvent], 
 
 
 class EventSourcedEventProcessor[TDecision](
-    AggregatesApplication[TDecision, ProcessRecorder],
-    AbstractEventProcessor[AggregateEventProtocol[TDecision]],
+    AggregatesApplication[ProcessRecorder, TDecision],
+    AbstractEventProcessor[AggregateEvent[TDecision]],
 ):
     """Extends the :py:class:`~eventsourcing.application.AggregatesApplication` class
     by using a process recorder as its application recorder, and by
@@ -105,7 +89,7 @@ class EventSourcedEventProcessor[TDecision](
 
     @override
     def process_event(
-        self, envelope: AggregateEventProtocol[TDecision], tracking: Tracking
+        self, envelope: AggregateEvent[TDecision], tracking: Tracking
     ) -> None:
         """Calls :func:`~eventsourcing.system.EventSourcedProjection.policy`
         method with the given domain event and a new
@@ -137,7 +121,7 @@ class EventSourcedEventProcessor[TDecision](
 
     def policy(
         self,
-        envelope: AggregateEventProtocol[TDecision],
+        envelope: AggregateEvent[TDecision],
         processing_event: ProcessingEvent[TDecision],
     ) -> None:
         """Abstract domain event processing policy method. Must be
@@ -152,23 +136,25 @@ class EventSourcedEventProcessor[TDecision](
         """
 
 
-class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, Any]]:
+class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, Any]](
+    ClosingContextManager
+):
     def __init__(
         self,
         *,
-        projection: AbstractEventProcessor[Any],
-        app: TApplication,
+        upstream_app: TApplication,
+        event_processor: AbstractEventProcessor[Any],
         tracking_recorder: TrackingRecorder,
         topics: Sequence[str],
     ) -> None:
-        self.app = app
+        self.upstream_app = upstream_app
         self._is_interrupted = threading.Event()
         self._has_called_stop = False
         self._tracking_recorder = tracking_recorder
 
         # Subscribe to the application.
-        self._subscription = app.application_subscription(
-            gt=tracking_recorder.max_tracking_id(app.context_name),
+        self._subscription = upstream_app.application_subscription(
+            gt=tracking_recorder.max_tracking_id(upstream_app.context_name),
             topics=topics,
         )
 
@@ -188,7 +174,7 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
             target=self._process_events_loop,
             kwargs={
                 "subscription": self._subscription,
-                "projection": projection,
+                "event_processor": event_processor,
                 "is_stopping": self._is_interrupted,
                 "runner": weakref.ref(self),
             },
@@ -230,14 +216,14 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
     @staticmethod
     def _process_events_loop(
         subscription: AbstractApplicationSubscription[Any],
-        projection: AbstractEventProcessor[Any],
+        event_processor: AbstractEventProcessor[Any],
         is_stopping: threading.Event,
         runner: weakref.ReferenceType[Any],
     ) -> None:
         """Iterates over the subscription and calls process_event()."""
         try:
             for envelope, tracking in subscription:
-                projection.process_event(envelope, tracking)
+                event_processor.process_event(envelope, tracking)
         except BaseException as e:
             _runner = runner()  # get reference from weakref
             if _runner is not None:
@@ -271,7 +257,7 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
         """
         try:
             self._tracking_recorder.wait(
-                context_name=self.app.context_name,
+                context_name=self.upstream_app.context_name,
                 notification_id=notification_id,
                 timeout=timeout,
                 interrupt=self._is_interrupted,
@@ -285,37 +271,22 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
                 return
             raise e from None
 
-    def __enter__(self) -> Self:
-        self._subscription.__enter__()
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Calls stop() and waits for the event-processing thread to exit."""
+    @override
+    def close(self) -> None:
         self.stop()
         self._stop_thread.join()
-        self._subscription.__exit__(exc_type, exc_val, exc_tb)
+        self._subscription.stop()
         self._processing_thread.join()
-        # TODO: Improve typing of application classes and type annotation for self.app
-        self.app.close()  # pyright: ignore [reportAttributeAccessIssue]
+        self.upstream_app.close()
         if self._thread_error:
             error = self._thread_error
             self._thread_error = None
             raise error
 
-    def __del__(self) -> None:
-        """Calls stop()."""
-        with contextlib.suppress(AttributeError):
-            self.stop()
-
 
 class ProjectionRunner[
     TApplication: SupportsApplicationSubscriptions[Any, Any],
-    TProjection: EventProcessor[Any, Any],
+    TEventProcessor: EventProcessor[Any, Any],
     TTrackingRecorder: TrackingRecorder,
 ](
     BaseProjectionRunner[TApplication],
@@ -324,7 +295,7 @@ class ProjectionRunner[
         self,
         *,
         application_class: type[TApplication],
-        projection_class: type[TProjection],
+        event_processor_class: type[TEventProcessor],
         view_class: type[TTrackingRecorder],
         env: EnvType | None = None,
     ):
@@ -337,21 +308,25 @@ class ProjectionRunner[
         object pair received from the subscription.
         """
         # Construct the materialised view using an infrastructure factory.
-        factory = InfrastructureFactory[TTrackingRecorder].construct(
-            env=self._construct_env(name=projection_class.name, env=env)
+        self._factory = InfrastructureFactory[TTrackingRecorder].construct(
+            env=self._construct_env(name=event_processor_class.name, env=env)
         )
-        self.view = factory.tracking_recorder(view_class)
+        self.view = self._factory.tracking_recorder(view_class)
 
         # Construct the projection using the materialised view.
-        self.projection = projection_class(view=self.view)
+        self.event_processor = event_processor_class(view=self.view)
 
         super().__init__(
-            projection=self.projection,
-            app=application_class(env=env),
-            tracking_recorder=self.projection.view,
-            topics=self.projection.topics,
+            upstream_app=application_class(env=env),
+            event_processor=self.event_processor,
+            tracking_recorder=self.event_processor.view,
+            topics=self.event_processor.topics,
         )
 
+    @override
+    def close(self) -> None:
+        super().close()
+        self._factory.close()
 
 class EventSourcedProjectionRunner[
     TUpstream: SupportsApplicationSubscriptions[Any, Any],
@@ -366,31 +341,20 @@ class EventSourcedProjectionRunner[
         downstream_application_class: type[TDownstream],
         env: EnvType | None = None,
     ):
-        self.downstream = downstream_application_class(
+        self.downstream_app = downstream_application_class(
             env=self._construct_env(
                 name=downstream_application_class.context_name, env=env
             )
         )
 
         super().__init__(
-            projection=self.downstream,
-            app=upstream_application_class(env=env),
-            tracking_recorder=self.downstream.recorder,
-            topics=self.downstream.topics,
+            upstream_app=upstream_application_class(env=env),
+            event_processor=self.downstream_app,
+            tracking_recorder=self.downstream_app.recorder,
+            topics=self.downstream_app.topics,
         )
 
     @override
-    def __enter__(self) -> Self:
-        cm = super().__enter__()
-        self.downstream.__enter__()
-        return cm
-
-    @override
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        self.downstream.__exit__(exc_type, exc_val, exc_tb)
-        return super().__exit__(exc_type, exc_val, exc_tb)
+    def close(self) -> None:
+        self.downstream_app.close()
+        super().close()

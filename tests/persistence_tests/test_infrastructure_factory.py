@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.case import TestCase
 
 import eventsourcing.popo
@@ -9,7 +9,6 @@ from eventsourcing.persistence import (
     ApplicationRecorder,
     EventStore,
     InfrastructureFactory,
-    Mapper,
     TrackingRecorder,
 )
 from eventsourcing.utils import Environment, get_topic
@@ -57,7 +56,7 @@ class TestInfrastructureFactory(TestCase):
         }
 
         factory = InfrastructureFactory.construct(env)
-        mapper: Mapper[Decision] = factory.mapper()
+        mapper: AggregateEventMapper[Any] = factory.mapper()
 
         self.assertIsInstance(mapper, AggregateEventMapper)
         self.assertIsInstance(mapper.transcoder, LegacyJSONTranscoder)
@@ -88,7 +87,7 @@ class TestInfrastructureFactory(TestCase):
         self.assertIsInstance(event_store.mapper, AggregateEventMapper)
         self.assertIsInstance(event_store.recorder, ApplicationRecorder)
 
-        my_mapper: Mapper[Decision] = factory.mapper()
+        my_mapper: AggregateEventMapper[Decision] = factory.mapper()
         event_store = factory.event_store(mapper=my_mapper)
         self.assertEqual(id(event_store.mapper), id(my_mapper))
 

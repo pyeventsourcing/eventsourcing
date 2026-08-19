@@ -39,15 +39,15 @@ from eventsourcing.errors import (
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
+    ApplicationRecorderSubscription,
     BaseInfrastructureFactory,
     InfrastructureFactory,
     IntegrityError,
     InternalError,
-    ListenNotifySubscription,
+    ListenNotifyApplicationRecorderSubscription,
     Notification,
     ProcessRecorder,
     StoredEvent,
-    Subscription,
     Tracking,
     TrackingRecorder,
 )
@@ -294,7 +294,6 @@ class PostgresDatastore:
             self.pool.close()
 
     def __enter__(self) -> Self:
-        self.pool.__enter__()
         return self
 
     def __exit__(
@@ -303,7 +302,7 @@ class PostgresDatastore:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        self.pool.__exit__(exc_type, exc_val, exc_tb)
+        self.close()
 
     def __del__(self) -> None:
         self.close()
@@ -486,7 +485,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
     @override
     def insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
-    ) -> Sequence[int] | None:
+    ) -> int | None:
         # Only do something if there is something to do.
         if len(stored_events) > 0:
             with self.datastore.get_connection() as conn, conn.cursor() as curs:
@@ -677,7 +676,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
     @override
     def insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
-    ) -> Sequence[int] | None:
+    ) -> int | None:
         if self.datastore.enable_db_functions:
             pg_stored_events = [
                 self.construct_pg_stored_event(
@@ -696,10 +695,13 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                     (pg_stored_events,),
                     prepare=True,
                 )
-                return [r[self.pg_function_name_insert_events] for r in curs.fetchall()]
+                notification_ids: Sequence[int] | None = [
+                    r[self.pg_function_name_insert_events] for r in curs.fetchall()
+                ]
+                return notification_ids[-1] if notification_ids else None
 
         exc: Exception | None = None
-        notification_ids: Sequence[int] | None = None
+        notification_id: int | None = None
         with self.datastore.get_connection() as conn:
             with conn.pipeline() as pipeline, conn.transaction():
                 # Do other things first, so they can be pipelined too.
@@ -717,13 +719,16 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                             notification_ids = self._fetch_ids_after_insert_events(
                                 curs, stored_events, **kwargs
                             )
+                            notification_id = (
+                                notification_ids[-1] if notification_ids else None
+                            )
                         except Exception as e:
                             # Avoid psycopg emitting a pipeline warning.
                             exc = e
             if exc:
                 # Reraise exception after pipeline context manager has exited.
                 raise exc
-        return notification_ids
+        return notification_id
 
     def _insert_events(
         self,
@@ -872,11 +877,15 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
     @override
     def subscribe(
         self, gt: int | None = None, topics: Sequence[str] = ()
-    ) -> Subscription[ApplicationRecorder]:
-        return PostgresSubscription(recorder=self, gt=gt, topics=topics)
+    ) -> ApplicationRecorderSubscription[ApplicationRecorder]:
+        return PostgresApplicationRecorderSubscription(
+            recorder=self, gt=gt, topics=topics
+        )
 
 
-class PostgresSubscription(ListenNotifySubscription[PostgresApplicationRecorder]):
+class PostgresApplicationRecorderSubscription(
+    ListenNotifyApplicationRecorderSubscription[PostgresApplicationRecorder]
+):
     def __init__(
         self,
         recorder: PostgresApplicationRecorder,

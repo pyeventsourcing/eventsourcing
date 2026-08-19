@@ -22,7 +22,7 @@ class SearchableTimestampsTestCase(TestCase):
         # Construct application.
         app = SearchableTimestampsApplication(env=self.env)
         timestamp0 = datetime_now_with_tzinfo()
-        sleep(1e-5)
+        sleep(1e-3)
 
         # Book new cargo.
         tracking_id = app.book_new_cargo(
@@ -31,22 +31,22 @@ class SearchableTimestampsTestCase(TestCase):
             arrival_deadline=datetime_now_with_tzinfo() + timedelta(weeks=3),
         )
         timestamp1 = datetime_now_with_tzinfo()
-        sleep(1e-5)
+        sleep(1e-3)
 
         # Change destination.
         app.change_destination(tracking_id, destination=Location["AUMEL"])
         timestamp2 = datetime_now_with_tzinfo()
         sleep(1e-5)
 
-        # View the state of the cargo tracking at particular times.
-        with self.assertRaises(CargoNotFoundError):
-            app.get_cargo_at_timestamp(tracking_id, timestamp0)
-
         cargo_at_timestamp1 = app.get_cargo_at_timestamp(tracking_id, timestamp1)
         self.assertEqual(cargo_at_timestamp1.destination, Location["USDAL"])
 
         cargo_at_timestamp2 = app.get_cargo_at_timestamp(tracking_id, timestamp2)
         self.assertEqual(cargo_at_timestamp2.destination, Location["AUMEL"])
+
+        # View the state of the cargo tracking at particular times.
+        with self.assertRaises(CargoNotFoundError):
+            app.get_cargo_at_timestamp(tracking_id, timestamp0)
 
 
 class WithSQLite(SearchableTimestampsTestCase):

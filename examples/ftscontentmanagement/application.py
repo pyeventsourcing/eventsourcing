@@ -7,20 +7,20 @@ from examples.contentmanagement.domainmodel import Page
 from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
-    from eventsourcing.persistence import Recording
+    from eventsourcing.domain import AggregateEvent
     from eventsourcing.pydantic import Decision
-    from eventsourcing.types import AggregateEventProtocol, EventCollectorProtocol
+    from eventsourcing.types import EventCollectorProtocol
 
 
 class FtsContentManagement(ContentManagement):
     @override
     def save(
         self,
-        *objs: EventCollectorProtocol[AggregateEventProtocol[Decision]]
-        | AggregateEventProtocol[Decision]
+        *objs: EventCollectorProtocol[AggregateEvent[Decision]]
+        | AggregateEvent[Decision]
         | None,
         **kwargs: Any,
-    ) -> list[Recording[Decision]]:
+    ) -> int | None:
         insert_pages: list[PageInfo] = []
         update_pages: list[PageInfo] = []
         for obj in objs:

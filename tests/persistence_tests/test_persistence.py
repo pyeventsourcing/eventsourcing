@@ -5,7 +5,7 @@ from uuid import uuid4
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.persistence import (
     ApplicationRecorder,
-    ListenNotifySubscription,
+    ListenNotifyApplicationRecorderSubscription,
     Notification,
 )
 
@@ -15,7 +15,7 @@ class TestListNotifySubscriptionSubscription(TestCase):
 
         mock_recorder = Mock(spec=ApplicationRecorder)
 
-        subscription = ListenNotifySubscription(mock_recorder, 0)
+        subscription = ListenNotifyApplicationRecorderSubscription(mock_recorder, 0)
 
         # self.assertIsInstance(subscription._thread_error, TypeError)
 

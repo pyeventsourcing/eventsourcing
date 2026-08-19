@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from eventsourcing.application import ProcessingEvent
-    from eventsourcing.persistence import Recording
     from eventsourcing.pydantic import Decision
 
 
@@ -22,11 +21,13 @@ class CargoNotFoundError(AggregateNotFoundError):
 
 class SearchableTimestampsApplication(BookingApplication):
     @override
-    def _record(
-        self, processing_event: ProcessingEvent[Decision]
-    ) -> list[Recording[Decision]]:
+    def _record(self, processing_event: ProcessingEvent[Decision]) -> int | None:
         event_timestamps_data = [
-            (e.originator_id, e.decision.timestamp, e.originator_version)
+            (
+                e.originator_id,
+                e.originator_version,
+                e.decision.timestamp,
+            )
             for e in processing_event.events
             if isinstance(e, AggregateEvent) and isinstance(e.decision, CargoEvent)
         ]

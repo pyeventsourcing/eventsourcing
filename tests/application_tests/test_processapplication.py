@@ -2,18 +2,18 @@ import types
 from typing import Any, override
 from unittest.case import TestCase
 
+from eventsourcing import pydantic
 from eventsourcing.application import ProcessingEvent
-from eventsourcing.persistence import IntegrityError
+from eventsourcing.domain import AggregateEvent
+from eventsourcing.persistence import ApplicationRecorder, IntegrityError
 from eventsourcing.pydantic import Decision, ProcessApplication, Transcoder
 from eventsourcing.system import (
     Follower,
     Leader,
-    RecordingEvent,
-    RecordingEventReceiver,
+    PromptReceiver,
 )
 from eventsourcing.tests.application import BankAccountsWithPydantic
 from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
-from eventsourcing.types import AggregateEventProtocol
 from tests.application_tests.test_processingpolicy import EmailNotification
 
 
@@ -21,7 +21,10 @@ class TestProcessApplication(TestCase):
     def test_pull_and_process(self) -> None:
         leader_cls = types.new_class(
             BankAccountsWithPydantic.__name__,
-            (BankAccountsWithPydantic, Leader[Decision]),
+            (
+                BankAccountsWithPydantic,
+                Leader[ApplicationRecorder, Decision],
+            ),
         )
 
         accounts = leader_cls()
@@ -101,8 +104,8 @@ class EmailProcess(ProcessApplication):
     @override
     def policy(
         self,
-        envelope: AggregateEventProtocol[Decision],
-        processing_event: ProcessingEvent[Decision],
+        envelope: AggregateEvent[pydantic.Decision],
+        processing_event: ProcessingEvent[pydantic.Decision],
     ) -> None:
         match envelope.decision:
             case BankAccountWithPydantic.Opened(
@@ -116,15 +119,13 @@ class EmailProcess(ProcessApplication):
                 processing_event.collect_events(notification)
 
 
-class PromptForwarder[TDecision](RecordingEventReceiver[TDecision]):
+class PromptForwarder[TDecision](PromptReceiver[TDecision]):
     def __init__(self, application: Follower[Any]):
         self.application = application
 
     @override
-    def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TDecision]
-    ) -> None:
+    def receive_prompt(self, context_name: str, notification_id: int) -> None:
         self.application.pull_and_process(
-            leader_name=new_recording_event.context_name,
-            # start=recording_event.recordings[0].notification.id,
+            leader_name=context_name,
+            # start=notification_id,  # No, so that it uses its own max tracking OD.
         )

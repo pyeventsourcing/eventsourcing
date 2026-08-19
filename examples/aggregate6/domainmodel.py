@@ -4,12 +4,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from eventsourcing.domain import projector
-from examples.aggregate6.baseclasses import AggregateEvent, DomainEvent
+from eventsourcing.domain import AggregateEvent, projector
+from examples.aggregate6.baseclasses import DomainEvent
 
 if TYPE_CHECKING:
     from eventsourcing.dataclasses import Decision
-    from eventsourcing.types import AggregateEventProtocol
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -28,7 +27,7 @@ class TrickAdded(DomainEvent):
     trick: str
 
 
-def register_dog(name: str) -> AggregateEvent:
+def register_dog(name: str) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=DogRegistered(name=name),
         originator_id=str(uuid4()),
@@ -36,7 +35,7 @@ def register_dog(name: str) -> AggregateEvent:
     )
 
 
-def add_trick(dog: Dog, trick: str) -> AggregateEvent:
+def add_trick(dog: Dog, trick: str) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=TrickAdded(trick=trick),
         originator_id=dog.id,
@@ -45,7 +44,7 @@ def add_trick(dog: Dog, trick: str) -> AggregateEvent:
 
 
 @projector
-def mutate_dog(dog: Dog | None, event: AggregateEventProtocol[Decision]) -> Dog | None:
+def mutate_dog(dog: Dog | None, event: AggregateEvent[Decision]) -> Dog | None:
     match event.decision:
         case DogRegistered(name=name):
             return Dog(

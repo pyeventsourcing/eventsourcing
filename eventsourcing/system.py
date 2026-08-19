@@ -2,58 +2,40 @@ from __future__ import annotations
 
 import inspect
 import threading
-import traceback
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from collections.abc import Sequence
-from queue import Full, Queue
 from types import FrameType, ModuleType
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, cast, override
+from typing import TYPE_CHECKING, Any, ClassVar, cast, override
 
 from eventsourcing.application import (
     AggregatesApplication,
     NotificationLog,
     Section,
-    TDecision,
-    TRecorder,
 )
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.metadata import null_metadata_in_context
 from eventsourcing.persistence import (
-    Mapper,
+    AggregateEventMapper,
+    ApplicationRecorder,
     Notification,
     ProcessRecorder,
-    Recording,
     Tracking,
 )
 from eventsourcing.projection import EventSourcedEventProcessor
-from eventsourcing.types import AggregateEventProtocol, EventCollectorProtocol
+from eventsourcing.types import (
+    EventCollectorProtocol,
+    EventEnvelopeProtocol,
+)
 from eventsourcing.utils import EnvType, get_topic, resolve_topic
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Iterable, Iterator, Sequence
     from types import TracebackType
     from typing import Self
 
+    from eventsourcing.domain import AggregateEvent
 
-type ProcessingJob[TDecision] = tuple[AggregateEventProtocol[TDecision], Tracking]
-
-
-class RecordingEvent[TDecision]:
-    def __init__(
-        self,
-        context_name: str,
-        recordings: list[Recording[TDecision]],
-        previous_max_notification_id: int | None,
-    ):
-        self.context_name = context_name
-        self.recordings: list[Recording[TDecision]] = recordings
-        self.previous_max_notification_id = previous_max_notification_id
-
-
-type ConvertingJob[TDecision] = RecordingEvent[TDecision] | Sequence[
-    Notification
-] | None
+type ProcessingJob[TEnvelope: EventEnvelopeProtocol[Any]] = tuple[TEnvelope, Tracking]
 
 
 class Follower[TDecision](EventSourcedEventProcessor[TDecision]):
@@ -73,7 +55,7 @@ class Follower[TDecision](EventSourcedEventProcessor[TDecision]):
     def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
         super().__init__(env=env, context_name=context_name)
         self.readers: dict[str, NotificationLogReader] = {}
-        self.mappers: dict[str, Mapper[TDecision]] = {}
+        self.mappers: dict[str, AggregateEventMapper[TDecision]] = {}
         self.is_threading_enabled = False
 
     def follow(self, name: str, log: NotificationLog) -> None:
@@ -110,7 +92,7 @@ class Follower[TDecision](EventSourcedEventProcessor[TDecision]):
     @override
     def process_event(
         self,
-        envelope: AggregateEventProtocol[TDecision],
+        envelope: AggregateEvent[TDecision],
         tracking: Tracking,
     ) -> None:
         with self.processing_lock:
@@ -143,7 +125,7 @@ class Follower[TDecision](EventSourcedEventProcessor[TDecision]):
 
     def convert_notifications(
         self, leader_name: str, notifications: Iterable[Notification]
-    ) -> list[ProcessingJob[TDecision]]:
+    ) -> list[ProcessingJob[AggregateEvent[TDecision]]]:
         """Uses the given :class:`~eventsourcing.persistence.Mapper` to convert
         each received :class:`~eventsourcing.persistence.Notification`
         object to an :class:`~eventsourcing.domain.AggregateEvent` object
@@ -162,19 +144,19 @@ class Follower[TDecision](EventSourcedEventProcessor[TDecision]):
         return processing_jobs
 
 
-class RecordingEventReceiver[TDecision](ABC):
+class PromptReceiver[TDecision](ABC):
     """Abstract base class for objects that may receive recording events."""
 
     @abstractmethod
-    def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TDecision]
-    ) -> None:
-        """Receives a recording event."""
+    def receive_prompt(self, context_name: str, notification_id: int) -> None:
+        """Receives a notificcation ID prompt."""
 
 
-class Leader(
-    AggregatesApplication[TDecision, TRecorder],
-    Generic[TDecision, TRecorder],  # noqa: UP046
+class Leader[
+    TRecorder: ApplicationRecorder,
+    TDecision,
+](
+    AggregatesApplication[TRecorder, TDecision],
 ):
     """Extends the :class:`~eventsourcing.application.Application`
     class by also being responsible for keeping track of
@@ -185,47 +167,42 @@ class Leader(
     def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
         super().__init__(env=env, context_name=context_name)
         self.previous_max_notification_id: int | None = None
-        self.followers: list[RecordingEventReceiver[TDecision]] = []
+        self.followers: list[PromptReceiver[TDecision]] = []
 
-    def lead(self, follower: RecordingEventReceiver[TDecision]) -> None:
+    def lead(self, follower: PromptReceiver[TDecision]) -> None:
         """Adds given follower to a list of followers."""
         self.followers.append(follower)
 
     @override
     def save(
         self,
-        *objs: EventCollectorProtocol[AggregateEventProtocol[TDecision]]
-        | AggregateEventProtocol[TDecision]
+        *objs: EventCollectorProtocol[AggregateEvent[TDecision]]
+        | AggregateEvent[TDecision]
         | None,
         **kwargs: Any,
-    ) -> list[Recording[TDecision]]:
+    ) -> int | None:
         if self.previous_max_notification_id is None:
             self.previous_max_notification_id = self.recorder.max_notification_id()
         return super().save(*objs, **kwargs)
 
     @override
-    def _notify(self, recordings: list[Recording[TDecision]]) -> None:
+    def _notify(self, notification_id: int | None) -> None:
         """Calls :func:`receive_recording_event` on each follower
         whenever new events have just been saved.
         """
-        super()._notify(recordings)
-        if self.notify_topics:
-            recordings = [
-                r for r in recordings if r.notification.topic in self.notify_topics
-            ]
-        if recordings:
-            recording_event = RecordingEvent(
-                context_name=self.context_name,
-                recordings=recordings,
-                previous_max_notification_id=self.previous_max_notification_id,
-            )
-            self.previous_max_notification_id = recordings[-1].notification.id
+        super()._notify(notification_id)
+        if notification_id:
             for follower in self.followers:
-                follower.receive_recording_event(recording_event)
+                follower.receive_prompt(
+                    context_name=self.context_name, notification_id=notification_id
+                )
 
 
-class ProcessApplication[TDecision](
-    Follower[TDecision], Leader[TDecision, ProcessRecorder]
+class ProcessApplication[
+    TDecision,
+](
+    Follower[TDecision],
+    Leader[ProcessRecorder, TDecision],
 ):
     """Base class for event processing applications
     that are both "leaders" and followers".
@@ -248,7 +225,7 @@ class System:
 
         # Build nodes and edges.
         self.edges: list[tuple[str, str]] = []
-        classes: dict[str, type[AggregatesApplication[Any]]] = {}
+        classes: dict[str, type[AggregatesApplication[Any, Any]]] = {}
         for pipe in pipes:
             follower_cls = None
             for cls in pipe:
@@ -307,12 +284,12 @@ class System:
     def processors(self) -> list[str]:
         return [name for name in self.leads if name in self.follows]
 
-    def get_app_cls(self, name: str) -> type[AggregatesApplication[Any]]:
+    def get_app_cls(self, name: str) -> type[AggregatesApplication[Any, Any]]:
         cls = resolve_topic(self.nodes[name])
         assert issubclass(cls, AggregatesApplication)
         return cls
 
-    def leader_cls(self, name: str) -> type[Leader[Any]]:
+    def leader_cls(self, name: str) -> type[Leader[Any, Any]]:
         cls = self.get_app_cls(name)
         if issubclass(cls, Leader):
             return cls
@@ -383,26 +360,25 @@ class RunnerAlreadyStartedError(Exception):
     """Raised when runner is already started."""
 
 
-class NotificationPullingError(Exception):
-    """Raised when pulling notifications fails."""
+# class NotificationPullingError(Exception):
+#     """Raised when pulling notifications fails."""
 
 
-class NotificationConvertingError(Exception):
-    """Raised when converting notifications fails."""
+# class NotificationConvertingError(Exception):
+#     """Raised when converting notifications fails."""
 
 
 class EventProcessingError(Exception):
     """Raised when event processing fails."""
 
 
-class SingleThreadedRunner[TDecision](Runner, RecordingEventReceiver[TDecision]):
+class SingleThreadedRunner[TDecision](Runner, PromptReceiver[TDecision]):
     """Runs a :class:`System` in a single thread."""
 
     def __init__(self, system: System, env: EnvType | None = None):
         """Initialises runner with the given :class:`System`."""
         super().__init__(system=system, env=env)
-        self.apps: dict[str, AggregatesApplication[TDecision, Any]] = {}
-        self._recording_events_received: list[RecordingEvent[TDecision]] = []
+        self.apps: dict[str, AggregatesApplication[Any, Any]] = {}
         self._prompted_names_lock = threading.Lock()
         self._prompted_names: set[str] = set()
         self._processing_lock = threading.Lock()
@@ -434,7 +410,7 @@ class SingleThreadedRunner[TDecision](Runner, RecordingEventReceiver[TDecision])
         for edge in self.system.edges:
             leader_name = edge[0]
             follower_name = edge[1]
-            leader = cast("Leader[Any]", self.apps[leader_name])
+            leader = cast("Leader[Any, Any]", self.apps[leader_name])
             follower = cast(Follower[Any], self.apps[follower_name])
             assert isinstance(leader, Leader)
             assert isinstance(follower, Follower)
@@ -442,15 +418,13 @@ class SingleThreadedRunner[TDecision](Runner, RecordingEventReceiver[TDecision])
 
         # Setup leaders to lead this runner.
         for name in self.system.leaders:
-            leader = cast("Leader[Any]", self.apps[name])
+            leader = cast("Leader[Any, Any]", self.apps[name])
             assert isinstance(leader, Leader)
             leader.lead(self)
 
     @override
-    def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TDecision]
-    ) -> None:
-        """Receives recording event by appending the name of the leader
+    def receive_prompt(self, context_name: str, notification_id: int) -> None:
+        """Receives prompt by appending the name of the leader
         to a list of prompted names.
 
         Then, unless this method has previously been called and not yet returned,
@@ -460,7 +434,7 @@ class SingleThreadedRunner[TDecision](Runner, RecordingEventReceiver[TDecision])
         continues until there are no more prompted names. In this way, a system
         of applications will process all events in a single thread.
         """
-        leader_name = new_recording_event.context_name
+        leader_name = context_name
         with self._prompted_names_lock:
             self._prompted_names.add(leader_name)
 
@@ -478,152 +452,6 @@ class SingleThreadedRunner[TDecision](Runner, RecordingEventReceiver[TDecision])
                         for follower_name in self.system.leads[leader_name]:
                             follower = cast(Follower[Any], self.apps[follower_name])
                             follower.pull_and_process(leader_name)
-
-            finally:
-                self._processing_lock.release()
-
-    @override
-    def stop(self) -> None:
-        for app in self.apps.values():
-            app.close()
-        self.apps.clear()
-
-    @override
-    def get[T: AggregatesApplication[Any, Any]](self, cls: type[T]) -> T:
-        app = self.apps[cls.context_name]
-        assert isinstance(app, cls)
-        return app
-
-
-class NewSingleThreadedRunner[TDecision](Runner, RecordingEventReceiver[TDecision]):
-    """Runs a :class:`System` in a single thread."""
-
-    def __init__(self, system: System, env: EnvType | None = None):
-        """Initialises runner with the given :class:`System`."""
-        super().__init__(system=system, env=env)
-        self.apps: dict[str, AggregatesApplication[Any, Any]] = {}
-        self._recording_events_received: list[RecordingEvent[TDecision]] = []
-        self._recording_events_received_lock = threading.Lock()
-        self._processing_lock = threading.Lock()
-        self._previous_max_notification_ids: dict[str, int] = {}
-
-        # Construct followers.
-        for name in self.system.followers:
-            self.apps[name] = self.system.follower_cls(name)(env=self.env)
-
-        # Construct leaders.
-        for name in self.system.leaders_only:
-            leader = self.system.leader_cls(name)(env=self.env)
-            self.apps[name] = leader
-
-        # Construct singles.
-        for name in self.system.singles:
-            single = self.system.get_app_cls(name)(env=self.env)
-            self.apps[name] = single
-
-    @override
-    def start(self) -> None:
-        """Starts the runner.
-        The applications are constructed, and setup to lead and follow
-        each other, according to the system definition.
-        The followers are setup to follow the applications they follow
-        (have a notification log reader with the notification log of the
-        leader), and their leaders are setup to lead the runner itself
-        (send prompts).
-        """
-        super().start()
-
-        # Setup followers to follow leaders.
-        for edge in self.system.edges:
-            leader_name = edge[0]
-            follower_name = edge[1]
-            leader = cast("Leader[Any]", self.apps[leader_name])
-            follower = cast(Follower[Any], self.apps[follower_name])
-            assert isinstance(leader, Leader)
-            assert isinstance(follower, Follower)
-            follower.follow(leader_name, leader.notification_log)
-
-        # Setup leaders to notify followers.
-        for name in self.system.leaders:
-            leader = cast("Leader[Any]", self.apps[name])
-            assert isinstance(leader, Leader)
-            leader.lead(self)
-
-    @override
-    def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TDecision]
-    ) -> None:
-        """Receives recording event by appending it to list of received recording
-        events.
-
-        Unless this method has previously been called and not yet returned, it
-        will then attempt to make the followers process all received recording
-        events, until there are none remaining.
-        """
-        with self._recording_events_received_lock:
-            self._recording_events_received.append(new_recording_event)
-
-        if self._processing_lock.acquire(blocking=False):
-            try:
-                while True:
-                    with self._recording_events_received_lock:
-                        recording_events = self._recording_events_received
-                        self._recording_events_received = []
-
-                        if not recording_events:
-                            break
-
-                    for recording_event in recording_events:
-                        leader_name = recording_event.context_name
-                        previous_max_notification_id = (
-                            self._previous_max_notification_ids.get(leader_name, 0)
-                        )
-
-                        # Ignore recording event if already seen a subsequent.
-                        if (
-                            recording_event.previous_max_notification_id is not None
-                            and recording_event.previous_max_notification_id
-                            < previous_max_notification_id
-                        ):
-                            continue
-
-                        # Catch up if there is a gap in sequence of recording events.
-                        if (
-                            recording_event.previous_max_notification_id is None
-                            or recording_event.previous_max_notification_id
-                            > previous_max_notification_id
-                        ):
-                            for follower_name in self.system.leads[leader_name]:
-                                follower = self.apps[follower_name]
-                                assert isinstance(follower, Follower)
-                                start = follower.recorder.max_tracking_id(leader_name)
-                                stop = recording_event.recordings[0].notification.id - 1
-                                follower.pull_and_process(
-                                    leader_name=leader_name,
-                                    start=start,
-                                    stop=stop,
-                                )
-                        for recording in recording_event.recordings:
-                            for follower_name in self.system.leads[leader_name]:
-                                follower = self.apps[follower_name]
-                                assert isinstance(follower, Follower)
-                                if (
-                                    follower.topics
-                                    and recording.notification.topic
-                                    not in follower.topics
-                                ):
-                                    continue
-                                follower.process_event(
-                                    envelope=recording.domain_event,
-                                    tracking=Tracking(
-                                        context_name=recording_event.context_name,
-                                        notification_id=recording.notification.id,
-                                    ),
-                                )
-
-                        self._previous_max_notification_ids[leader_name] = (
-                            recording_event.recordings[-1].notification.id
-                        )
 
             finally:
                 self._processing_lock.release()
@@ -703,7 +531,7 @@ class MultiThreadedRunner[TDecision](Runner):
 
         # Lead and follow.
         for edge in self.system.edges:
-            leader = cast("Leader[Any]", self.apps[edge[0]])
+            leader = cast("Leader[Any, Any]", self.apps[edge[0]])
             follower = cast(Follower[Any], self.apps[edge[1]])
             follower.follow(leader.context_name, leader.notification_log)
             thread = self.threads[follower.context_name]
@@ -738,9 +566,7 @@ class MultiThreadedRunner[TDecision](Runner):
         return app
 
 
-class MultiThreadedRunnerThread[TDecision](
-    RecordingEventReceiver[TDecision], threading.Thread
-):
+class MultiThreadedRunnerThread[TDecision](PromptReceiver[TDecision], threading.Thread):
     """Runs one :class:`~eventsourcing.system.Follower` application in
     a :class:`~eventsourcing.system.MultiThreadedRunner`.
     """
@@ -786,13 +612,11 @@ class MultiThreadedRunnerThread[TDecision](
             self.has_errored.set()
 
     @override
-    def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TDecision]
-    ) -> None:
+    def receive_prompt(self, context_name: str, notification_id: int) -> None:
         """Receives prompt by appending name of
         leader to list of prompted names.
         """
-        leader_name = new_recording_event.context_name
+        leader_name = context_name
         with self.prompted_names_lock:
             if leader_name not in self.prompted_names:
                 self.prompted_names.append(leader_name)
@@ -801,359 +625,6 @@ class MultiThreadedRunnerThread[TDecision](
     def stop(self) -> None:
         self.is_stopping.set()
         self.is_prompted.set()
-
-
-class NewMultiThreadedRunner[TDecision](Runner, RecordingEventReceiver[TDecision]):
-    """Runs a :class:`System` with multiple threads in a new way."""
-
-    QUEUE_MAX_SIZE: int = 0
-
-    def __init__(
-        self,
-        system: System,
-        env: EnvType | None = None,
-    ):
-        """Initialises runner with the given :class:`System`."""
-        super().__init__(system=system, env=env)
-        self.apps: dict[str, AggregatesApplication[TDecision, Any]] = {}
-        self.pulling_threads: dict[str, list[PullingThread[TDecision]]] = {}
-        self.processing_queues: dict[
-            str, Queue[list[ProcessingJob[TDecision]] | None]
-        ] = {}
-        self.all_threads: list[
-            PullingThread[TDecision]
-            | ConvertingThread[TDecision]
-            | ProcessingThread[TDecision]
-        ] = []
-        self.has_errored = threading.Event()
-
-        # Construct followers.
-        for follower_name in self.system.followers:
-            follower_class = self.system.follower_cls(follower_name)
-            try:
-                follower = follower_class(env=self.env)
-            except Exception:
-                self.has_errored.set()
-                raise
-            self.apps[follower_name] = follower
-
-        # Construct non-follower leaders.
-        for leader_name in self.system.leaders_only:
-            self.apps[leader_name] = self.system.leader_cls(leader_name)(env=self.env)
-
-        # Construct singles.
-        for name in self.system.singles:
-            single = self.system.get_app_cls(name)(env=self.env)
-            self.apps[name] = single
-
-    @override
-    def start(self) -> None:
-        """Starts the runner.
-
-        A multi-threaded runner thread is started for each
-        'follower' application in the system, and constructs
-        an instance of each non-follower leader application in
-        the system. The followers are then setup to follow the
-        applications they follow (have a notification log reader
-        with the notification log of the leader), and their leaders
-        are  setup to lead the follower's thead (send prompts).
-        """
-        super().start()
-
-        # Start the processing threads.
-        for follower_name in self.system.followers:
-            follower = cast(Follower[Any], self.apps[follower_name])
-            processing_queue: Queue[list[ProcessingJob[TDecision]] | None] = Queue(
-                maxsize=self.QUEUE_MAX_SIZE
-            )
-            self.processing_queues[follower_name] = processing_queue
-            processing_thread = ProcessingThread(
-                processing_queue=processing_queue,
-                follower=follower,
-                has_errored=self.has_errored,
-            )
-            self.all_threads.append(processing_thread)
-            processing_thread.start()
-
-        for edge in self.system.edges:
-            # Set up follower to pull notifications from leader.
-            leader_name = edge[0]
-            leader = cast("Leader[Any]", self.apps[leader_name])
-            follower_name = edge[1]
-            follower = cast(Follower[Any], self.apps[follower_name])
-            follower.follow(leader.context_name, leader.notification_log)
-
-            # Create converting queue.
-            converting_queue: Queue[ConvertingJob[TDecision]] = Queue(
-                maxsize=self.QUEUE_MAX_SIZE
-            )
-
-            # Start converting thread.
-            converting_thread = ConvertingThread(
-                converting_queue=converting_queue,
-                processing_queue=self.processing_queues[follower_name],
-                follower=follower,
-                leader_name=leader_name,
-                has_errored=self.has_errored,
-            )
-            self.all_threads.append(converting_thread)
-            converting_thread.start()
-
-            # Start pulling thread.
-            pulling_thread = PullingThread(
-                converting_queue=converting_queue,
-                follower=follower,
-                leader_name=leader_name,
-                has_errored=self.has_errored,
-            )
-            self.all_threads.append(pulling_thread)
-            pulling_thread.start()
-            if leader_name not in self.pulling_threads:
-                self.pulling_threads[leader_name] = []
-            self.pulling_threads[leader_name].append(pulling_thread)
-
-        # Wait until all the threads have started.
-        for thread in self.all_threads:
-            thread.has_started.wait()
-
-        # Subscribe for notifications from leaders.
-        for leader_name in self.system.leaders:
-            leader = cast("Leader[Any]", self.apps[leader_name])
-            assert isinstance(leader, Leader)
-            leader.lead(self)
-
-    def watch_for_errors(self, timeout: float | None = None) -> bool:
-        if self.has_errored.wait(timeout=timeout):
-            self.stop()
-        return self.has_errored.is_set()
-
-    @override
-    def stop(self) -> None:
-        for thread in self.all_threads:
-            thread.stop()
-        for thread in self.all_threads:
-            thread.join(timeout=2)
-        for app in self.apps.values():
-            app.close()
-        self.apps.clear()
-        self.reraise_thread_errors()
-
-    def reraise_thread_errors(self) -> None:
-        for thread in self.all_threads:
-            if thread.error:
-                raise thread.error
-
-    @override
-    def get[T: AggregatesApplication[Any, Any]](self, cls: type[T]) -> T:
-        app = self.apps[cls.context_name]
-        assert isinstance(app, cls)
-        return app
-
-    @override
-    def receive_recording_event(
-        self, new_recording_event: RecordingEvent[TDecision]
-    ) -> None:
-        for pulling_thread in self.pulling_threads[new_recording_event.context_name]:
-            pulling_thread.receive_recording_event(new_recording_event)
-
-
-class PullingThread[TDecision](threading.Thread):
-    """Receives or pulls notifications from the given leader, and
-    puts them on a queue for conversion into processing jobs.
-    """
-
-    def __init__(
-        self,
-        converting_queue: Queue[ConvertingJob[TDecision]],
-        follower: Follower[Any],
-        leader_name: str,
-        has_errored: threading.Event,
-    ):
-        super().__init__(daemon=True)
-        self.overflow_event = threading.Event()
-        self.recording_event_queue: Queue[RecordingEvent[TDecision] | None] = Queue(
-            maxsize=100
-        )
-        self.converting_queue: Queue[ConvertingJob[TDecision]] = converting_queue
-        self.receive_lock = threading.Lock()
-        self.follower = follower
-        self.leader_name = leader_name
-        self.error: Exception | None = None
-        self.has_errored = has_errored
-        self.is_stopping = threading.Event()
-        self.has_started = threading.Event()
-        self.mapper = self.follower.mappers[self.leader_name]
-        self.previous_max_notification_id = self.follower.recorder.max_tracking_id(
-            context_name=self.leader_name
-        )
-
-    @override
-    def run(self) -> None:
-        self.has_started.set()
-        try:
-            while not self.is_stopping.is_set():
-                recording_event = self.recording_event_queue.get()
-                self.recording_event_queue.task_done()
-                if recording_event is None:
-                    return
-                # Ignore recording event if already seen a subsequent.
-                if (
-                    recording_event.previous_max_notification_id is not None
-                    and self.previous_max_notification_id is not None
-                    and recording_event.previous_max_notification_id
-                    < self.previous_max_notification_id
-                ):
-                    continue
-
-                # Catch up if there is a gap in sequence of recording events.
-                if (
-                    recording_event.previous_max_notification_id is None
-                    or self.previous_max_notification_id is None
-                    or recording_event.previous_max_notification_id
-                    > self.previous_max_notification_id
-                ):
-                    start = self.previous_max_notification_id
-                    stop = recording_event.recordings[0].notification.id - 1
-                    for notifications in self.follower.pull_notifications(
-                        self.leader_name,
-                        start=start,
-                        stop=stop,
-                        inclusive_of_start=False,
-                    ):
-                        self.converting_queue.put(notifications)
-                        self.previous_max_notification_id = notifications[-1].id
-                self.converting_queue.put(recording_event)
-                self.previous_max_notification_id = recording_event.recordings[
-                    -1
-                ].notification.id
-        except Exception as e:
-            self.error = NotificationPullingError(str(e))
-            self.error.__cause__ = e
-            self.has_errored.set()
-
-    def receive_recording_event(
-        self, recording_event: RecordingEvent[TDecision]
-    ) -> None:
-        try:
-            self.recording_event_queue.put(recording_event, timeout=0)
-        except Full:
-            self.overflow_event.set()
-
-    def stop(self) -> None:
-        self.is_stopping.set()
-        self.recording_event_queue.put(None)
-
-
-class ConvertingThread[TDecision](threading.Thread):
-    """Converts notifications into processing jobs."""
-
-    def __init__(
-        self,
-        converting_queue: Queue[ConvertingJob[TDecision]],
-        processing_queue: Queue[list[ProcessingJob[TDecision]] | None],
-        follower: Follower[Any],
-        leader_name: str,
-        has_errored: threading.Event,
-    ):
-        super().__init__(daemon=True)
-        self.converting_queue: Queue[ConvertingJob[TDecision]] = converting_queue
-        self.processing_queue: Queue[list[ProcessingJob[TDecision]] | None] = (
-            processing_queue
-        )
-        self.follower = follower
-        self.leader_name = leader_name
-        self.error: Exception | None = None
-        self.has_errored = has_errored
-        self.is_stopping = threading.Event()
-        self.has_started = threading.Event()
-        self.mapper = self.follower.mappers[self.leader_name]
-
-    @override
-    def run(self) -> None:
-        self.has_started.set()
-        try:
-            while True:
-                recording_event_or_notifications = self.converting_queue.get()
-                self.converting_queue.task_done()
-                if (
-                    self.is_stopping.is_set()
-                    or recording_event_or_notifications is None
-                ):
-                    return
-
-                processing_jobs = []
-
-                if isinstance(recording_event_or_notifications, RecordingEvent):
-                    recording_event = recording_event_or_notifications
-                    for recording in recording_event.recordings:
-                        if (
-                            self.follower.topics
-                            and recording.notification.topic not in self.follower.topics
-                        ):
-                            continue
-                        tracking = Tracking(
-                            context_name=recording_event.context_name,
-                            notification_id=recording.notification.id,
-                        )
-                        processing_jobs.append((recording.domain_event, tracking))
-                else:
-                    notifications = recording_event_or_notifications
-                    processing_jobs = self.follower.convert_notifications(
-                        leader_name=self.leader_name, notifications=notifications
-                    )
-                if processing_jobs:
-                    self.processing_queue.put(processing_jobs)
-        except Exception as e:
-            print(traceback.format_exc())  # noqa: T201
-            self.error = NotificationConvertingError(str(e))
-            self.error.__cause__ = e
-            self.has_errored.set()
-
-    def stop(self) -> None:
-        self.is_stopping.set()
-        self.converting_queue.put(None)
-
-
-class ProcessingThread[TDecision](threading.Thread):
-    """A processing thread gets events from a processing queue, and
-    calls the application's process_event() method.
-    """
-
-    def __init__(
-        self,
-        processing_queue: Queue[list[ProcessingJob[TDecision]] | None],
-        follower: Follower[Any],
-        has_errored: threading.Event,
-    ):
-        super().__init__(daemon=True)
-        self.processing_queue: Queue[list[ProcessingJob[TDecision]] | None] = (
-            processing_queue
-        )
-        self.follower = follower
-        self.error: Exception | None = None
-        self.has_errored = has_errored
-        self.is_stopping = threading.Event()
-        self.has_started = threading.Event()
-
-    @override
-    def run(self) -> None:
-        self.has_started.set()
-        try:
-            while True:
-                jobs = self.processing_queue.get()
-                self.processing_queue.task_done()
-                if self.is_stopping.is_set() or jobs is None:
-                    return
-                for domain_event, tracking in jobs:
-                    self.follower.process_event(domain_event, tracking)
-        except Exception as e:
-            self.error = EventProcessingError(str(e))
-            self.error.__cause__ = e
-            self.has_errored.set()
-
-    def stop(self) -> None:
-        self.is_stopping.set()
-        self.processing_queue.put(None)
 
 
 class NotificationLogReader:

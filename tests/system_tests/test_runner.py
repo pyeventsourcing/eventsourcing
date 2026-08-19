@@ -5,51 +5,35 @@ import shlex
 import subprocess
 from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
-from queue import Queue
-from threading import Event
 from time import sleep
 from typing import TYPE_CHECKING, Any, Protocol, override
 from unittest.case import TestCase
-from unittest.mock import MagicMock
 
 from eventsourcing.application import AggregatesApplication
 from eventsourcing.decorator import triggers
-from eventsourcing.domain import (
-    AggregateEvent,
-)
-from eventsourcing.errors import ProgrammingError
 from eventsourcing.pydantic import (
     Aggregate,
     Decision,
     ProcessApplication,
 )
 from eventsourcing.system import (
-    ConvertingThread,
     EventProcessingError,
     MultiThreadedRunner,
-    NewMultiThreadedRunner,
-    NewSingleThreadedRunner,
-    NotificationConvertingError,
-    NotificationPullingError,
-    ProcessingJob,
-    PullingThread,
-    RecordingEvent,
     RunnerAlreadyStartedError,
     SingleThreadedRunner,
     System,
 )
 from eventsourcing.tests.application import BankAccountsWithPydantic
+from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 from eventsourcing.tests.persistence import tmpfile_uris
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.utils import EnvType, clear_topic_cache, get_topic
 from tests.application_tests.test_processapplication import EmailProcess
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
-
     from eventsourcing.application import ProcessingEvent
-    from eventsourcing.persistence import Notification, Tracking
-    from eventsourcing.types import AggregateEventProtocol
+    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.persistence import Tracking
 
 
 class EmailProcess2(EmailProcess):
@@ -213,7 +197,7 @@ class RunnerTestCase[TRunner: RunnerProtocol[Any]](TestCase, ABC):
             @override
             def policy(
                 self,
-                envelope: AggregateEventProtocol[Decision],
+                envelope: AggregateEvent[Decision],
                 processing_event: ProcessingEvent[Decision],
             ) -> None:
                 match envelope.decision:
@@ -236,7 +220,7 @@ class RunnerTestCase[TRunner: RunnerProtocol[Any]](TestCase, ABC):
             @override
             def policy(
                 self,
-                envelope: AggregateEventProtocol[Decision],
+                envelope: AggregateEvent[Decision],
                 processing_event: ProcessingEvent[Decision],
             ) -> None:
                 match envelope.decision:
@@ -326,7 +310,7 @@ class RunnerTestCase[TRunner: RunnerProtocol[Any]](TestCase, ABC):
 
     def test_filters_notifications_by_topics(self) -> None:
         class MyEmailProcess(EmailProcess):
-            topics = (get_topic(AggregateEvent),)
+            topics = (get_topic(BankAccountWithPydantic.OverdraftLimitSet),)
 
         system = System(pipes=[[BankAccountsWithPydantic, MyEmailProcess]])
         runner = self.construct_runner(system)
@@ -348,63 +332,6 @@ class RunnerTestCase[TRunner: RunnerProtocol[Any]](TestCase, ABC):
             self.assertEqual(len(email_process.notification_log["1,10"].items), 0)
 
 
-#
-# class SingleThreadedRunnerFollowersOrderingMixin:
-#     """Followers ordering tests for single-threaded runners."""
-#
-#     def test_followers_are_prompted_in_declaration_order(self) -> None:
-#         """Validate the order in which followers are prompted by the runner.
-#
-#         This test can, by nature, show some flakiness. That is, we can
-#         see false negatives at times when a random ordering would match
-#         the expected ordering. We mitigate this problem by increasing
-#         the number of followers to be ordered.
-#         """
-#         clear_topic_cache()
-#         app_calls = []
-#
-#         class NameLogger(EmailProcess):
-#             def policy(self, _, __):
-#                 app_calls.append(self.__class__.__name__)
-#
-#         def make_name_logger(n: int) -> type:
-#             return type(f"NameLogger{n}", (NameLogger,), {})
-#
-#         # Construct system and runner.
-#         system = System(
-#             pipes=[
-#                 [BankAccounts, make_name_logger(3)],
-#                 [BankAccounts, make_name_logger(4)],
-#                 [BankAccounts, make_name_logger(1)],
-#                 [BankAccounts, make_name_logger(5)],
-#                 [BankAccounts, make_name_logger(2)],
-#             ]
-#         )
-#         self.start_runner(system)
-#
-#         # Create an event.
-#         runner.get(BankAccounts).open_account(
-#             full_name="Alice",
-#             email_address="alice@example.com",
-#         )
-#
-#         self.wait_for_runner(runner)
-#
-#         # Check the applications' policy were called in the right order.
-#         self.assertEqual(
-#           app_calls,
-#           ["NameLogger3", "NameLogger4", "NameLogger1", "NameLogger5", "NameLogger2"],
-#         )
-#
-#
-# class TestSingleThreadedRunner(
-#     RunnerTestCase[SingleThreadedRunner], SingleThreadedRunnerFollowersOrderingMixin
-# ):
-#     runner_class = SingleThreadedRunner
-#
-#
-
-
 class TestSingleThreadedRunner(RunnerTestCase[SingleThreadedRunner[Decision]]):
     @override
     def construct_runner(
@@ -415,123 +342,6 @@ class TestSingleThreadedRunner(RunnerTestCase[SingleThreadedRunner[Decision]]):
     @override
     def wait_for_runner(self, runner: SingleThreadedRunner[Decision]) -> None:
         pass
-
-
-class TestNewSingleThreadedRunner(RunnerTestCase[NewSingleThreadedRunner[Decision]]):
-    @override
-    def construct_runner(
-        self, system: System, env: EnvType | None = None
-    ) -> NewSingleThreadedRunner[Decision]:
-        return NewSingleThreadedRunner[Decision](system=system, env=env)
-
-    @override
-    def wait_for_runner(self, runner: NewSingleThreadedRunner[Decision]) -> None:
-        pass
-
-    def test_ignores_recording_event_if_seen_subsequent(self) -> None:
-        system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
-        with self.construct_runner(system) as runner:
-
-            accounts = runner.get(BankAccountsWithPydantic)
-            email_process = runner.get(EmailProcess)
-
-            accounts.open_account(
-                full_name="Alice",
-                email_address="alice@example.com",
-            )
-            self.wait_for_runner(runner)
-
-            self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
-
-            # Reset this to break sequence.
-            accounts.previous_max_notification_id -= 1  # type: ignore[attr-defined]
-
-            accounts.open_account(
-                full_name="Alice",
-                email_address="alice@example.com",
-            )
-            self.wait_for_runner(runner)
-
-            self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
-
-    def test_received_notifications_accumulate(self) -> None:
-        system = System([[BankAccountsWithPydantic, EmailProcess]])
-        with self.construct_runner(system) as runner:
-
-            accounts = runner.get(BankAccountsWithPydantic)
-            # Need to get the lock, so that they aren't cleared.
-            with runner._processing_lock:
-                accounts.open_account("Alice", "alice@example.com")
-                self.assertEqual(len(runner._recording_events_received), 1)
-                accounts.open_account("Bob", "bob@example.com")
-                self.assertEqual(len(runner._recording_events_received), 2)
-
-
-class TestPullingThread(TestCase):
-    def test_receive_recording_event_does_not_block(self) -> None:
-        thread = PullingThread[Decision](
-            converting_queue=Queue(),
-            follower=MagicMock(),
-            leader_name="BankAccountsWithPydantic",
-            has_errored=Event(),
-        )
-        thread.recording_event_queue.maxsize = 1
-        self.assertEqual(thread.recording_event_queue.qsize(), 0)
-        thread.receive_recording_event(
-            RecordingEvent(
-                context_name="BankAccountsWithPydantic",
-                recordings=[],
-                previous_max_notification_id=None,
-            )
-        )
-        self.assertEqual(thread.recording_event_queue.qsize(), 1)
-        self.assertFalse(thread.overflow_event.is_set())
-        thread.receive_recording_event(
-            RecordingEvent(
-                context_name="BankAccountsWithPydantic",
-                recordings=[],
-                previous_max_notification_id=1,
-            )
-        )
-        self.assertEqual(thread.recording_event_queue.qsize(), 1)
-        self.assertTrue(thread.overflow_event.is_set())
-
-    def test_stops_because_stopping_event_is_set(self) -> None:
-        thread = PullingThread[Decision](
-            converting_queue=Queue(),
-            follower=MagicMock(),
-            leader_name="BankAccountsWithPydantic",
-            has_errored=Event(),
-        )
-        self.assertEqual(thread.recording_event_queue.qsize(), 0)
-        thread.receive_recording_event(
-            RecordingEvent(
-                context_name="BankAccountsWithPydantic",
-                recordings=[],
-                previous_max_notification_id=None,
-            )
-        )
-        self.assertEqual(thread.recording_event_queue.qsize(), 1)
-        thread.stop()  # Set 'is_stopping' event.
-        self.assertEqual(thread.recording_event_queue.qsize(), 2)
-        thread.start()
-        thread.join(timeout=1)
-        self.assertFalse(thread.is_alive())
-        self.assertEqual(thread.recording_event_queue.qsize(), 2)
-
-    def test_stops_because_recording_event_queue_was_poisoned(self) -> None:
-        thread = PullingThread[Decision](
-            converting_queue=Queue(),
-            follower=MagicMock(),
-            leader_name="BankAccountsWithPydantic",
-            has_errored=Event(),
-        )
-        self.assertEqual(thread.recording_event_queue.qsize(), 0)
-        thread.start()
-        thread.stop()  # Poison queue.
-        thread.join(timeout=1)
-        self.assertFalse(thread.is_alive())
-        self.assertEqual(thread.recording_event_queue.qsize(), 0)
 
 
 class DeliberateError(Exception):
@@ -548,7 +358,7 @@ class BrokenInitialisation(EmailProcess):
 class BrokenProcessing(EmailProcess):
     @override
     def process_event(
-        self, envelope: AggregateEventProtocol[Decision], tracking: Tracking
+        self, envelope: AggregateEvent[Decision], tracking: Tracking
     ) -> None:
         msg = "Just testing error handling when processing is broken"
         raise DeliberateError(msg)
@@ -824,161 +634,161 @@ class TestMultiThreadedRunnerWithPostgres(TestMultiThreadedRunner):
         super().wait_for_runner(runner)
 
 
-class TestNewMultiThreadedRunner(
-    MultiThreadedRunnerTestCase[NewMultiThreadedRunner[Decision]]
-):
-
-    @override
-    def construct_runner(
-        self, system: System, env: EnvType | None = None
-    ) -> NewMultiThreadedRunner[Decision]:
-        return NewMultiThreadedRunner(system=system, env=env)
-
-    class BrokenPulling(EmailProcess):
-        @override
-        def pull_notifications(
-            self,
-            leader_name: str,
-            start: int | None,
-            stop: int | None = None,
-            *,
-            inclusive_of_start: bool = True,
-        ) -> Iterator[list[Notification]]:
-            msg = "Just testing error handling when pulling is broken"
-            raise ProgrammingError(msg)
-
-    class BrokenConverting(EmailProcess):
-        @override
-        def convert_notifications(
-            self, leader_name: str, notifications: Iterable[Notification]
-        ) -> list[ProcessingJob[Decision]]:
-            msg = "Just testing error handling when converting is broken"
-            raise ProgrammingError(msg)
-
-    # This duplicates test method above.
-    @override
-    def test_ignores_recording_event_if_seen_subsequent(self) -> None:
-        system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
-
-        with self.construct_runner(system) as runner:
-            accounts = runner.get(BankAccountsWithPydantic)
-            email_process = runner.get(EmailProcess)
-
-            accounts.open_account(
-                full_name="Alice",
-                email_address="alice@example.com",
-            )
-            self.wait_for_runner(runner)
-
-            self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
-
-            # Reset this to break sequence.
-            accounts.previous_max_notification_id -= 1  # type: ignore[attr-defined]
-
-            accounts.open_account(
-                full_name="Alice",
-                email_address="alice@example.com",
-            )
-            self.wait_for_runner(runner)
-
-            self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
-
-    def test_queue_task_done_is_called(self) -> None:
-        system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
-
-        with self.construct_runner(system) as runner:
-
-            accounts = runner.get(BankAccountsWithPydantic)
-            email_process1 = runner.get(EmailProcess)
-
-            accounts.open_account(
-                full_name="Alice",
-                email_address="alice@example.com",
-            )
-            sleep(0.1)
-            self.assertEqual(len(email_process1.notification_log["1,10"].items), 1)
-
-            assert isinstance(runner, NewMultiThreadedRunner), runner  # for mypy,
-            for thread in runner.all_threads:
-                if isinstance(thread, ConvertingThread):
-                    self.assertEqual(thread.converting_queue.unfinished_tasks, 0)
-                    self.assertEqual(thread.processing_queue.unfinished_tasks, 0)
-
-    def test_stop_raises_if_notification_converting_is_broken(self) -> None:
-        system = System(
-            pipes=[
-                [
-                    BankAccountsWithPydantic,
-                    TestNewMultiThreadedRunner.BrokenConverting,
-                ],
-            ]
-        )
-
-        # Construct runner.
-        runner = self.construct_runner(system)
-
-        # Create some notifications.
-        accounts = runner.get(BankAccountsWithPydantic)
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        # Start runner.
-        with self.assertRaises(NotificationConvertingError) as cm, runner:
-
-            # Trigger pulling of notifications.
-            accounts = runner.get(BankAccountsWithPydantic)
-            accounts.open_account(
-                full_name="Alice",
-                email_address="alice@example.com",
-            )
-
-            # Wait for runner to error.
-            self.assertTrue(runner.has_errored.wait(timeout=1000))
-
-        self.assertIn(
-            "Just testing error handling when converting is broken",
-            cm.exception.args[0],
-        )
-
-    def test_stop_raises_if_notification_pulling_is_broken(self) -> None:
-        system = System(
-            pipes=[
-                [
-                    BankAccountsWithPydantic,
-                    TestNewMultiThreadedRunner.BrokenPulling,
-                ],
-            ]
-        )
-        # Create runner.
-
-        runner = self.construct_runner(system)
-
-        # Create some notifications.
-        accounts = runner.get(BankAccountsWithPydantic)
-        accounts.open_account(
-            full_name="Alice",
-            email_address="alice@example.com",
-        )
-
-        # Start runner.
-        with self.assertRaises(NotificationPullingError) as cm, runner:
-
-            # Trigger pulling of notifications.
-            accounts = runner.get(BankAccountsWithPydantic)
-            accounts.open_account(
-                full_name="Alice",
-                email_address="alice@example.com",
-            )
-
-            # Wait for runner to error.
-            self.assertTrue(runner.has_errored.wait(timeout=1))
-
-        self.assertIn(
-            "Just testing error handling when pulling is broken",
-            cm.exception.args[0],
-        )
+# class TestNewMultiThreadedRunner(
+#     MultiThreadedRunnerTestCase[NewMultiThreadedRunner[Decision]]
+# ):
+#
+#     @override
+#     def construct_runner(
+#         self, system: System, env: EnvType | None = None
+#     ) -> NewMultiThreadedRunner[Decision]:
+#         return NewMultiThreadedRunner(system=system, env=env)
+#
+#     class BrokenPulling(EmailProcess):
+#         @override
+#         def pull_notifications(
+#             self,
+#             leader_name: str,
+#             start: int | None,
+#             stop: int | None = None,
+#             *,
+#             inclusive_of_start: bool = True,
+#         ) -> Iterator[list[Notification]]:
+#             msg = "Just testing error handling when pulling is broken"
+#             raise ProgrammingError(msg)
+#
+#     class BrokenConverting(EmailProcess):
+#         @override
+#         def convert_notifications(
+#             self, leader_name: str, notifications: Iterable[Notification]
+#         ) -> list[ProcessingJob[Decision]]:
+#             msg = "Just testing error handling when converting is broken"
+#             raise ProgrammingError(msg)
+#
+#     # This duplicates test method above.
+#     @override
+#     def test_ignores_recording_event_if_seen_subsequent(self) -> None:
+#         system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
+#
+#         with self.construct_runner(system) as runner:
+#             accounts = runner.get(BankAccountsWithPydantic)
+#             email_process = runner.get(EmailProcess)
+#
+#             accounts.open_account(
+#                 full_name="Alice",
+#                 email_address="alice@example.com",
+#             )
+#             self.wait_for_runner(runner)
+#
+#             self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
+#
+#             # Reset this to break sequence.
+#             accounts.previous_max_notification_id -= 1  # type: ignore[attr-defined]
+#
+#             accounts.open_account(
+#                 full_name="Alice",
+#                 email_address="alice@example.com",
+#             )
+#             self.wait_for_runner(runner)
+#
+#             self.assertEqual(len(email_process.notification_log["1,10"].items), 1)
+#
+#     def test_queue_task_done_is_called(self) -> None:
+#         system = System(pipes=[[BankAccountsWithPydantic, EmailProcess]])
+#
+#         with self.construct_runner(system) as runner:
+#
+#             accounts = runner.get(BankAccountsWithPydantic)
+#             email_process1 = runner.get(EmailProcess)
+#
+#             accounts.open_account(
+#                 full_name="Alice",
+#                 email_address="alice@example.com",
+#             )
+#             sleep(0.1)
+#             self.assertEqual(len(email_process1.notification_log["1,10"].items), 1)
+#
+#             assert isinstance(runner, NewMultiThreadedRunner), runner  # for mypy,
+#             for thread in runner.all_threads:
+#                 if isinstance(thread, ConvertingThread):
+#                     self.assertEqual(thread.converting_queue.unfinished_tasks, 0)
+#                     self.assertEqual(thread.processing_queue.unfinished_tasks, 0)
+#
+#     def test_stop_raises_if_notification_converting_is_broken(self) -> None:
+#         system = System(
+#             pipes=[
+#                 [
+#                     BankAccountsWithPydantic,
+#                     TestNewMultiThreadedRunner.BrokenConverting,
+#                 ],
+#             ]
+#         )
+#
+#         # Construct runner.
+#         runner = self.construct_runner(system)
+#
+#         # Create some notifications.
+#         accounts = runner.get(BankAccountsWithPydantic)
+#         accounts.open_account(
+#             full_name="Alice",
+#             email_address="alice@example.com",
+#         )
+#
+#         # Start runner.
+#         with self.assertRaises(NotificationConvertingError) as cm, runner:
+#
+#             # Trigger pulling of notifications.
+#             accounts = runner.get(BankAccountsWithPydantic)
+#             accounts.open_account(
+#                 full_name="Alice",
+#                 email_address="alice@example.com",
+#             )
+#
+#             # Wait for runner to error.
+#             self.assertTrue(runner.has_errored.wait(timeout=1000))
+#
+#         self.assertIn(
+#             "Just testing error handling when converting is broken",
+#             cm.exception.args[0],
+#         )
+#
+#     def test_stop_raises_if_notification_pulling_is_broken(self) -> None:
+#         system = System(
+#             pipes=[
+#                 [
+#                     BankAccountsWithPydantic,
+#                     TestNewMultiThreadedRunner.BrokenPulling,
+#                 ],
+#             ]
+#         )
+#         # Create runner.
+#
+#         runner = self.construct_runner(system)
+#
+#         # Create some notifications.
+#         accounts = runner.get(BankAccountsWithPydantic)
+#         accounts.open_account(
+#             full_name="Alice",
+#             email_address="alice@example.com",
+#         )
+#
+#         # Start runner.
+#         with self.assertRaises(NotificationPullingError) as cm, runner:
+#
+#             # Trigger pulling of notifications.
+#             accounts = runner.get(BankAccountsWithPydantic)
+#             accounts.open_account(
+#                 full_name="Alice",
+#                 email_address="alice@example.com",
+#             )
+#
+#             # Wait for runner to error.
+#             self.assertTrue(runner.has_errored.wait(timeout=1))
+#
+#         self.assertIn(
+#             "Just testing error handling when pulling is broken",
+#             cm.exception.args[0],
+#         )
 
 
 del MultiThreadedRunnerTestCase

@@ -9,6 +9,7 @@ import eventsourcing.system
 from eventsourcing.application import SupportsTranscoding
 from eventsourcing.msgspec.immutable import Decision
 from eventsourcing.msgspec.transcoder import Transcoder
+from eventsourcing.persistence import ApplicationRecorder
 
 
 class WithTranscoder(SupportsTranscoding[Decision]):
@@ -18,13 +19,15 @@ class WithTranscoder(SupportsTranscoding[Decision]):
 
 
 class AggregatesApplication(
-    WithTranscoder, eventsourcing.application.AggregatesApplication[Decision]
+    WithTranscoder,
+    eventsourcing.application.AggregatesApplication[ApplicationRecorder, Decision],
 ):
     pass
 
 
 class EventSourcedProjection(
-    WithTranscoder, eventsourcing.projection.EventSourcedEventProcessor[Decision]
+    WithTranscoder,
+    eventsourcing.projection.EventSourcedEventProcessor[Decision],
 ):
     pass
 

@@ -374,7 +374,7 @@ if __name__ == "__main__":
     # print(f"Reporting interval: every {reporting_interval} iterations...")
     # print()
 
-    with cast(type[AggregatesApplication[Any] | DcbApplication[Any]], cls)(
+    with cast(type[AggregatesApplication[Any, Any] | DcbApplication[Any]], cls)(
         env=env
     ) as app_:
 

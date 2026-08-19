@@ -8,13 +8,13 @@ from typing import TYPE_CHECKING, Any, override
 from eventsourcing.persistence import (
     AggregateRecorder,
     ApplicationRecorder,
+    ApplicationRecorderSubscription,
     InfrastructureFactory,
     IntegrityError,
-    ListenNotifySubscription,
+    ListenNotifyApplicationRecorderSubscription,
     Notification,
     ProcessRecorder,
     StoredEvent,
-    Subscription,
     Tracking,
     TrackingRecorder,
 )
@@ -38,13 +38,13 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
     @override
     def insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
-    ) -> Sequence[int] | None:
+    ) -> int | None:
         self._insert_events(stored_events, **kwargs)
         return None
 
     def _insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
-    ) -> Sequence[int] | None:
+    ) -> int | None:
         with self._database_lock:
             self._assert_uniqueness(stored_events, **kwargs)
             return self._update_table(stored_events, **kwargs)
@@ -66,15 +66,15 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
 
     def _update_table(
         self, stored_events: Sequence[StoredEvent], **_: Any
-    ) -> Sequence[int] | None:
-        notification_ids = []
+    ) -> int | None:
+        notification_id: int | None = None
         for s in stored_events:
             self._stored_events.append(s)
             self._stored_events_index[s.originator_id][s.originator_version] = (
                 len(self._stored_events) - 1
             )
-            notification_ids.append(len(self._stored_events))
-        return notification_ids
+            notification_id = len(self._stored_events)
+        return notification_id
 
     @override
     def select_events(
@@ -112,10 +112,10 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
     @override
     def insert_events(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
-    ) -> Sequence[int] | None:
-        notification_ids = self._insert_events(stored_events, **kwargs)
+    ) -> int | None:
+        notification_id = self._insert_events(stored_events, **kwargs)
         self._notify_listeners()
-        return notification_ids
+        return notification_id
 
     @override
     def select_notifications(
@@ -168,8 +168,8 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
     @override
     def subscribe(
         self, gt: int | None = None, topics: Sequence[str] = ()
-    ) -> Subscription[ApplicationRecorder]:
-        return POPOSubscription(recorder=self, gt=gt, topics=topics)
+    ) -> ApplicationRecorderSubscription[ApplicationRecorder]:
+        return POPOApplicationRecorderSubscription(recorder=self, gt=gt, topics=topics)
 
     def listen(self, event: Event) -> None:
         self._listeners.add(event)
@@ -183,7 +183,9 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
             listener.set()
 
 
-class POPOSubscription(ListenNotifySubscription[POPOApplicationRecorder]):
+class POPOApplicationRecorderSubscription(
+    ListenNotifyApplicationRecorderSubscription[POPOApplicationRecorder]
+):
     def __init__(
         self,
         recorder: POPOApplicationRecorder,
@@ -244,7 +246,7 @@ class POPOProcessRecorder(
     @override
     def _update_table(
         self, stored_events: Sequence[StoredEvent], **kwargs: Any
-    ) -> Sequence[int] | None:
+    ) -> int | None:
         notification_ids = super()._update_table(stored_events, **kwargs)
         t: Tracking | None = kwargs.get("tracking")
         if t:
