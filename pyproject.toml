@@ -185,6 +185,7 @@ ignore = [
     "PLR0912", # Too many branches
     "S101", # Use of `assert` detected
     "PLR2004", # Magic value used in comparison
+    "CPY001",
 
 ]
 
