@@ -1316,7 +1316,7 @@ class BaseAggregate(Generic[TAggregateID], metaclass=MetaAggregate):
             raise ProgrammingError(msg)
 
         # Get the class annotations.
-        class_annotations = cls.__dict__.get("__annotations__", {})
+        class_annotations = cls.__dict__.get("__annotations__", {})  # noqa: RUF063
         try:
             class_annotations.pop("id")
             _annotations_mention_id.add(cls)
