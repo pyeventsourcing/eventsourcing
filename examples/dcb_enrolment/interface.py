@@ -5,19 +5,19 @@ from abc import ABC, abstractmethod
 
 class EnrolmentInterface(ABC):
     @abstractmethod
-    def register_student(self, name: str, max_courses: int) -> str:
+    def register_student(self, name: str, max_courses: int) -> tuple[int, str]:
         """
         Register a new student.
         """
 
     @abstractmethod
-    def register_course(self, name: str, places: int) -> str:
+    def register_course(self, name: str, places: int) -> tuple[int, str]:
         """
         Register a new course.
         """
 
     @abstractmethod
-    def join_course(self, student_id: str, course_id: str) -> None:
+    def join_course(self, student_id: str, course_id: str) -> int:
         """
         Enrol a student on a course.
         """

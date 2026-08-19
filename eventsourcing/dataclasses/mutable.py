@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC
 from typing import Any, get_type_hints, override
 
 from eventsourcing import domain
@@ -42,7 +41,11 @@ class Aggregate(domain.Aggregate[Decision]):
     pass
 
 
-class Slice(domain.Slice[Decision], ABC):
+class CommandSlice(domain.CommandSlice[Decision]):
+    pass
+
+
+class QuerySlice(domain.QuerySlice[Decision]):
     pass
 
 

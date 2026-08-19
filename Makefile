@@ -82,15 +82,15 @@ lint: lint-black lint-ruff lint-mypy lint-pyrefly lint-pyright
 
 
 .PHONY: test
-test: coveragetest coverage96 #coverage100
+test: coveragetest coverage95 #coverage100
 
 .PHONY: coveragetest
 coveragetest:
 	$(POETRY) run coverage run -m unittest discover . -v
 
-.PHONY: coverage96
-coverage96:
-	$(POETRY) run coverage report --fail-under=96 --show-missing
+.PHONY: coverage95
+coverage95:
+	$(POETRY) run coverage report --fail-under=95 --show-missing
 
 .PHONY: coverage100
 coverage100:

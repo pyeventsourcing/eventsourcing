@@ -16,10 +16,11 @@ from eventsourcing.msgspec.immutable import (
 from eventsourcing.msgspec.mutable import (
     Aggregate,
     AggregateState,
+    CommandSlice,
     EnduringObject,
     Group,
     MuetableAggregateSnapshot,
-    Slice,
+    QuerySlice,
 )
 from eventsourcing.msgspec.transcoder import Transcoder
 
@@ -33,6 +34,7 @@ __all__ = [
     "AggregateEvent",
     "AggregateState",
     "AggregatesApplication",
+    "CommandSlice",
     "DcbApplication",
     "Decision",
     "EnduringObject",
@@ -43,8 +45,8 @@ __all__ = [
     "ImmutableAggregateSnapshot",
     "MuetableAggregateSnapshot",
     "ProcessApplication",
+    "QuerySlice",
     "Selector",
-    "Slice",
     "TaggedEvent",
     "Transcoder",
 ]

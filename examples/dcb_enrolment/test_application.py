@@ -29,11 +29,13 @@ class TestEnrolmentWithAggregates(EnrolmentTestCase):
         app = EnrolmentWithAggregates()
 
         # Register courses.
-        french = app.register_course("French", places=5)
+        position0, french = app.register_course("French", places=5)
 
         # Register students.
-        sara = app.register_student("Sara", max_courses=3)
-        bastian = app.register_student("Bastian", max_courses=3)
+        position, sara = app.register_student("Sara", max_courses=3)
+        self.assertEqual(position, position0 + 1)
+        position, bastian = app.register_student("Bastian", max_courses=3)
+        self.assertEqual(position, position0 + 2)
 
         # Try to break recorded consistency with concurrent operation.
         assert isinstance(app, EnrolmentWithAggregates)
@@ -43,7 +45,8 @@ class TestEnrolmentWithAggregates(EnrolmentTestCase):
         course.accept_student(student.id)
 
         # During this operation, Bastian joins French.
-        app.join_course(bastian, french)
+        position = app.join_course(bastian, french)
+        self.assertEqual(position, position0 + 4)
 
         # Can't proceed with concurrent operation because course changed.
         with self.assertRaises(IntegrityError):

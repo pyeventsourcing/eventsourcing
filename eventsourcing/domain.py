@@ -10,6 +10,7 @@ from typing import (
     ClassVar,
     Self,
     cast,
+    final,
     get_args,
     get_type_hints,
     override,
@@ -367,21 +368,25 @@ class Selector[TDecision](SelectorProtocol[TDecision]):
     tags: Sequence[str] = ()
 
 
-class Slice[
-    TDecision,
-](
+class BaseSlice[TDecision](
     Perspective[TDecision],
     SupportsEventDecorator[TDecision],
     ABC,
 ):
-    do_projection: ClassVar[bool]
+    pass
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        cls.do_projection = len(cls.projected_types) != 0
 
+class CommandSlice[TDecision](BaseSlice[TDecision], ABC):
+    @abstractmethod
     def execute(self) -> None:
         pass
+
+
+class QuerySlice[TDecision](BaseSlice[TDecision]):
+    @final
+    def execute(self) -> None:
+        msg = "A query slice doesn't need to be executed"
+        raise ProgrammingError(msg)
 
 
 class Aggregate[

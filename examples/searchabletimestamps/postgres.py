@@ -78,7 +78,7 @@ class SearchableTimestampsApplicationRecorder(
             list[tuple[str, int, datetime]],
             kwargs.get("event_timestamps_data"),
         )
-        for (originator_id, originator_version, timestamp) in event_timestamps_data:
+        for originator_id, originator_version, timestamp in event_timestamps_data:
             curs.execute(
                 query=self.insert_event_timestamp_statement,
                 params=(originator_id, originator_version, timestamp),

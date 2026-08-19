@@ -51,40 +51,47 @@ class TestEnrolmentWithEnduringObjects(EnrolmentTestCase):
 
         assert isinstance(app, EnrolmentWithEnduringObjects)
         # Register student.
-        student_id = app.register_student(name="Max", max_courses=4)
+        position0, student_id = app.register_student(name="Max", max_courses=4)
 
         # Update name.
-        app.update_student_name(student_id, "Maxine")
+        position = app.update_student_name(student_id, "Maxine")
+        self.assertEqual(position, position0 + 1)
         student = app.get_student(student_id)
         self.assertEqual("Maxine", student.name)
 
         # Update max_courses.
-        app.update_max_courses(student_id, 10)
+        position = app.update_max_courses(student_id, 10)
+        self.assertEqual(position, position0 + 2)
         student = app.get_student(student_id)
         self.assertEqual(10, student.max_courses)
 
         # Register course.
-        course_id = app.register_course(name="Bio", places=3)
+        position, course_id = app.register_course(name="Bio", places=3)
+        self.assertEqual(position, position0 + 3)
 
         # Update name.
-        app.update_course_name(course_id, "Biology")
+        position = app.update_course_name(course_id, "Biology")
+        self.assertEqual(position, position0 + 4)
         course = app.get_course(course_id)
         self.assertEqual("Biology", course.name)
 
         # Update places.
-        app.update_places(course_id, 10)
+        position = app.update_places(course_id, 10)
+        self.assertEqual(position, position0 + 5)
         course = app.get_course(course_id)
         self.assertEqual(10, course.places)
 
         # Join course.
-        app.join_course(student_id=student_id, course_id=course_id)
+        position = app.join_course(student_id=student_id, course_id=course_id)
+        self.assertEqual(position, position0 + 6)
         student = app.get_student(student_id)
         course = app.get_course(course_id)
         self.assertEqual(student.course_ids, [course_id])
         self.assertEqual(course.student_ids, [student_id])
 
         # Leave course.
-        app.leave_course(student_id=student_id, course_id=course_id)
+        position = app.leave_course(student_id=student_id, course_id=course_id)
+        self.assertEqual(position, position0 + 7)
         student = app.get_student(student_id)
         course = app.get_course(course_id)
         self.assertEqual(student.course_ids, [])
@@ -93,7 +100,8 @@ class TestEnrolmentWithEnduringObjects(EnrolmentTestCase):
         # Can operate on enduring objects in group.
         group = app.repository.get_group(StudentAndCourse, student_id, course_id)
         group.student.update_max_courses(100)
-        app.repository.save(group.student)
+        position = app.repository.save(group.student)
+        self.assertEqual(position, position0 + 8)
         student = app.get_student(student_id)
         self.assertEqual(100, student.max_courses)
 

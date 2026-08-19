@@ -16,7 +16,11 @@ class Aggregate(eventsourcing.domain.Aggregate[Decision]):
     pass
 
 
-class Slice(eventsourcing.domain.Slice[Decision]):
+class CommandSlice(eventsourcing.domain.CommandSlice[Decision]):
+    pass
+
+
+class QuerySlice(eventsourcing.domain.QuerySlice[Decision]):
     pass
 
 

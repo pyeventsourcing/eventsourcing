@@ -328,6 +328,7 @@ class ProjectionRunner[
         super().close()
         self._factory.close()
 
+
 class EventSourcedProjectionRunner[
     TUpstream: SupportsApplicationSubscriptions[Any, Any],
     TDownstream: EventSourcedEventProcessor[Any],

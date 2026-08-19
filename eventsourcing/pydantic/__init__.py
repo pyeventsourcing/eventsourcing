@@ -18,10 +18,11 @@ from eventsourcing.pydantic.immutable import (
 from eventsourcing.pydantic.mutable import (
     Aggregate,
     AggregateState,
+    CommandSlice,
     EnduringObject,
     Group,
     MutableAggregateSnapshot,
-    Slice,
+    QuerySlice,
 )
 from eventsourcing.pydantic.transcoder import Transcoder
 
@@ -36,6 +37,7 @@ __all__ = [
     "AggregateEvent",
     "AggregateState",
     "AggregatesApplication",
+    "CommandSlice",
     "DcbApplication",
     "Decision",
     "EnduringObject",
@@ -46,8 +48,8 @@ __all__ = [
     "ImmutableAggregateSnapshot",
     "MutableAggregateSnapshot",
     "ProcessApplication",
+    "QuerySlice",
     "Selector",
-    "Slice",
     "TaggedEvent",
     "Transcoder",
 ]

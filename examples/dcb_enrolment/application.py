@@ -14,24 +14,22 @@ from examples.dcb_enrolment.interface import (
 
 class EnrolmentWithAggregates(AggregatesApplication, EnrolmentInterface):
     @override
-    def register_student(self, name: str, max_courses: int) -> str:
+    def register_student(self, name: str, max_courses: int) -> tuple[int, str]:
         student = Student(name, max_courses=max_courses)
-        self.save(student)
-        return student.id
+        return self.save(student) or 0, student.id
 
     @override
-    def register_course(self, name: str, places: int) -> str:
+    def register_course(self, name: str, places: int) -> tuple[int, str]:
         course = Course(name, places=places)
-        self.save(course)
-        return course.id
+        return self.save(course) or 0, course.id
 
     @override
-    def join_course(self, student_id: str, course_id: str) -> None:
+    def join_course(self, student_id: str, course_id: str) -> int:
         course = self.get_course(course_id)
         student = self.get_student(student_id)
         course.accept_student(student_id)
         student.join_course(course_id)
-        self.save(course, student)
+        return self.save(course, student) or 0
 
     @override
     def list_students_for_course(self, course_id: str) -> list[str]:

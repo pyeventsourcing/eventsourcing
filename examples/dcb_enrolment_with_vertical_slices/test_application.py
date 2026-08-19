@@ -54,23 +54,30 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
 
         assert isinstance(app, EnrolmentWithVerticalSlices)
         # Register student.
-        student_id = app.register_student(name="Max", max_courses=4)
+        position0, student_id = app.register_student(name="Max", max_courses=4)
 
         # Update name.
-        app.update_student_name(student_id, "Maxine")
+        position = app.update_student_name(student_id, "Maxine")
+        self.assertEqual(position, position0 + 1)
+
         student = app.get_student(student_id)
         self.assertEqual("Maxine", student.name)
 
         # Register course.
-        course_id = app.register_course(name="Bio", places=3)
+        position, course_id = app.register_course(name="Bio", places=3)
+        self.assertEqual(position, position0 + 2)
 
         # Update name.
-        app.update_course_name(course_id, "Biology")
+        position = app.update_course_name(course_id, "Biology")
+        self.assertEqual(position, position0 + 3)
+
         course = app.get_course(course_id)
         self.assertEqual("Biology", course.name)
 
         # Join course.
-        app.join_course(student_id=student_id, course_id=course_id)
+        position = app.join_course(student_id=student_id, course_id=course_id)
+        self.assertEqual(position, position0 + 4)
+
         student = app.get_student(student_id)
         course = app.get_course(course_id)
         self.assertEqual([course_id], student.course_ids)
@@ -85,19 +92,25 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
         self.assertEqual(["Biology"], names)
 
         # Leave course.
-        app.leave_course(student_id=student_id, course_id=course_id)
+        position = app.leave_course(student_id=student_id, course_id=course_id)
+        self.assertEqual(position, position0 + 5)
+
         student = app.get_student(student_id)
         course = app.get_course(course_id)
         self.assertEqual([], student.course_ids)
         self.assertEqual([], course.student_ids)
 
         # Update max_courses for student.
-        app.update_max_courses(student_id, 0)
+        position = app.update_max_courses(student_id, 0)
+        self.assertEqual(position, position0 + 6)
+
         student = app.get_student(student_id)
         self.assertEqual(0, student.max_courses)
 
         # Update places for course.
-        app.update_places(course_id, 0)
+        position = app.update_places(course_id, 0)
+        self.assertEqual(position, position0 + 7)
+
         course = app.get_course(course_id)
         self.assertEqual(0, course.places)
 
@@ -107,16 +120,18 @@ class TestEnrolmentWithVerticalSlices(EnrolmentTestCase):
             app.join_course(student_id=student_id, course_id=course_id)
 
         # Increase places.
-        app.update_places(course_id, 1)
+        position = app.update_places(course_id, 1)
+        self.assertEqual(position, position0 + 8)
 
         with self.assertRaises(TooManyCoursesError):
             app.join_course(student_id=student_id, course_id=course_id)
 
         # Increase max_courses.
-        app.update_max_courses(student_id, 1)
+        position = app.update_max_courses(student_id, 1)
+        self.assertEqual(position, position0 + 9)
 
         # Student can now rejoin course.
-        app.join_course(student_id=student_id, course_id=course_id)
+        position = app.join_course(student_id=student_id, course_id=course_id)
 
         # Check leaving a course doesn't conflict with concurrent name changes.
         leave = StudentLeavesCourse(student_id, course_id)

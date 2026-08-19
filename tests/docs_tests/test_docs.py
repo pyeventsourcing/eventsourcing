@@ -271,7 +271,7 @@ class TestDocs(TestCase):
 
         # Execute the code.
         lines[0] = "from __future__ import annotations"
-        lines[1] = "from eventsourcing.domain import datetime_now_with_tzinfo"
+        lines[1] = "from eventsourcing.timestamp import datetime_now_with_tzinfo"
         lines[2] = "started = datetime_now_with_tzinfo()"
         lines.append(
             "print(f'exec duration: "

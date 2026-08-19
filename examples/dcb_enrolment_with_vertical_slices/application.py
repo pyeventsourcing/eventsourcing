@@ -4,7 +4,13 @@ from typing import override
 from uuid import uuid4
 
 from eventsourcing.decorator import event
-from eventsourcing.pydantic import DcbApplication, Decision, Selector, Slice
+from eventsourcing.pydantic import (
+    CommandSlice,
+    DcbApplication,
+    Decision,
+    QuerySlice,
+    Selector,
+)
 from examples.dcb_enrolment.interface import (
     AlreadyJoinedError,
     CourseNotFoundError,
@@ -61,7 +67,7 @@ class StudentLeftCourse(StudentDecision, CourseDecision):
     pass
 
 
-class RegisterStudent(Slice):
+class RegisterStudent(CommandSlice):
     def __init__(self, name: str, max_courses: int):
         self.student_id = f"student-{uuid4()}"
         self.name = name
@@ -82,7 +88,7 @@ class RegisterStudent(Slice):
         )
 
 
-class UpdateStudentName(Slice):
+class UpdateStudentName(CommandSlice):
     def __init__(self, student_id: str, name: str) -> None:
         self.student_id = student_id
         self.name = name
@@ -109,7 +115,7 @@ class UpdateStudentName(Slice):
         )
 
 
-class UpdateMaxCourses(Slice):
+class UpdateMaxCourses(CommandSlice):
     def __init__(self, student_id: str, max_courses: int) -> None:
         self.student_id = student_id
         self.max_courses = max_courses
@@ -137,7 +143,7 @@ class UpdateMaxCourses(Slice):
         )
 
 
-class RegisterCourse(Slice):
+class RegisterCourse(CommandSlice):
     def __init__(self, name: str, places: int):
         self.name = name
         self.places = places
@@ -158,7 +164,7 @@ class RegisterCourse(Slice):
         )
 
 
-class UpdateCourseName(Slice):
+class UpdateCourseName(CommandSlice):
     def __init__(self, course_id: str, name: str) -> None:
         self.course_id = course_id
         self.name = name
@@ -185,7 +191,7 @@ class UpdateCourseName(Slice):
         )
 
 
-class UpdatePlaces(Slice):
+class UpdatePlaces(CommandSlice):
     def __init__(self, course_id: str, places: int) -> None:
         self.course_id = course_id
         self.places = places
@@ -212,7 +218,7 @@ class UpdatePlaces(Slice):
         )
 
 
-class StudentJoinsCourse(Slice):
+class StudentJoinsCourse(CommandSlice):
     def __init__(self, student_id: str, course_id: str) -> None:
         self.student_id = student_id
         self.course_id = course_id
@@ -298,7 +304,7 @@ class StudentJoinsCourse(Slice):
         )
 
 
-class StudentLeavesCourse(Slice):
+class StudentLeavesCourse(CommandSlice):
     def __init__(self, student_id: str, course_id: str) -> None:
         self.student_id = student_id
         self.course_id = course_id
@@ -358,7 +364,7 @@ class StudentLeavesCourse(Slice):
         )
 
 
-class StudentsIDs(Slice):
+class StudentsIDs(QuerySlice):
     def __init__(self, course_id: str) -> None:
         self.course_id = course_id
         self.student_ids: list[str] = []
@@ -378,7 +384,7 @@ class StudentsIDs(Slice):
         self.student_ids.remove(student_id)
 
 
-class StudentNames(Slice):
+class StudentNames(QuerySlice):
     def __init__(self, student_ids: list[str]) -> None:
         self.student_id_names: dict[str, str | None] = dict.fromkeys(student_ids, None)
 
@@ -402,7 +408,7 @@ class StudentNames(Slice):
         return [n for n in self.student_id_names.values() if n]
 
 
-class CourseIDs(Slice):
+class CourseIDs(QuerySlice):
     def __init__(self, student_id: str) -> None:
         self.student_id = student_id
         self.course_ids: list[str] = []
@@ -422,7 +428,7 @@ class CourseIDs(Slice):
         self.course_ids.remove(course_id)
 
 
-class CourseNames(Slice):
+class CourseNames(QuerySlice):
     def __init__(self, course_ids: list[str]) -> None:
         self.course_id_names: dict[str, str | None] = dict.fromkeys(course_ids, None)
 
@@ -446,7 +452,7 @@ class CourseNames(Slice):
         return [n for n in self.course_id_names.values() if n]
 
 
-class Student(Slice):
+class Student(QuerySlice):
     def __init__(self, student_id: str) -> None:
         self.student_id = student_id
         self.student_was_registered: bool = False
@@ -481,7 +487,7 @@ class Student(Slice):
         self.course_ids.remove(course_id)
 
 
-class Course(Slice):
+class Course(QuerySlice):
     def __init__(self, course_id: str) -> None:
         self.course_id = course_id
         self.course_was_registered: bool = False
@@ -518,56 +524,44 @@ class Course(Slice):
 
 class EnrolmentWithVerticalSlices(DcbApplication, EnrolmentInterface):
     @override
-    def register_student(self, name: str, max_courses: int) -> str:
-        register_student = RegisterStudent(name, max_courses)
-        self.execute(register_student)
-        return register_student.student_id
+    def register_student(self, name: str, max_courses: int) -> tuple[int, str]:
+        cmd = RegisterStudent(name, max_courses)
+        return self.do(cmd), cmd.student_id
 
     @override
-    def register_course(self, name: str, places: int) -> str:
-        register_course = RegisterCourse(name, places)
-        self.execute(register_course)
-        return register_course.course_id
+    def register_course(self, name: str, places: int) -> tuple[int, str]:
+        cmd = RegisterCourse(name, places)
+        return self.do(cmd), cmd.course_id
 
     @override
-    def join_course(self, student_id: str, course_id: str) -> None:
-        self.execute(StudentJoinsCourse(student_id, course_id))
+    def join_course(self, student_id: str, course_id: str) -> int:
+        return self.do(StudentJoinsCourse(student_id, course_id))
 
     @override
     def list_students_for_course(self, course_id: str) -> list[str]:
-        return self.evaluate(
-            StudentNames(self.evaluate(StudentsIDs(course_id)).student_ids)
-        ).names
+        return self.do(StudentNames(self.do(StudentsIDs(course_id)).student_ids)).names
 
     @override
     def list_courses_for_student(self, student_id: str) -> list[str]:
-        course_ids_slice = CourseIDs(student_id)
-        self.execute(course_ids_slice)
-        course_names_slice = CourseNames(course_ids_slice.course_ids)
-        self.execute(course_names_slice)
-        return course_names_slice.names
+        return self.do(CourseNames(self.do(CourseIDs(student_id)).course_ids)).names
 
-    def leave_course(self, student_id: str, course_id: str) -> None:
-        self.execute(StudentLeavesCourse(student_id, course_id))
+    def leave_course(self, student_id: str, course_id: str) -> int:
+        return self.do(StudentLeavesCourse(student_id, course_id))
 
-    def update_student_name(self, student_id: str, name: str) -> None:
-        self.execute(UpdateStudentName(student_id, name))
+    def update_student_name(self, student_id: str, name: str) -> int:
+        return self.do(UpdateStudentName(student_id, name))
 
-    def update_max_courses(self, student_id: str, max_courses: int) -> None:
-        self.execute(UpdateMaxCourses(student_id, max_courses))
+    def update_max_courses(self, student_id: str, max_courses: int) -> int:
+        return self.do(UpdateMaxCourses(student_id, max_courses))
 
-    def update_course_name(self, course_id: str, name: str) -> None:
-        self.execute(UpdateCourseName(course_id, name))
+    def update_course_name(self, course_id: str, name: str) -> int:
+        return self.do(UpdateCourseName(course_id, name))
 
-    def update_places(self, course_id: str, places: int) -> None:
-        self.execute(UpdatePlaces(course_id, places))
+    def update_places(self, course_id: str, places: int) -> int:
+        return self.do(UpdatePlaces(course_id, places))
 
     def get_student(self, student_id: str) -> Student:
-        student_slice = Student(student_id=student_id)
-        self.execute(student_slice)
-        return student_slice
+        return self.do(Student(student_id=student_id))
 
     def get_course(self, course_id: str) -> Course:
-        course = Course(course_id=course_id)
-        self.execute(course)
-        return course
+        return self.do(Course(course_id=course_id))

@@ -153,27 +153,25 @@ class StudentAndCourse(Group):
 
 class EnrolmentWithEnduringObjects(DcbApplication, EnrolmentInterface):
     @override
-    def register_student(self, name: str, max_courses: int) -> str:
+    def register_student(self, name: str, max_courses: int) -> tuple[int, str]:
         student = Student(name=name, max_courses=max_courses)
-        self.repository.save(student)
-        return student.id
+        return self.repository.save(student), student.id
 
     @override
-    def register_course(self, name: str, places: int) -> str:
+    def register_course(self, name: str, places: int) -> tuple[int, str]:
         course = Course(name=name, places=places)
-        self.repository.save(course)
-        return course.id
+        return self.repository.save(course), course.id
 
     @override
-    def join_course(self, student_id: str, course_id: str) -> None:
+    def join_course(self, student_id: str, course_id: str) -> int:
         group = self.repository.get_group(StudentAndCourse, student_id, course_id)
         group.student_joins_course()
-        self.repository.save(group)
+        return self.repository.save(group)
 
-    def leave_course(self, student_id: str, course_id: str) -> None:
+    def leave_course(self, student_id: str, course_id: str) -> int:
         group = self.repository.get_group(StudentAndCourse, student_id, course_id)
         group.student_leaves_course()
-        self.repository.save(group)
+        return self.repository.save(group)
 
     @override
     def list_students_for_course(self, course_id: str) -> list[str]:
@@ -187,25 +185,25 @@ class EnrolmentWithEnduringObjects(DcbApplication, EnrolmentInterface):
         courses = self.repository.get_many(student.course_ids, cls=Course)
         return [cast(Course, c).name for c in courses if c is not None]
 
-    def update_student_name(self, student_id: str, name: str) -> None:
+    def update_student_name(self, student_id: str, name: str) -> int:
         student = self.get_student(student_id)
         student.update_name(name)
-        self.repository.save(student)
+        return self.repository.save(student)
 
-    def update_max_courses(self, student_id: str, max_courses: int) -> None:
+    def update_max_courses(self, student_id: str, max_courses: int) -> int:
         student = self.get_student(student_id)
         student.update_max_courses(max_courses)
-        self.repository.save(student)
+        return self.repository.save(student)
 
-    def update_course_name(self, course_id: str, name: str) -> None:
+    def update_course_name(self, course_id: str, name: str) -> int:
         course = self.get_course(course_id)
         course.update_name(name)
-        self.repository.save(course)
+        return self.repository.save(course)
 
-    def update_places(self, course_id: str, max_courses: int) -> None:
+    def update_places(self, course_id: str, max_courses: int) -> int:
         course = self.get_course(course_id)
         course.update_places(max_courses)
-        self.repository.save(course)
+        return self.repository.save(course)
 
     def get_student(self, student_id: str) -> Student:
         return self.repository.get(student_id, Student)

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, ClassVar, override
-
-from typing_extensions import deprecated
+from typing import TYPE_CHECKING, Any, ClassVar, overload, override
 
 from eventsourcing.application import (
     AbstractApplicationSubscription,
@@ -17,11 +15,12 @@ from eventsourcing.dcb.persistence import (
     NotFoundError,
 )
 from eventsourcing.domain import (
+    CommandSlice,
     EnduringObject,
     Group,
     Perspective,
+    QuerySlice,
     Selector,
-    Slice,
     TaggedEvent,
 )
 from eventsourcing.metadata import null_metadata_in_context
@@ -121,33 +120,23 @@ class DcbApplication[TDecision](
     def construct_transcoder(self) -> Transcoder[TDecision]:
         return self.factory.transcoder()
 
-    @deprecated("Use execute() for commands and evaluate() for queries")
-    def do[TSlice: Slice[Any]](self, s: TSlice) -> TSlice:
-        """
-        Advances and executes a slice, then saves new decisions.
-        """
-        if s.__class__.do_projection:
-            s = self.repository.advance(s)
-        s.execute()
-        if s.new_decisions:
-            self.repository.save(s)
-        return s
+    @overload
+    def do(self, s: CommandSlice[Any]) -> int: ...
 
-    def execute(self, s: Slice[TDecision]) -> int | None:
+    @overload
+    def do[TSlice: QuerySlice[Any]](self, s: TSlice) -> TSlice: ...
+
+    def do[TSlice: CommandSlice[Any] | QuerySlice[Any]](
+        self, s: TSlice
+    ) -> TSlice | int:
         """
-        Advances and executes slice, saves events, returns sequence position.
+        For commands: advances and executes slice, saves events, returns
+        sequence position. For queries: Advances and return slice.
         """
-        if s.do_projection:
-            s = self.repository.advance(s)
-        s.execute()
-        if s.new_decisions:
+        if isinstance(s, CommandSlice):
+            self.repository.advance(s).execute()
             return self.repository.save(s)
-        return None
-
-    def evaluate[TSlice: Slice[Any]](self, s: TSlice) -> TSlice:
-        """
-        Advances and return slice.
-        """
+        assert isinstance(s, QuerySlice)
         return self.repository.advance(s)
 
     @override

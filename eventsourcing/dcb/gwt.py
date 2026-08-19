@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from eventsourcing.domain import (
-    Slice,
+    CommandSlice,
+    QuerySlice,
 )
 from eventsourcing.types import (
     SelectorProtocol,
@@ -48,7 +49,7 @@ def boundary_matches[TDecision](
     return any(selector_matches(selector, event) for selector in selectors)
 
 
-class Then[TSlice: Slice[Any], TDecision]:
+class Then[TSlice: CommandSlice[Any] | QuerySlice[Any], TDecision]:
     def __init__(
         self,
         expected: Sequence[TaggedEventProtocol[TDecision]],
@@ -73,7 +74,7 @@ class Then[TSlice: Slice[Any], TDecision]:
             ), f"Event {i} tags mismatch: expected {exp.tags}, got {actual.tags}"
 
 
-class When[TSlice: Slice[Any]]:
+class When[TSlice: CommandSlice[Any] | QuerySlice[Any]]:
     def __init__(
         self,
         given_events: Sequence[Any],
@@ -92,7 +93,8 @@ class When[TSlice: Slice[Any]]:
             assert isinstance(event, StateMutatorProtocol)
             event.mutate(self.slice)
 
-        self.slice.execute()
+        if isinstance(self.slice, CommandSlice):
+            self.slice.execute()
         self.collected = list(self.slice.collect_events())
 
     def then(
@@ -109,14 +111,16 @@ class Given:
     ):
         self.events = list(events)
 
-    def when[TSlice: Slice[Any]](self, slice_: TSlice, /) -> When[TSlice]:
+    def when[TSlice: CommandSlice[Any] | QuerySlice[Any]](
+        self, slice_: TSlice, /
+    ) -> When[TSlice]:
         return When(
             given_events=self.events,
             slice_=slice_,
         )
 
 
-class WhenSlice[TSlice: Slice[Any]]:
+class WhenSlice[TSlice: CommandSlice[Any] | QuerySlice[Any]]:
     def __init__(self, slice_: TSlice):
         self.slice = slice_
 
@@ -136,5 +140,7 @@ def given(
     return Given(*events)
 
 
-def when[TSlice: Slice[Any]](slice_: TSlice, /) -> WhenSlice[TSlice]:
+def when[TSlice: CommandSlice[Any] | QuerySlice[Any]](
+    slice_: TSlice, /
+) -> WhenSlice[TSlice]:
     return WhenSlice(slice_)

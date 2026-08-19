@@ -137,15 +137,15 @@ class DogSummary(TypedDict):
 
 
 class DogSchool(DcbApplication):
-    def register_dog(self, name: str) -> str:
+    def register_dog(self, name: str) -> tuple[int, str]:
         dog = Dog(name=name)
-        self.repository.save(dog)
-        return dog.id
+        position = self.repository.save(dog)
+        return position, dog.id
 
-    def add_trick(self, dog_id: str, trick: str) -> None:
+    def add_trick(self, dog_id: str, trick: str) -> int:
         dog = self.repository.get(dog_id, Dog)
         dog.add_trick(trick)
-        self.repository.save(dog)
+        return self.repository.save(dog) or 0
 
     def get_dog(self, dog_id: str) -> DogSummary:
         dog = self.repository.get(dog_id, Dog)
@@ -180,10 +180,10 @@ In this example, the three use cases are implemented as `RegisterDog`, `AddTrick
 ```python
 from uuid import uuid4
 
-from eventsourcing.pydantic import Selector, Slice
+from eventsourcing.pydantic import Selector, CommandSlice, QuerySlice
 
 
-class RegisterDog(Slice):
+class RegisterDog(CommandSlice):
     # 1. Use case parameters expressed as constructor params.
     def __init__(self, name: str) -> None:
         self.dog_id = f"dog-{uuid4()!s}"
@@ -210,7 +210,7 @@ class RegisterDog(Slice):
         )
 
 
-class AddTrick(Slice):
+class AddTrick(CommandSlice):
     # 1. Use case parameters expressed as constructor params.
     def __init__(self, dog_id: str, trick: str) -> None:
         self.dog_id = dog_id
@@ -238,7 +238,7 @@ class AddTrick(Slice):
         )
 
 
-class DogView(Slice):
+class DogView(QuerySlice):
     # 1. Use case parameters expressed as constructor params.
     def __init__(self, dog_id: str) -> None:
         self.dog_id = dog_id
@@ -260,6 +260,10 @@ class DogView(Slice):
     def _(self, trick: str) -> None:
         self.tricks.append(trick)
 
+    @property
+    def summary(self) -> DogSummary:
+        return {'name': self.name, 'tricks': tuple(self.tricks)}
+
     # 4. No execute() method - views don't need to trigger events.
 ```
 
@@ -271,15 +275,15 @@ and provides a `do()` method especially for vertical slices.
 
 ```python
 class DogSchoolWithSlices(DcbApplication):
-    def register_dog(self, name: str) -> str:
-        return self.execute(RegisterDog(name=name)).dog_id
+    def register_dog(self, name: str) -> tuple[int, str]:
+        cmd = RegisterDog(name=name)
+        return self.do(cmd), cmd.dog_id
 
-    def add_trick(self, dog_id: str, trick: str) -> None:
-        self.execute(AddTrick(dog_id=dog_id, trick=trick))
+    def add_trick(self, dog_id: str, trick: str) -> int:
+        return self.do(AddTrick(dog_id=dog_id, trick=trick))
 
     def get_dog(self, dog_id: str) -> DogSummary:
-        dog = self.execute(DogView(dog_id))
-        return {'name': dog.name, 'tricks': tuple(dog.tricks)}
+        return self.do(DogView(dog_id)).summary
 ```
 
 ### Tests and interfaces
@@ -309,15 +313,20 @@ def test_dog_school(
     app = cls(env=env)
 
     # Get current max sequence position.
-    head = app.events.recorder.head()
+    head = app.events.recorder.head() or 0
 
     # Context attributes become event metadata.
     context_attributes = {"user_id": "user-123"}
     with put_metadata_in_context(context_attributes):
         # Evolve application state.
-        dog_id = app.register_dog('Fido')
-        app.add_trick(dog_id, 'roll over')
-        app.add_trick(dog_id, 'play dead')
+        position, dog_id = app.register_dog('Fido')
+        assert position == head + 1
+
+        position = app.add_trick(dog_id, 'roll over')
+        assert position == head + 2
+
+        position = app.add_trick(dog_id, 'play dead')
+        assert position == head + 3
 
     # Query application state.
     dog = app.get_dog(dog_id)
@@ -329,7 +338,6 @@ def test_dog_school(
     assert len(events) == 3
 
     # Check the event decisions.
-    print(f"Dog ID: {dog_id}")
     assert isinstance(events[0].decision, DogRegistered)
     assert isinstance(events[1].decision, TrickAdded)
     assert isinstance(events[2].decision, TrickAdded)

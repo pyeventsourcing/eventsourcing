@@ -416,17 +416,19 @@ if __name__ == "__main__":
                 break
             course_ids = []
             for _ in range(NUM_COURSES):
-                course_ids.append(
-                    app.register_course(f"course-{next(r_courses)}", NUM_STUDENTS)
+                _, course_id = app.register_course(
+                    f"course-{next(r_courses)}", NUM_STUDENTS
                 )
+                course_ids.append(course_id)
                 report_ops += 1
                 if interrupted:
                     break
             student_ids = []
             for _ in range(NUM_STUDENTS):
-                student_ids.append(
-                    app.register_student(f"student-{next(r_students)}", NUM_COURSES)
+                _, student_id = app.register_student(
+                    f"student-{next(r_students)}", NUM_COURSES
                 )
+                student_ids.append(student_id)
                 report_ops += 1
                 if interrupted:
                     break

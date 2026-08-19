@@ -5,9 +5,9 @@ from unittest import TestCase
 from eventsourcing.dataclasses import Decision, EnduringObject
 from eventsourcing.decorator import triggers
 from eventsourcing.domain import (
+    CommandSlice,
     Group,
     Selector,
-    Slice,
     TaggedEvent,
 )
 from eventsourcing.errors import ProgrammingError
@@ -190,7 +190,7 @@ class TestSlice(TestCase):
         class Updated(Decision):
             a: str
 
-        class Create(Slice[Decision]):
+        class Create(CommandSlice[Decision]):
             def __init__(self, obj_id: str, a: str) -> None:
                 self.obj_id = obj_id
                 self.a = a
@@ -209,7 +209,7 @@ class TestSlice(TestCase):
                     a=self.a,
                 )
 
-        class Update(Slice[Decision]):
+        class Update(CommandSlice[Decision]):
             def __init__(self, obj_id: str, a: str):
                 self.obj_id = obj_id
                 self.a = ""
@@ -284,7 +284,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
                 self.a = a
 
         # Define a slice that will just update "a".
-        class Update(Slice[Decision]):
+        class Update(CommandSlice[Decision]):
             def __init__(self, my_object_id: str, a: str):
                 self.my_object_id = my_object_id
                 self.a = ""
@@ -341,7 +341,7 @@ class TestSlideBetweenEnduringObjectsAndSlices(TestCase):
         self.assertEqual("3", copy1.a)
 
         # Define a slice that creates an enduring object.
-        class Create(Slice[Decision]):
+        class Create(CommandSlice[Decision]):
             def __init__(self, obj_id: str, a: str):
                 self.obj_id = obj_id
                 self.a = a

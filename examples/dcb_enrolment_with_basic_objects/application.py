@@ -18,7 +18,7 @@ from examples.dcb_enrolment.interface import (
 
 class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
     @override
-    def register_student(self, name: str, max_courses: int) -> str:
+    def register_student(self, name: str, max_courses: int) -> tuple[int, str]:
         student_id = f"student-{uuid4()}"
         consistency_boundary = DcbQuery(
             items=[DcbQueryItem(tags=[student_id])],
@@ -30,16 +30,16 @@ class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
             uuid=uuid4(),
             metadata={},
         )
-        self.recorder.append(
+        position = self.recorder.append(
             events=[student_registered],
             condition=DcbAppendCondition(
                 fail_if_events_match=consistency_boundary,
             ),
         )
-        return student_id
+        return position, student_id
 
     @override
-    def register_course(self, name: str, places: int) -> str:
+    def register_course(self, name: str, places: int) -> tuple[int, str]:
         course_id = f"course-{uuid4()}"
         course_registered = DcbEvent(
             type="CourseRegistered",
@@ -51,16 +51,16 @@ class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
         consistency_boundary = DcbQuery(
             items=[DcbQueryItem(tags=[course_id])],
         )
-        self.recorder.append(
+        position = self.recorder.append(
             events=[course_registered],
             condition=DcbAppendCondition(
                 fail_if_events_match=consistency_boundary,
             ),
         )
-        return course_id
+        return position, course_id
 
     @override
-    def join_course(self, student_id: str, course_id: str) -> None:
+    def join_course(self, student_id: str, course_id: str) -> int:
         # Decide the consistency boundary.
         consistency_boundary = DcbQuery(
             items=[
@@ -122,7 +122,7 @@ class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
         )
 
         # Append using the same consistency boundary as the fail condition.
-        self.recorder.append(
+        return self.recorder.append(
             events=[student_joined_course],
             condition=DcbAppendCondition(
                 fail_if_events_match=consistency_boundary,
