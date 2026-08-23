@@ -758,7 +758,7 @@ class AggregatesApplication[
     SupportsTranscoding[TDecision],
     SupportsApplicationSubscriptions[
         TDecision,
-        AggregatesApplicationSubscription[TDecision,],
+        AggregatesApplicationSubscription[TDecision],
     ],
 ):
     """Base class for event-sourced applications."""
