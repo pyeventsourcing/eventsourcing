@@ -59,6 +59,7 @@ docs/_build/
 target/
 
 .idea/
+.junie/
 eventsourcing/tests/djangoproject/db.sqlite3
 .mypy_cache/
 .dmypy.json
@@ -75,3 +76,5 @@ venv
 #VS Code IDE
 .vscode
 
+benchmark*.svg
+uma.db
