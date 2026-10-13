@@ -12,7 +12,6 @@ import psycopg.errors
 import psycopg_pool
 from psycopg import Connection, Cursor, Error
 from psycopg.errors import DuplicateObject
-from psycopg.generators import notifies
 from psycopg.rows import DictRow, dict_row
 from psycopg.sql import SQL, Composed, Identifier
 from psycopg.types.composite import CompositeInfo, register_composite
@@ -843,16 +842,12 @@ class PostgresSubscription(ListenNotifySubscription[PostgresApplicationRecorder]
                     SQL("LISTEN {0}").format(Identifier(self._recorder.channel_name))
                 )
                 while not self._has_been_stopped and not self._thread_error:
-                    # This block simplifies psycopg's conn.notifies(), because
-                    # we aren't interested in the actual notify messages, and
-                    # also we want to stop consuming notify messages when the
-                    # subscription has an error or is otherwise stopped.
-                    with conn.lock:
-                        try:
-                            if conn.wait(notifies(conn.pgconn), interval=0.1):
-                                self._has_been_notified.set()
-                        except NO_TRACEBACK as ex:  # pragma: no cover
-                            raise ex.with_traceback(None) from None
+                    # Wait for at most 0.1s so that the loop condition is
+                    # checked regularly, and the thread can stop even when
+                    # no notify messages are received. We aren't interested
+                    # in the actual notify messages, just that one arrived.
+                    for _ in conn.notifies(timeout=0.1, stop_after=1):
+                        self._has_been_notified.set()
 
         except BaseException as e:
             if self._thread_error is None:
