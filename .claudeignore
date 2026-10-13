@@ -1,0 +1,8 @@
+**/.mypy_cache/**
+**/.tox/**
+**/venv/**
+**/env/**
+**/docs/_build/**
+**/*.db
+**/*.sqlite3
+**/*.pickle
