@@ -24,6 +24,12 @@ with previous major versions. However the underlying principles are the
 same, and so conversion of code and stored events is very possible.
 
 
+Version 9.5.6 (released 13 Oct 2026)
+------------------------------------
+
+* Fixed hang with psycopg 3.3.6. Use public Connection.notifies() in Postgres subscriptions.
+  Thanks to Marcin Rozmus (@MRozmus on GitHub, issue #312, PR #313).
+
 Version 9.5.5 (released 5 May 2026)
 -----------------------------------
 
