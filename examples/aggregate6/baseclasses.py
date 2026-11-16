@@ -5,7 +5,7 @@ from datetime import datetime  # noqa: TC003
 from typing import Any
 
 from eventsourcing.dataclasses import Decision
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from eventsourcing.timestamp import datetime_now_with_tzinfo
 
 
@@ -25,11 +25,11 @@ class Snapshot(DomainEvent):
     state: dict[str, Any]
 
     @classmethod
-    def take(cls, aggregate: Aggregate) -> AggregateEvent[Decision]:
+    def take(cls, aggregate: Aggregate) -> StreamEvent[Decision]:
         decision = Snapshot(
             state=aggregate.__dict__,
         )
-        return AggregateEvent(
+        return StreamEvent(
             decision=decision,
             stream_id=aggregate.id,
             stream_position=aggregate.version,

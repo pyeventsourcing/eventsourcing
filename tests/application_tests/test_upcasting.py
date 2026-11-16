@@ -9,7 +9,7 @@
 # from uuid import uuid4
 #
 # from eventsourcing.application import Application
-# from eventsourcing.domain_old import Aggregate, AggregateEvent
+# from eventsourcing.domain_old import Aggregate, StreamEvent
 # from eventsourcing.utils import EnvType, _topic_cache, clear_topic_cache, get_topic
 #
 #
@@ -417,7 +417,7 @@
 #         def set_d(self, value: Decimal) -> None:
 #             self.trigger_event(self.DUpdated, d=value)
 #
-#         class DUpdated(AggregateEvent):
+#         class DUpdated(StreamEvent):
 #             d: Decimal
 #
 #             def apply(self, aggregate: TestUpcasting.UpcastFixtureV4) -> None:

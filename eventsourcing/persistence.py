@@ -20,7 +20,7 @@ from typing import (
 from eventsourcing.dcb.api import DcbEvent
 from eventsourcing.domain import (
     NIL_UUID,
-    AggregateEvent,
+    StreamEvent,
     TaggedEvent,
 )
 from eventsourcing.errors import (
@@ -454,7 +454,7 @@ class EventStore[TDecision]:
 
     def __init__(
         self,
-        mapper: Mapper[AggregateEvent[TDecision], TDecision],
+        mapper: Mapper[StreamEvent[TDecision], TDecision],
         recorder: AggregateRecorder,
     ):
         self.mapper = mapper
@@ -462,7 +462,7 @@ class EventStore[TDecision]:
 
     def put(
         self,
-        domain_events: Sequence[AggregateEvent[TDecision]],
+        domain_events: Sequence[StreamEvent[TDecision]],
         **kwargs: Any,
     ) -> int | None:
         """Stores domain events in aggregate sequence."""
@@ -477,7 +477,7 @@ class EventStore[TDecision]:
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> Iterator[AggregateEvent[TDecision]]:
+    ) -> Iterator[StreamEvent[TDecision]]:
         """Retrieves domain events from aggregate sequence."""
         with null_metadata_in_context():
             return map(
@@ -629,8 +629,8 @@ class InfrastructureFactory[TTrackingRecorder: TrackingRecorder](
     def mapper[TDecision](
         self,
         transcoder: Transcoder[TDecision] | None = None,
-        mapper_class: type[AggregateEventMapper[TDecision]] | None = None,
-    ) -> AggregateEventMapper[TDecision]:
+        mapper_class: type[StreamEventMapper[TDecision]] | None = None,
+    ) -> StreamEventMapper[TDecision]:
         """Constructs a mapper."""
         # Resolve MAPPER_TOPIC if no given class.
         if mapper_class is None:
@@ -638,13 +638,13 @@ class InfrastructureFactory[TTrackingRecorder: TrackingRecorder](
             if mapper_topic:
                 mapper_class = resolve_topic(mapper_topic)
         if mapper_class is None:
-            mapper_class = AggregateEventMapper[TDecision]
+            mapper_class = StreamEventMapper[TDecision]
 
         # Check we have a mapper class.
         assert mapper_class is not None
         origin_mapper_class = get_origin(mapper_class) or mapper_class
         assert isinstance(origin_mapper_class, type), mapper_class
-        assert issubclass(origin_mapper_class, AggregateEventMapper), mapper_class
+        assert issubclass(origin_mapper_class, StreamEventMapper), mapper_class
 
         # Construct and return a mapper.
         return mapper_class(
@@ -655,7 +655,7 @@ class InfrastructureFactory[TTrackingRecorder: TrackingRecorder](
 
     def event_store[TDecision](
         self,
-        mapper: Mapper[AggregateEvent[TDecision], TDecision] | None = None,
+        mapper: Mapper[StreamEvent[TDecision], TDecision] | None = None,
         recorder: AggregateRecorder | None = None,
     ) -> EventStore[TDecision]:
         """Constructs an event store."""
@@ -1237,9 +1237,9 @@ class ListenNotifyApplicationRecorderSubscription[
                 break
 
 
-class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecision]):
+class StreamEventMapper[TDecision](Mapper[StreamEvent[TDecision], TDecision]):
     @override
-    def to_stored_event(self, domain_event: AggregateEvent[TDecision]) -> StoredEvent:
+    def to_stored_event(self, domain_event: StreamEvent[TDecision]) -> StoredEvent:
         topic = get_topic(type(domain_event.decision))
         stored_state = self.transcoder.encode(domain_event.decision)
         if self.compressor:
@@ -1256,7 +1256,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
         )
 
     @override
-    def to_domain_event(self, stored_event: StoredEvent) -> AggregateEvent[TDecision]:
+    def to_domain_event(self, stored_event: StoredEvent) -> StreamEvent[TDecision]:
         stored_state = stored_event.state
         try:
             if self.cipher:
@@ -1274,7 +1274,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
             )
             raise MapperDeserialisationError(msg) from e
         else:
-            return AggregateEvent(
+            return StreamEvent(
                 decision=decision,
                 event_id=stored_event.event_id,
                 metadata=stored_event.metadata,

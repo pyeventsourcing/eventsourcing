@@ -10,7 +10,7 @@ from eventsourcing.application import (
     ProcessingEvent,
 )
 from eventsourcing.decorator import triggers
-from eventsourcing.domain import AggregateEvent, EventEnvelope
+from eventsourcing.domain import EventEnvelope, StreamEvent
 from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.msgspec import (
     Aggregate,
@@ -35,7 +35,7 @@ from eventsourcing.utils import get_topic
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from eventsourcing.types import AggregateEventProtocol
+    from eventsourcing.types import StreamEventProtocol
 
 
 class StudentAnalyticsView(TrackingRecorder):
@@ -205,7 +205,7 @@ class StudentAnalyticsEventProcessor(
                 self.view.insert_tracking(tracking)
 
 
-class AggregateEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
+class StreamEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
     TestCase, ABC
 ):
     view_class: type[TTrackingRecorder]
@@ -391,7 +391,7 @@ class CounterAggregatesApplication(EventSourcedProjection):
     @override
     def policy(
         self,
-        envelope: AggregateEvent[Decision],
+        envelope: StreamEvent[Decision],
         processing_event: ProcessingEvent[Decision],
     ) -> None:
         topic = get_topic(type(envelope.decision))
@@ -465,7 +465,7 @@ class EventSourcedProjectionTestCase(TestCase):
             self.assertEqual(1, runner.downstream_app.get_count(StudentNameChanged))
 
             # Check the correlation and causation IDs.
-            original_events: dict[str, AggregateEventProtocol[Decision]] = {}
+            original_events: dict[str, StreamEventProtocol[Decision]] = {}
             for notification in runner.upstream_app.notification_log.select(
                 start=app_max_id,
                 limit=10,

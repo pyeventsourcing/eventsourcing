@@ -18,7 +18,6 @@ from eventsourcing.errors import (
     ProgrammingError,
 )
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     AggregateRecorder,
     ApplicationRecorder,
     ConnectionPool,
@@ -27,6 +26,7 @@ from eventsourcing.persistence import (
     InternalError,
     ProcessRecorder,
     StoredEvent,
+    StreamEventMapper,
     Tracking,
     TrackingRecorder,
 )
@@ -478,7 +478,7 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase[SQLiteFactor
         self.env = Environment("TestCase")
         self.env[InfrastructureFactory.PERSISTENCE_MODULE] = SQLiteFactory.__module__
         self.env[SQLiteFactory.SQLITE_DBNAME] = ":memory:"
-        self.env[SQLiteFactory.MAPPER_TOPIC] = get_topic(AggregateEventMapper)
+        self.env[SQLiteFactory.MAPPER_TOPIC] = get_topic(StreamEventMapper)
         self.env[SQLiteFactory.TRANSCODER_TOPIC] = get_topic(Transcoder)
         super().setUp()
 

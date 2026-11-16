@@ -5,7 +5,7 @@ from unittest import TestCase
 
 from eventsourcing.pydantic import Decision, Transcoder
 from eventsourcing.tests.persistence import (
-    AggregateEventMapperTestCase,
+    StreamEventMapperTestCase,
     TaggedEventMapperTestCase,
 )
 
@@ -42,9 +42,7 @@ class TestPydanticTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase[Deci
         return MyPydanticDecision(a="1")
 
 
-class TestPydanticTranscoderWithAggregateEventMapper(
-    AggregateEventMapperTestCase[Decision]
-):
+class TestPydanticTranscoderWithStreamEventMapper(StreamEventMapperTestCase[Decision]):
     transcoder_class = Transcoder
 
     def test_aggregate_event_mapper(self) -> None:

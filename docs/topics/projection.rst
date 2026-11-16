@@ -194,7 +194,7 @@ The example below shows how a projection can be defined.
     from eventsourcing.projection import Projection
     from eventsourcing.utils import get_topic
 
-    class AggregateEventProjection(Projection["MyMaterialisedViewInterface"]):
+    class StreamEventProjection(Projection["MyMaterialisedViewInterface"]):
         context_name = "myprojection"
         topics = (get_topic(Aggregate.Event), )
 
@@ -323,7 +323,7 @@ signal after 1s.
     with ProjectionRunner(
         application_class=Application,
         view_class=MyPOPOMaterialisedView,
-        projection_class=AggregateEventProjection,
+        projection_class=StreamEventProjection,
         env={},
     ) as projection_runner:
 

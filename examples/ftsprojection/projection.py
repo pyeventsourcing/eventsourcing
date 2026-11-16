@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, override
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from eventsourcing.persistence import Tracking, TrackingRecorder
 from eventsourcing.postgres import PostgresTrackingRecorder
 from eventsourcing.projection import EventProcessor
@@ -31,10 +31,10 @@ class FtsViewInterface(FtsRecorder, TrackingRecorder, ABC):
         pass
 
 
-class FtsProjection(EventProcessor[AggregateEvent[Decision], FtsViewInterface]):
+class FtsProjection(EventProcessor[StreamEvent[Decision], FtsViewInterface]):
     @override
     def process_event(
-        self, envelope: AggregateEvent[Decision], tracking: Tracking
+        self, envelope: StreamEvent[Decision], tracking: Tracking
     ) -> None:
         match envelope.decision:
             case Page.Created(title=title, slug=slug, body=body):

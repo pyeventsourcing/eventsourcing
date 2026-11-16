@@ -5,20 +5,20 @@
 #
 # import msgspec
 #
-# from eventsourcing.domain import datetime_now_with_tzinfo, AggregateEvent
+# from eventsourcing.domain import datetime_now_with_tzinfo, StreamEvent
 # from eventsourcing.msgspec import immutable
 # from eventsourcing.msgspec.transcoder import MsgspecTranscoder
-# from eventsourcing.persistence import AggregateEventMapper
+# from eventsourcing.persistence import StreamEventMapper
 #
 # STRING_LIKE = {str, bytes, bytearray, memoryview}
 #
 #
 # class TestImmutableModel(TestCase):
 #     def setUp(self) -> None:
-#         self.mapper = AggregateEventMapper(MsgspecTranscoder())
+#         self.mapper = StreamEventMapper(MsgspecTranscoder())
 #
 #     def test_domain_event_uuid(self) -> None:
-#         envelope = AggregateEvent(
+#         envelope = StreamEvent(
 #             stream_id=uuid4(),
 #             stream_position=2,
 #             timestamp=datetime_now_with_tzinfo(),

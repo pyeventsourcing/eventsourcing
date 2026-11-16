@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, ClassVar, override
 from unittest import skipIf
 
 from eventsourcing.msgspec.transcoder import Transcoder
-from eventsourcing.persistence import AggregateEventMapper
+from eventsourcing.persistence import StreamEventMapper
 from eventsourcing.popo import POPOTrackingRecorder
 from eventsourcing.tests.projection import (
-    AggregateEventProjectionTestCase,
+    StreamEventProjectionTestCase,
     StudentAnalyticsView,
     StudentAnalyticsViewTestCase,
     TaggedEventProjectionTestCase,
@@ -54,11 +54,11 @@ class TestPOPOStudentAnalytics(StudentAnalyticsViewTestCase):
         return POPOStudentAnalyticsView()
 
 
-class TestAggregateEventProjectionWithPOPO(
-    AggregateEventProjectionTestCase[POPOStudentAnalyticsView]
+class TestStreamEventProjectionWithPOPO(
+    StreamEventProjectionTestCase[POPOStudentAnalyticsView]
 ):
     env: ClassVar[dict[str, str]] = {
-        "MAPPER_TOPIC": get_topic(AggregateEventMapper),
+        "MAPPER_TOPIC": get_topic(StreamEventMapper),
         "TRANSCODER_TOPIC": get_topic(Transcoder),
     }
     view_class = POPOStudentAnalyticsView
@@ -79,5 +79,5 @@ class TestTaggedEventCountersProjectionWithPOPO(TaggedEventProjectionTestCase):
 
 
 del TaggedEventProjectionTestCase
-del AggregateEventProjectionTestCase
+del StreamEventProjectionTestCase
 del StudentAnalyticsViewTestCase

@@ -12,7 +12,7 @@
 # from eventsourcing.domain_old import (
 #     Aggregate,
 #     AggregateCreated,
-#     AggregateEvent,
+#     StreamEvent,
 #     AggregateStrID,
 #     AggregateUuidID,
 #     BaseAggregate,
@@ -823,7 +823,7 @@
 #             def create_id() -> UUID:
 #                 return uuid4()
 #
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class Created(AggregateCreated):
@@ -904,21 +904,21 @@
 #         a = Aggregate()
 #
 #         # Check the aggregate can trigger further events.
-#         a.trigger_event(AggregateEvent)
+#         a.trigger_event(StreamEvent)
 #         self.assertLess(a.created_on, a.modified_on)
 #
 #         pending = a.collect_events()
 #         self.assertEqual(len(pending), 2)
 #         self.assertIsInstance(pending[0], AggregateCreated)
 #         self.assertEqual(pending[0].stream_position, 1)
-#         self.assertIsInstance(pending[1], AggregateEvent)
+#         self.assertIsInstance(pending[1], StreamEvent)
 #         self.assertEqual(pending[1].stream_position, 2)
 #
 #     def test_event_mutate_raises_stream_position_error(self) -> None:
 #         a = Aggregate()
 #
 #         # Try to mutate aggregate with an invalid domain event.
-#         event = AggregateEvent(
+#         event = StreamEvent(
 #             stream_id=a.id,
 #             stream_position=a.version,  # NB not +1.
 #         )
@@ -930,7 +930,7 @@
 #         a = Aggregate()
 #
 #         # Try to mutate aggregate with an invalid domain event.
-#         event = AggregateEvent(
+#         event = StreamEvent(
 #             stream_id=uuid4(),
 #             stream_position=a.version + 1,
 #         )
@@ -944,7 +944,7 @@
 #             def create(cls) -> MyAgg:
 #                 return cls._create(event_class=cls.Created, id=uuid4())
 #
-#             class ValueUpdated(AggregateEvent):
+#             class ValueUpdated(StreamEvent):
 #                 a: int
 #
 #         a = MyAgg.create()
@@ -964,7 +964,7 @@
 #
 #     # def test_raises_when_apply_method_returns_value(self) -> None:
 #     #     class MyAgg(Aggregate):
-#     #         class ValueUpdated(AggregateEvent):
+#     #         class ValueUpdated(StreamEvent):
 #     #             a: int
 #     #
 #     #             def apply(self, aggregate: TAggregate) -> None:
@@ -1004,7 +1004,7 @@
 #         self.assertEqual(a1, a1_copy)
 #
 #         # Check the aggregate can trigger further events.
-#         a1.trigger_event(AggregateEvent)
+#         a1.trigger_event(StreamEvent)
 #         self.assertNotEqual(a1, a1_copy)
 #         a1.collect_events()
 #         self.assertNotEqual(a1, a1_copy)
@@ -1028,7 +1028,7 @@
 #         self.assertEqual(a2, a2_copy)
 #
 #         # Check the aggregate can trigger further events.
-#         a2.trigger_event(AggregateEvent)
+#         a2.trigger_event(StreamEvent)
 #         self.assertNotEqual(a2, a2_copy)
 #         a2.collect_events()
 #         self.assertNotEqual(a2, a2_copy)
@@ -1045,7 +1045,7 @@
 #         )
 #         self.assertEqual(expect, repr(a))
 #
-#         a.trigger_event(AggregateEvent)
+#         a.trigger_event(StreamEvent)
 #
 #         expect = (
 #             f"Aggregate(id={a.id!r}, "
@@ -1060,7 +1060,7 @@
 #         class MyAggregate1(Aggregate):
 #             a: int
 #
-#             class ValueAssigned(AggregateEvent):
+#             class ValueAssigned(StreamEvent):
 #                 b: int
 #
 #                 def apply(self, aggregate: MyAggregate1) -> None:
@@ -1094,7 +1094,7 @@
 #         class MyAggregate2(Aggregate):
 #             a: int
 #
-#             class ValueAssigned(AggregateEvent):
+#             class ValueAssigned(StreamEvent):
 #                 b: int
 #
 #                 def apply(self, aggregate: MyAggregate2) -> None:
@@ -1125,7 +1125,7 @@
 #         self.assertEqual(expect, repr(a2))
 #
 #
-# class TestAggregateEventsAreSubclassed(TestCase):
+# class TestStreamEventsAreSubclassed(TestCase):
 #     def test_base_event_class_is_defined_if_missing(self) -> None:
 #         class MyAggregate(Aggregate):
 #             pass

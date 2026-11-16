@@ -11,12 +11,12 @@
 # from eventsourcing.domain_old import (
 #     Aggregate,
 #     AggregateCreated,
-#     AggregateEvent,
+#     StreamEvent,
 #     BaseAggregate,
 #     CanInitAggregate,
 #     CanMutateAggregate,
 #     CanSnapshotAggregate,
-#     GenericAggregateEvent,
+#     GenericStreamEvent,
 #     HasOriginatorIDVersion,
 #     OriginatorIDError,
 #     OriginatorVersionError,
@@ -367,7 +367,7 @@
 #         with self.assertRaises(TypeError) as cm:
 #
 #             class A(BaseAggregate):
-#                 class SubsequentEvent(AggregateEvent):
+#                 class SubsequentEvent(StreamEvent):
 #                     pass
 #
 #         self.assertIn("Base event class 'Event' not defined", str(cm.exception))
@@ -387,10 +387,10 @@
 #         with self.assertRaises(TypeError) as cm:
 #
 #             class A(BaseAggregate):
-#                 class Event(AggregateEvent):
+#                 class Event(StreamEvent):
 #                     pass
 #
-#                 class Started(AggregateEvent):
+#                 class Started(StreamEvent):
 #                     pass
 #
 #                 @event(Started)
@@ -402,7 +402,7 @@
 #
 #     def test_raises_not_implemented_error_if_create_id_not_implemented(self) -> None:
 #         class A(BaseAggregate):
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class Created(Event, AggregateCreated):
@@ -424,7 +424,7 @@
 #             def create_id() -> UUID:
 #                 return uuid4()
 #
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class Started(AggregateCreated):
@@ -451,7 +451,7 @@
 #             def create_id() -> UUID:
 #                 return uuid4()
 #
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class Started(AggregateCreated):
@@ -481,7 +481,7 @@
 #             def create_id() -> UUID:
 #                 return uuid4()
 #
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class Started(AggregateCreated):
@@ -579,7 +579,7 @@
 #                 def create_id() -> UUID:
 #                     return uuid4()
 #
-#                 class Event(AggregateEvent):
+#                 class Event(StreamEvent):
 #                     pass
 #
 #                 class Started(AggregateCreated):
@@ -600,7 +600,7 @@
 #             def create_id() -> UUID:
 #                 return uuid4()
 #
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class SomethingHappened(AggregateCreated):  # for coverage
@@ -623,7 +623,7 @@
 #             def create_id() -> UUID:
 #                 return uuid4()
 #
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class Started(AggregateCreated):
@@ -655,7 +655,7 @@
 #             def create_id() -> UUID:
 #                 return uuid4()
 #
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class Started(AggregateCreated):
@@ -678,7 +678,7 @@
 #             def create_id() -> UUID:
 #                 return uuid4()
 #
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class Started(AggregateCreated):
@@ -708,7 +708,7 @@
 #         # Issue #295 on GitHub.
 #         # https://github.com/pyeventsourcing/eventsourcing/issues/295
 #         class A(BaseAggregate):
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class Created(AggregateCreated, Event):
@@ -723,7 +723,7 @@
 #
 #         # This 'X' just makes sure we are picking up the synonymous B.Created class.
 #         # TODO: Move this aspect to a separate class...
-#         class X(AggregateEvent):
+#         class X(StreamEvent):
 #             pass
 #
 #         class B(A):
@@ -749,7 +749,7 @@
 #         # Issue #295 on GitHub.
 #         # https://github.com/pyeventsourcing/eventsourcing/issues/295
 #         class A(BaseAggregate):
-#             class Event(AggregateEvent):
+#             class Event(StreamEvent):
 #                 pass
 #
 #             class Created(Event, AggregateCreated):
@@ -908,7 +908,7 @@
 #         with self.assertRaises(TypeError) as cm:
 #
 #             class A(BaseAggregate[str]):
-#                 class Event(GenericAggregateEvent[str]):
+#                 class Event(GenericStreamEvent[str]):
 #                     pass
 #
 #                 class HasOriginatorIDVersionLike(HasOriginatorIDVersion):
@@ -926,7 +926,7 @@
 #         with self.assertRaises(TypeError) as cm:
 #
 #             class A(BaseAggregate[str]):
-#                 class Event(GenericAggregateEvent[str]):
+#                 class Event(GenericStreamEvent[str]):
 #                     pass
 #
 #                 class SnapshotLike(CanSnapshotAggregate):

@@ -2,7 +2,7 @@ import unittest
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.events import ClearedCart, SubmittedCart
 from examples.shopvertical.exceptions import CartAlreadySubmittedError
 from examples.shopvertical.slices.clear_cart.cmd import (
@@ -23,14 +23,14 @@ class TestClearCart(unittest.TestCase):
         new_events = cmd.handle(events)
         self.assertEqual(len(new_events), 1)
         self.assertIsInstance(new_events[0].decision, ClearedCart)
-        new_event = cast(AggregateEvent[ClearedCart], new_events[0])
+        new_event = cast(StreamEvent[ClearedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
         self.assertEqual(new_event.stream_position, 1)
 
     def test_clear_cart_after_submitted_cart(self) -> None:
         cart_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=SubmittedCart(),
                 stream_id=cart_id,
                 stream_position=1,

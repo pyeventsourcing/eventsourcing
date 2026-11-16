@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal  # noqa: TC003
 from typing import TYPE_CHECKING, override
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.common import Command, get_events, put_events
 from examples.shopvertical.events import AddedProductToShop
 from examples.shopvertical.exceptions import ProductAlreadyInShopError
@@ -23,7 +23,7 @@ class AddProductToShop(Command):
         if len(events):
             raise ProductAlreadyInShopError
         return (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedProductToShop(
                     name=self.name,
                     description=self.description,

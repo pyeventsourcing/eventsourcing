@@ -1,10 +1,10 @@
 from decimal import Decimal
 from unittest.case import TestCase
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     EventStore,
+    StreamEventMapper,
 )
 from eventsourcing.pydantic.immutable import Decision
 from eventsourcing.pydantic.transcoder import Transcoder
@@ -31,7 +31,7 @@ class TestEventStore(TestCase):
         # Construct event store.
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_store = EventStore[Decision](
-            mapper=AggregateEventMapper(Transcoder()),
+            mapper=StreamEventMapper(Transcoder()),
             recorder=recorder,
         )
         recorder.create_table()
@@ -51,7 +51,7 @@ class TestEventStore(TestCase):
             BankAccountWithPydantic
         )
         for event in events:
-            assert isinstance(event, AggregateEvent)
+            assert isinstance(event, StreamEvent)
             assert isinstance(event.decision, Decision)
             copy = event.mutate(copy)
 

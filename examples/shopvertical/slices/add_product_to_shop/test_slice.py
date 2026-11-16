@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, cast
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.events import AddedProductToShop
 from examples.shopvertical.exceptions import ProductAlreadyInShopError
 from examples.shopvertical.slices.add_product_to_shop.cmd import AddProductToShop
@@ -30,7 +30,7 @@ class TestAddProductToShop(TestCase):
         new_events = cmd.handle(product_events)
         self.assertEqual(len(new_events), 1)
         self.assertIsInstance(new_events[0].decision, AddedProductToShop)
-        new_event = cast(AggregateEvent[AddedProductToShop], new_events[0])
+        new_event = cast(StreamEvent[AddedProductToShop], new_events[0])
         self.assertEqual(new_event.stream_id, product_id)
         self.assertEqual(new_event.stream_position, 1)
         self.assertEqual(new_event.decision.name, "Coffee")
@@ -41,7 +41,7 @@ class TestAddProductToShop(TestCase):
         product_id = str(uuid4())
 
         product_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedProductToShop(
                     name="Tea",
                     description="A very nice tea",

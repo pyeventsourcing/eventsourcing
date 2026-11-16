@@ -10,7 +10,7 @@ from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
     from eventsourcing.application import ProcessingEvent
-    from eventsourcing.types import AggregateEventProtocol
+    from eventsourcing.types import StreamEventProtocol
 
 
 class FtsProcess(ProcessApplication):
@@ -21,7 +21,7 @@ class FtsProcess(ProcessApplication):
     @override
     def policy(
         self,
-        envelope: AggregateEventProtocol[Decision],
+        envelope: StreamEventProtocol[Decision],
         processing_event: ProcessingEvent[Decision],
     ) -> None:
         match envelope.decision:

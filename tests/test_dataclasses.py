@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 from eventsourcing.dataclasses import Decision, Transcoder
 from eventsourcing.tests.persistence import (
-    AggregateEventMapperTestCase,
+    StreamEventMapperTestCase,
     TaggedEventMapperTestCase,
 )
 from eventsourcing.timestamp import datetime_now_with_tzinfo
@@ -47,9 +47,7 @@ class TestDataclassTranscoderWithTaggedEventMapper(TaggedEventMapperTestCase[Dec
         )
 
 
-class TestDataclassTranscoderWithAggregateEventMapper(
-    AggregateEventMapperTestCase[Decision]
-):
+class TestDataclassTranscoderWithStreamEventMapper(StreamEventMapperTestCase[Decision]):
     transcoder_class = Transcoder
 
     def test_aggregate_event_mapper(self) -> None:

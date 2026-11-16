@@ -6,11 +6,11 @@ from uuid import uuid4
 
 from eventsourcing.dataclasses import Transcoder
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     AggregateRecorder,
     ApplicationRecorder,
     ProcessRecorder,
     StoredEvent,
+    StreamEventMapper,
     TrackingRecorder,
 )
 from eventsourcing.popo import (
@@ -175,7 +175,7 @@ class TestPOPOInfrastructureFactory(InfrastructureFactoryTestCase[POPOFactory]):
     @override
     def setUp(self) -> None:
         self.env = Environment("TestCase")
-        self.env[POPOFactory.MAPPER_TOPIC] = get_topic(AggregateEventMapper)
+        self.env[POPOFactory.MAPPER_TOPIC] = get_topic(StreamEventMapper)
         self.env[POPOFactory.TRANSCODER_TOPIC] = get_topic(Transcoder)
 
         super().setUp()

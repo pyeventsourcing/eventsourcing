@@ -3,7 +3,7 @@
 # from eventsourcing.application import Application
 # from eventsourcing.pydantic.transcoder import PydanticTranscoder
 # from eventsourcing.persistence import (
-#     AggregateEventMapper,
+#     StreamEventMapper,
 #     InfrastructureFactory,
 # )
 # from eventsourcing.utils import get_topic
@@ -16,7 +16,7 @@
 #         # PydanticApplication, because it overrides construct_mapper().
 #         Application(
 #             env={
-#                 InfrastructureFactory.MAPPER_TOPIC: get_topic(AggregateEventMapper),
+#                 InfrastructureFactory.MAPPER_TOPIC: get_topic(StreamEventMapper),
 #                 InfrastructureFactory.TRANSCODER_TOPIC: get_topic(PydanticTranscoder),
 #             }
 #         )

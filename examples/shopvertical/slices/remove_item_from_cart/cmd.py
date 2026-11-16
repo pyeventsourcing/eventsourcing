@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.common import Command, get_events, put_events
 from examples.shopvertical.events import (
     AddedItemToCart,
@@ -45,7 +45,7 @@ class RemoveItemFromCart(Command):
         if self.product_id not in product_ids:
             raise ProductNotInCartError
         return (
-            AggregateEvent(
+            StreamEvent(
                 decision=RemovedItemFromCart(
                     product_id=self.product_id,
                 ),

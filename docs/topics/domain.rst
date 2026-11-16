@@ -303,23 +303,23 @@ the state of its aggregates.
 
 Broadly speaking, there are three kinds of aggregate events: "created" events,
 "subsequent" events, and "discarded" events. In this library, the base class
-:class:`~eventsourcing.domain.AggregateEvent` is the common superclass of
+:class:`~eventsourcing.domain.StreamEvent` is the common superclass of
 all three kinds of aggregate events.
 
 
-The library's :class:`~eventsourcing.domain.AggregateEvent`
+The library's :class:`~eventsourcing.domain.StreamEvent`
 class is defined as a subclass of :class:`~eventsourcing.domain.DomainEvent`.
 It is also a frozen data class.
 
 .. code-block:: python
 
-    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.domain import StreamEvent
 
-The :class:`~eventsourcing.domain.AggregateEvent` class can be instantiated directly.
+The :class:`~eventsourcing.domain.StreamEvent` class can be instantiated directly.
 
 .. code-block:: python
 
-    aggregate_event = AggregateEvent(
+    aggregate_event = StreamEvent(
         stream_id=stream_id,
         stream_position=2,
         event_id=uuid4(),
@@ -330,20 +330,20 @@ The :class:`~eventsourcing.domain.AggregateEvent` class can be instantiated dire
     assert aggregate_event.metadata == {}
 
 
-The :class:`~eventsourcing.domain.AggregateEvent` class extends
+The :class:`~eventsourcing.domain.StreamEvent` class extends
 :class:`~eventsourcing.domain.DomainEvent` by inheriting
 :func:`~eventsourcing.domain.CanMutateAggregate.mutate` and
 :func:`~eventsourcing.domain.CanMutateAggregate.apply` from
 :class:`~eventsourcing.domain.CanMutateAggregate`.
 
-Although the :class:`~eventsourcing.domain.AggregateEvent` class can be
+Although the :class:`~eventsourcing.domain.StreamEvent` class can be
 instantiated directly, more typically subclasses are defined to code
 for the particular decisions made by an aggregate.
 
 The :func:`~eventsourcing.domain.CanMutateAggregate.mutate` method has
 an ``aggregate`` argument. Both the ``aggregate`` argument and the return
 value are typed as ``Optional``. This allows for three useful kinds of
-subclasses of :class:`~eventsourcing.domain.AggregateEvent` to all have
+subclasses of :class:`~eventsourcing.domain.StreamEvent` to all have
 the same method signature. "Created" events expect the ``aggregate`` argument
 to be ``None`` and will return a new aggregate object. "Subsequent" events
 expect the ``aggregate`` argument to be an aggregate object and will usually
@@ -368,7 +368,7 @@ particular "created" events in your model.
     from eventsourcing.domain import Aggregate, AggregateCreated
 
 
-:class:`~eventsourcing.domain.AggregateCreated` class extends the :class:`~eventsourcing.domain.AggregateEvent` class.
+:class:`~eventsourcing.domain.AggregateCreated` class extends the :class:`~eventsourcing.domain.StreamEvent` class.
 It is also a frozen data class.
 
 It defines an :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic` attribute,
@@ -482,7 +482,7 @@ The modified aggregate is then returned to the caller.
 
 .. code-block:: python
 
-    subsequent_event = AggregateEvent(
+    subsequent_event = StreamEvent(
         stream_id=stream_id,
         stream_position=2,
         event_id=uuid4(),
@@ -506,7 +506,7 @@ how a particular event evolves the state of a particular aggregate.
 
     from typing import Any
 
-    class MyEvent(AggregateEvent):
+    class MyEvent(StreamEvent):
         full_name: str
 
         def apply(self, aggregate: Any) -> None:
@@ -609,7 +609,7 @@ argument to be an aggregate object, but will return ``None``.
 
 If you need to model aggregates being "deleted" or "discarded" (perhaps so that they no
 longer appear to exist in an application repository) then it is possible to subclass
-the :class:`~eventsourcing.domain.AggregateEvent` class and override the
+the :class:`~eventsourcing.domain.StreamEvent` class and override the
 :func:`~eventsourcing.domain.CanMutateAggregate.mutate` with a method that returns ``None``.
 
 In the example below, an ``AggregateDiscarded`` event class is defined with a ``mutate()``
@@ -620,7 +620,7 @@ of events is then used to reconstruct the "current state" of the aggregate. The 
 
 .. code-block:: python
 
-    class AggregateDiscarded(AggregateEvent):
+    class AggregateDiscarded(StreamEvent):
         def mutate(self, aggregate: Any) -> Any:
             super().mutate(aggregate)
             return None
@@ -673,11 +673,11 @@ for an example of using strings for aggregate IDs.
 
 For convenience, the :class:`~eventsourcing.domain.Aggregate` class has a nested
 :class:`Aggregate.Event <eventsourcing.domain.Aggregate.Event>` class, which is defined
-as a subclass of :class:`~eventsourcing.domain.AggregateEvent`.
+as a subclass of :class:`~eventsourcing.domain.StreamEvent`.
 
 .. code-block:: python
 
-    assert issubclass(Aggregate.Event, AggregateEvent)
+    assert issubclass(Aggregate.Event, StreamEvent)
 
 
 The :class:`~eventsourcing.domain.Aggregate` class also has a nested :class:`Aggregate.Created <eventsourcing.domain.Aggregate.Created>` class.
@@ -875,7 +875,7 @@ state of the aggregate.
 The :func:`~eventsourcing.domain.Aggregate.trigger_event` method has a required
 positional argument ``event_class``. The value of this argument determines the type
 of event object that will be "triggered". The event class should derive from the
-:class:`~eventsourcing.domain.AggregateEvent` discussed :ref:`above <Aggregate events>`,
+:class:`~eventsourcing.domain.StreamEvent` discussed :ref:`above <Aggregate events>`,
 whilst not being a "created" event. The
 :class:`~eventsourcing.domain.Aggregate.Event` class can be used as a base class to
 define the subsequent aggregate event classes needed by in your domain model. For example,
@@ -2841,7 +2841,7 @@ that their topics will be registered and so can be resolved,
     class ServiceContract(BaseAggregate):
         TOPIC = "ServiceContract"
 
-        class Event(AggregateEvent):
+        class Event(StreamEvent):
             pass
 
         class Started(AggregateCreated, Event):

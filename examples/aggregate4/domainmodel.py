@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, override
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.aggregate4.baseclasses import (
     Aggregate,
     TimestampedDecision,
@@ -27,7 +27,7 @@ class Dog(Aggregate):
 
     @classmethod
     def register(cls, name: str) -> Dog:
-        event = AggregateEvent(
+        event = StreamEvent(
             decision=cls.Registered(
                 name=name,
             ),
@@ -43,7 +43,7 @@ class Dog(Aggregate):
         self.trigger_event(self.TrickAdded, trick=trick)
 
     @override
-    def apply_event(self, envelope: AggregateEvent[Decision]) -> None:
+    def apply_event(self, envelope: StreamEvent[Decision]) -> None:
         match envelope.decision:
             case Dog.Registered(timestamp=timestamp, name=name):
                 self.id = envelope.stream_id

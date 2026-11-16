@@ -20,12 +20,11 @@ from eventsourcing.cipher import AESCipher
 from eventsourcing.compressor import ZlibCompressor
 from eventsourcing.dataclasses.legacy import Transcoding
 from eventsourcing.domain import (
-    AggregateEvent,
+    StreamEvent,
     TaggedEvent,
 )
 from eventsourcing.errors import WaitInterruptedError
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     AggregateRecorder,
     ApplicationRecorder,
     Cipher,
@@ -36,6 +35,7 @@ from eventsourcing.persistence import (
     Notification,
     ProcessRecorder,
     StoredEvent,
+    StreamEventMapper,
     TaggedEventMapper,
     Tracking,
     TrackingRecorder,
@@ -1219,7 +1219,7 @@ class InfrastructureFactoryTestCase[TFactory: InfrastructureFactory[Any]](
         self.assertIsNone(mapper.cipher)
         self.assertIsNone(mapper.compressor)
 
-        class MapperSubclass(AggregateEventMapper[dataclasses.Decision]):
+        class MapperSubclass(StreamEventMapper[dataclasses.Decision]):
             pass
 
         mapper = self.factory.mapper(
@@ -1291,7 +1291,7 @@ class InfrastructureFactoryTestCase[TFactory: InfrastructureFactory[Any]](
             transcoder=self.transcoder,
         )
 
-        domain_event = AggregateEvent(
+        domain_event = StreamEvent(
             stream_id=str(uuid4()),
             stream_position=1,
             decision=dataclasses.Decision(),
@@ -1839,11 +1839,11 @@ class TaggedEventMapperTestCase[TDecision](TestCase, ABC):
         )
 
 
-class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
+class StreamEventMapperTestCase[TDecision](TestCase, ABC):
     transcoder_class: ClassVar[type[Transcoder[Any]]]
 
     def _test_aggregate_event_mapper(self) -> None:
-        event = AggregateEvent(
+        event = StreamEvent(
             stream_id=str(uuid4()),
             stream_position=10,
             decision=self.construct_decision(),
@@ -1857,7 +1857,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
-        self.assertEqual(type(copy), AggregateEvent)
+        self.assertEqual(type(copy), StreamEvent)
         self.assertEqual(copy.stream_id, event.stream_id)
         self.assertEqual(copy.stream_position, event.stream_position)
         self.assertEqual(copy.decision, event.decision)
@@ -1874,7 +1874,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
-        self.assertEqual(type(copy), AggregateEvent)
+        self.assertEqual(type(copy), StreamEvent)
         self.assertEqual(copy.stream_id, event.stream_id)
         self.assertEqual(copy.stream_position, event.stream_position)
         self.assertEqual(copy.decision, event.decision)
@@ -1893,7 +1893,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
-        self.assertEqual(type(copy), AggregateEvent)
+        self.assertEqual(type(copy), StreamEvent)
         self.assertEqual(copy.stream_id, event.stream_id)
         self.assertEqual(copy.stream_position, event.stream_position)
         self.assertEqual(copy.decision, event.decision)
@@ -1909,7 +1909,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
-        self.assertEqual(type(copy), AggregateEvent)
+        self.assertEqual(type(copy), StreamEvent)
         self.assertEqual(copy.stream_id, event.stream_id)
         self.assertEqual(copy.stream_position, event.stream_position)
         self.assertEqual(copy.decision, event.decision)
@@ -1924,8 +1924,8 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         self,
         compressor: Compressor | None = None,
         cipher: Cipher | None = None,
-    ) -> AggregateEventMapper[Any]:
-        return AggregateEventMapper(
+    ) -> StreamEventMapper[Any]:
+        return StreamEventMapper(
             transcoder=self.transcoder_class(),
             compressor=compressor,
             cipher=cipher,

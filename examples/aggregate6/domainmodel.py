@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent, projector
+from eventsourcing.domain import StreamEvent, projector
 from examples.aggregate6.baseclasses import DomainEvent
 
 if TYPE_CHECKING:
@@ -27,16 +27,16 @@ class TrickAdded(DomainEvent):
     trick: str
 
 
-def register_dog(name: str) -> AggregateEvent[Decision]:
-    return AggregateEvent(
+def register_dog(name: str) -> StreamEvent[Decision]:
+    return StreamEvent(
         decision=DogRegistered(name=name),
         stream_id=str(uuid4()),
         stream_position=1,
     )
 
 
-def add_trick(dog: Dog, trick: str) -> AggregateEvent[Decision]:
-    return AggregateEvent(
+def add_trick(dog: Dog, trick: str) -> StreamEvent[Decision]:
+    return StreamEvent(
         decision=TrickAdded(trick=trick),
         stream_id=dog.id,
         stream_position=dog.version + 1,
@@ -44,7 +44,7 @@ def add_trick(dog: Dog, trick: str) -> AggregateEvent[Decision]:
 
 
 @projector
-def mutate_dog(dog: Dog | None, event: AggregateEvent[Decision]) -> Dog | None:
+def mutate_dog(dog: Dog | None, event: StreamEvent[Decision]) -> Dog | None:
     match event.decision:
         case DogRegistered(name=name):
             return Dog(

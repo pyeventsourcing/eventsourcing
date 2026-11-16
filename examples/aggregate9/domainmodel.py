@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent, projector
+from eventsourcing.domain import StreamEvent, projector
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.msgspec import (
     Decision,
@@ -12,7 +12,7 @@ from eventsourcing.msgspec import (
 )
 
 if TYPE_CHECKING:
-    from eventsourcing.types import AggregateEventProtocol
+    from eventsourcing.types import StreamEventProtocol
 
 
 class Trick(Immutable):
@@ -32,16 +32,16 @@ class TrickAdded(Decision):
     trick: Trick
 
 
-def register_dog(name: str) -> AggregateEvent[Decision]:
-    return AggregateEvent(
+def register_dog(name: str) -> StreamEvent[Decision]:
+    return StreamEvent(
         decision=DogRegistered(name=name),
         stream_id=str(uuid4()),
         stream_position=1,
     )
 
 
-def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[Decision]:
-    return AggregateEvent(
+def add_trick(dog: Dog, trick: Trick) -> StreamEvent[Decision]:
+    return StreamEvent(
         decision=TrickAdded(trick=trick),
         stream_id=dog.id,
         stream_position=dog.version + 1,
@@ -49,11 +49,9 @@ def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[Decision]:
 
 
 @projector
-def evolve_dog(
-    dog: Dog | None, envelope: AggregateEventProtocol[Decision]
-) -> Dog | None:
+def evolve_dog(dog: Dog | None, envelope: StreamEventProtocol[Decision]) -> Dog | None:
     """Mutates aggregate with event."""
-    assert isinstance(envelope, AggregateEvent)
+    assert isinstance(envelope, StreamEvent)
     match envelope.decision:
         case DogRegistered(name=name):
             return Dog(

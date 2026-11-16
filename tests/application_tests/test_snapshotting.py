@@ -1,10 +1,10 @@
 from decimal import Decimal
 from unittest import TestCase
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     EventStore,
+    StreamEventMapper,
 )
 from eventsourcing.pydantic import Decision, Transcoder
 from eventsourcing.sqlite import SQLiteAggregateRecorder, SQLiteDatastore
@@ -31,7 +31,7 @@ class TestSnapshotting(TestCase):
             events_table_name="snapshots",
         )
         snapshot_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=transcoder),
+            mapper=StreamEventMapper(transcoder=transcoder),
             recorder=recorder,
         )
         recorder.create_table()
@@ -45,7 +45,7 @@ class TestSnapshotting(TestCase):
         # Get snapshot.
         snapshots = snapshot_store.get(account.id, desc=True, limit=1)
         snapshot = next(snapshots)
-        assert isinstance(snapshot, AggregateEvent)
+        assert isinstance(snapshot, StreamEvent)
         assert isinstance(snapshot.decision, BankAccountWithPydantic.Snapshot)
 
         # Reconstruct the bank account.

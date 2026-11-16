@@ -7,8 +7,8 @@ from uuid import uuid4
 import pytest
 
 from eventsourcing import dataclasses, msgspec, pydantic
-from eventsourcing.domain import AggregateEvent
-from eventsourcing.persistence import AggregateEventMapper
+from eventsourcing.domain import StreamEvent
+from eventsourcing.persistence import StreamEventMapper
 
 if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
@@ -22,7 +22,7 @@ def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
         c: float
         d: Decimal
 
-    obj = AggregateEvent(
+    obj = StreamEvent(
         stream_id=str(uuid4()),
         stream_position=1,
         decision=MyObj(
@@ -34,7 +34,7 @@ def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
     )
 
     transcoder = dataclasses.Transcoder()
-    mapper = AggregateEventMapper[dataclasses.Decision](transcoder=transcoder)
+    mapper = StreamEventMapper[dataclasses.Decision](transcoder=transcoder)
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -50,7 +50,7 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
         c: float
         d: Decimal
 
-    obj = AggregateEvent(
+    obj = StreamEvent(
         stream_id=str(uuid4()),
         stream_position=1,
         decision=MyObj(
@@ -62,7 +62,7 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
     )
 
     transcoder = dataclasses.Transcoder()
-    mapper = AggregateEventMapper[dataclasses.Decision](transcoder=transcoder)
+    mapper = StreamEventMapper[dataclasses.Decision](transcoder=transcoder)
 
     stored_event = mapper.to_stored_event(obj)
 
@@ -80,7 +80,7 @@ def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         c: float
         d: Decimal
 
-    obj = AggregateEvent(
+    obj = StreamEvent(
         stream_id=str(uuid4()),
         stream_position=1,
         decision=MyObj(
@@ -91,7 +91,7 @@ def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper[pydantic.Decision](transcoder=pydantic.Transcoder())
+    mapper = StreamEventMapper[pydantic.Decision](transcoder=pydantic.Transcoder())
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -107,7 +107,7 @@ def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         c: float
         d: Decimal
 
-    obj = AggregateEvent(
+    obj = StreamEvent(
         stream_id=str(uuid4()),
         stream_position=1,
         decision=MyObj(
@@ -118,7 +118,7 @@ def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper[pydantic.Decision](transcoder=pydantic.Transcoder())
+    mapper = StreamEventMapper[pydantic.Decision](transcoder=pydantic.Transcoder())
 
     stored_event = mapper.to_stored_event(obj)
 
@@ -136,7 +136,7 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         c: float
         d: Decimal
 
-    obj = AggregateEvent(
+    obj = StreamEvent(
         stream_id=str(uuid4()),
         stream_position=1,
         decision=MyObj(
@@ -147,7 +147,7 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper[msgspec.Decision](transcoder=msgspec.Transcoder())
+    mapper = StreamEventMapper[msgspec.Decision](transcoder=msgspec.Transcoder())
 
     def func() -> None:
         mapper.to_stored_event(obj)
@@ -163,7 +163,7 @@ def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         c: float
         d: Decimal
 
-    obj = AggregateEvent(
+    obj = StreamEvent(
         stream_id=str(uuid4()),
         stream_position=1,
         decision=MyObj(
@@ -174,7 +174,7 @@ def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         ),
     )
 
-    mapper = AggregateEventMapper[msgspec.Decision](transcoder=msgspec.Transcoder())
+    mapper = StreamEventMapper[msgspec.Decision](transcoder=msgspec.Transcoder())
 
     stored_event = mapper.to_stored_event(obj)
 

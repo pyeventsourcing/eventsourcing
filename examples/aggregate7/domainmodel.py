@@ -7,7 +7,7 @@ from uuid import uuid4
 from pydantic import Field
 
 from eventsourcing.domain import (
-    AggregateEvent,
+    StreamEvent,
     projector,
 )
 from eventsourcing.errors import ProgrammingError
@@ -19,7 +19,7 @@ from eventsourcing.pydantic import (
 from eventsourcing.timestamp import datetime_now_with_tzinfo
 
 if TYPE_CHECKING:
-    from eventsourcing.types import AggregateEventProtocol
+    from eventsourcing.types import StreamEventProtocol
 
 
 class Trick(Immutable):
@@ -48,8 +48,8 @@ class TrickAdded(TimestampedDecision):
     trick: Trick
 
 
-def register_dog(name: str) -> AggregateEvent[Decision]:
-    return AggregateEvent(
+def register_dog(name: str) -> StreamEvent[Decision]:
+    return StreamEvent(
         decision=DogRegistered(
             name=name,
         ),
@@ -58,8 +58,8 @@ def register_dog(name: str) -> AggregateEvent[Decision]:
     )
 
 
-def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[Decision]:
-    return AggregateEvent(
+def add_trick(dog: Dog, trick: Trick) -> StreamEvent[Decision]:
+    return StreamEvent(
         decision=TrickAdded(
             trick=trick,
         ),
@@ -69,9 +69,7 @@ def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[Decision]:
 
 
 @projector
-def evolve_dog(
-    dog: Dog | None, envelope: AggregateEventProtocol[Decision]
-) -> Dog | None:
+def evolve_dog(dog: Dog | None, envelope: StreamEventProtocol[Decision]) -> Dog | None:
     """Mutates aggregate with event."""
     match envelope.decision:
         case DogRegistered(name=name, timestamp=timestamp):

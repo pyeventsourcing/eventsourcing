@@ -6,11 +6,11 @@ from eventsourcing.dataclasses.application import (
     ProcessApplication,
 )
 from eventsourcing.dataclasses.immutable import (
-    AggregateEvent,
     Decision,
     Immutable,
     ImmutableAggregate,
     ImmutableAggregateSnapshot,
+    StreamEvent,
     TaggedEvent,
 )
 from eventsourcing.dataclasses.mutable import (
@@ -31,7 +31,6 @@ class Selector(eventsourcing.domain.Selector[Decision]):
 
 __all__ = [
     "Aggregate",
-    "AggregateEvent",
     "AggregateState",
     "AggregatesApplication",
     "CommandSlice",
@@ -47,6 +46,7 @@ __all__ = [
     "ProcessApplication",
     "QuerySlice",
     "Selector",
+    "StreamEvent",
     "TaggedEvent",
     "Transcoder",
 ]

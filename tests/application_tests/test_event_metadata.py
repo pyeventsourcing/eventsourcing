@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from eventsourcing.dataclasses import Decision
 from eventsourcing.domain import (
-    AggregateEvent,
+    StreamEvent,
 )
 from eventsourcing.metadata import (
     null_metadata_in_context,
@@ -19,7 +19,7 @@ class TestEventMetadata(TestCase):
             put_metadata_in_context({"user_id": "user-1"}),
             put_metadata_in_context({"correlation_id": "cor-1"}),
         ):
-            event = AggregateEvent(
+            event = StreamEvent(
                 stream_id=str(uuid4()),
                 stream_position=1,
                 decision=Decision(),
@@ -33,7 +33,7 @@ class TestEventMetadata(TestCase):
             put_metadata_in_context({"user_id": "user-1"}),
             null_metadata_in_context(),
         ):
-            event = AggregateEvent(
+            event = StreamEvent(
                 stream_id=str(uuid4()),
                 stream_position=1,
                 metadata={"user_id": "user-2"},
@@ -46,7 +46,7 @@ class TestEventMetadata(TestCase):
             put_metadata_in_context({"user_id": "user-1"}),
             null_metadata_in_context(),
         ):
-            event = AggregateEvent(
+            event = StreamEvent(
                 stream_id=str(uuid4()),
                 stream_position=1,
                 decision=Decision(),

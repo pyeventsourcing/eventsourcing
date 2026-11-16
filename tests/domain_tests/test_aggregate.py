@@ -6,7 +6,7 @@ from eventsourcing.decorator import event
 from eventsourcing.domain import (
     NIL_UUID,
     Aggregate,
-    AggregateEvent,
+    StreamEvent,
 )
 from eventsourcing.msgspec import Decision
 from eventsourcing.types import WorksWithDecisions
@@ -215,7 +215,7 @@ class TestDataclassAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = cast(AggregateEvent[Decision], c).mutate(copy)
+            copy = cast(StreamEvent[Decision], c).mutate(copy)
 
         self.assertEqual(copy, a)
 
@@ -250,7 +250,7 @@ class TestDataclassAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = cast(AggregateEvent[Decision], c).mutate(copy)
+            copy = cast(StreamEvent[Decision], c).mutate(copy)
 
         self.assertEqual(copy, a)
 
@@ -293,7 +293,7 @@ class TestPydanticAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = cast(AggregateEvent[Decision], c).mutate(copy)
+            copy = cast(StreamEvent[Decision], c).mutate(copy)
 
         self.assertEqual(copy, a)
 
@@ -328,7 +328,7 @@ class TestPydanticAggregate(TestCase):
 
         copy: MyAggregate | None = MyAggregate.__new__(MyAggregate)
         for c in collected:
-            copy = cast(AggregateEvent[Decision], c).mutate(copy)
+            copy = cast(StreamEvent[Decision], c).mutate(copy)
 
         self.assertEqual(copy, a)
 

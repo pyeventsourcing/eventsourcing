@@ -7,7 +7,7 @@ from examples.contentmanagement.domainmodel import Page
 from examples.ftscontentmanagement.persistence import FtsRecorder, PageInfo
 
 if TYPE_CHECKING:
-    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.domain import StreamEvent
     from eventsourcing.pydantic import Decision
     from eventsourcing.types import EventCollectorProtocol
 
@@ -16,8 +16,8 @@ class FtsContentManagement(ContentManagement):
     @override
     def save(
         self,
-        *objs: EventCollectorProtocol[AggregateEvent[Decision]]
-        | AggregateEvent[Decision]
+        *objs: EventCollectorProtocol[StreamEvent[Decision]]
+        | StreamEvent[Decision]
         | None,
         **kwargs: Any,
     ) -> int | None:

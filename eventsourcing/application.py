@@ -19,31 +19,31 @@ from typing import (
 
 from eventsourcing.domain import (
     NIL_UUID_STR,
-    AggregateEvent,
+    StreamEvent,
     evolve_aggregate,
 )
 from eventsourcing.errors import EventSourcingError, ProgrammingError
 from eventsourcing.metadata import null_metadata_in_context
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     ApplicationRecorder,
     ApplicationRecorderSubscription,
     EventStore,
     InfrastructureFactory,
     Mapper,
     Notification,
+    StreamEventMapper,
     Tracking,
     TrackingRecorder,
     Transcoder,
 )
 from eventsourcing.types import (
-    AggregateEventProtocol,
     ClosingContextManager,
     EventCollectorProtocol,
     EventEnvelopeProtocol,
     MutableAggregateProtocol,
     Projector,
     SnapshotProtocol,
+    StreamEventProtocol,
     WorksWithDecisions,
 )
 from eventsourcing.utils import (
@@ -193,7 +193,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
     ):
         """Initialises repository with given event store (an
         :class:`~eventsourcing.persistence.EventStore` for aggregate
-        :class:`~eventsourcing.domain.AggregateEvent` objects)
+        :class:`~eventsourcing.domain.StreamEvent` objects)
         and optionally a snapshot store (an
         :class:`~eventsourcing.persistence.EventStore` for aggregate
         :class:`~eventsourcing.domain.Snapshot` objects).
@@ -239,7 +239,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
         aggregate_id: str,
         *,
         version: int | None = None,
-        projector: Projector[TState, AggregateEvent[TDecision]],
+        projector: Projector[TState, StreamEvent[TDecision]],
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
     ) -> TState:
@@ -255,7 +255,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
         aggregate_cls: type[TState] | None,
         *,
         version: int | None = None,
-        projector: Projector[TState, AggregateEvent[TDecision]],
+        projector: Projector[TState, StreamEvent[TDecision]],
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
     ) -> TState:
@@ -270,7 +270,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
         aggregate_cls: type[TState] | None = None,
         *,
         version: int | None = None,
-        projector: Projector[TState, AggregateEvent[TDecision]] | None = None,
+        projector: Projector[TState, StreamEvent[TDecision]] | None = None,
         fastforward_skipping: bool = False,
         deepcopy_from_cache: bool = True,
     ) -> TState:
@@ -292,7 +292,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
             # This is perfectly safe at runtime because Overload 1 guarantees that
             # if we get to this block, TState IS actually a MutableAggregateProtocol.
             projector = cast(
-                Projector[TState, AggregateEvent[TDecision]], evolve_aggregate
+                Projector[TState, StreamEvent[TDecision]], evolve_aggregate
             )
 
         if self.cache and version is None:
@@ -345,7 +345,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
         aggregate_id: str,
         aggregate_cls: type[TState] | None,
         version: int | None,
-        projector: Projector[TState, AggregateEvent[TDecision]],
+        projector: Projector[TState, StreamEvent[TDecision]],
     ) -> TState:
         gt: int | None = None
 
@@ -362,7 +362,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
             if snapshots:
                 gt = snapshots[0].stream_position
         else:
-            snapshots = list[AggregateEvent[TDecision]]()
+            snapshots = list[StreamEvent[TDecision]]()
 
         # Get aggregate events.
         aggregate_events = self.event_store.get(
@@ -592,16 +592,16 @@ class ProcessingEvent[TDecision]:
     def __init__(self, tracking: Tracking | None = None):
         """Initialises the process event with the given tracking object."""
         self.tracking = tracking
-        self.events = list[AggregateEvent[TDecision]]()
+        self.events = list[StreamEvent[TDecision]]()
         self.aggregates = dict[
-            str, MutableAggregateProtocol[AggregateEventProtocol[Any]]
+            str, MutableAggregateProtocol[StreamEventProtocol[Any]]
         ]()
         self.saved_kwargs: dict[Any, Any] = {}
 
     def collect_events(
         self,
-        *objs: EventCollectorProtocol[AggregateEvent[TDecision]]
-        | AggregateEvent[TDecision]
+        *objs: EventCollectorProtocol[StreamEvent[TDecision]]
+        | StreamEvent[TDecision]
         | None,
         **kwargs: Any,
     ) -> None:
@@ -707,7 +707,7 @@ class SupportsApplicationSubscriptions[
 
 
 class AggregatesApplicationSubscription[TDecision](
-    AbstractApplicationSubscription[AggregateEvent[TDecision]],
+    AbstractApplicationSubscription[StreamEvent[TDecision]],
 ):
     """An iterator that yields all domain events recorded in an application
     sequence that have notification IDs greater than a given value. The iterator
@@ -719,7 +719,7 @@ class AggregatesApplicationSubscription[TDecision](
     def __init__(
         self,
         subscription: ApplicationRecorderSubscription[ApplicationRecorder],
-        mapper: Mapper[AggregateEvent[TDecision], TDecision],
+        mapper: Mapper[StreamEvent[TDecision], TDecision],
         context_name: str,
     ):
         """
@@ -732,7 +732,7 @@ class AggregatesApplicationSubscription[TDecision](
     @override
     def __next__(
         self,
-    ) -> tuple[AggregateEvent[TDecision], Tracking]:
+    ) -> tuple[StreamEvent[TDecision], Tracking]:
         """Returns the next stored event from subscription to the application's
         recorder. Constructs a tracking object that identifies the position of
         the event in the application sequence. Constructs a domain event object
@@ -830,7 +830,7 @@ class AggregatesApplication[
         """
         return InfrastructureFactory.construct(env)
 
-    def construct_mapper(self) -> AggregateEventMapper[TDecision]:
+    def construct_mapper(self) -> StreamEventMapper[TDecision]:
         """Constructs a :class:`~eventsourcing.persistence.Mapper`
         for use by the application.
         """
@@ -855,7 +855,7 @@ class AggregatesApplication[
     def construct_event_store(self) -> EventStore[TDecision]:
         """Constructs an :class:`~eventsourcing.persistence.EventStore`
         for use by the application to store and retrieve aggregate
-        :class:`~eventsourcing.domain.AggregateEvent` objects.
+        :class:`~eventsourcing.domain.StreamEvent` objects.
         """
         return self.factory.event_store(
             mapper=self.mapper,
@@ -898,8 +898,8 @@ class AggregatesApplication[
 
     def save(
         self,
-        *objs: EventCollectorProtocol[AggregateEvent[TDecision]]
-        | AggregateEvent[TDecision]
+        *objs: EventCollectorProtocol[StreamEvent[TDecision]]
+        | StreamEvent[TDecision]
         | None,
         **kwargs: Any,
     ) -> int | None:
@@ -910,7 +910,7 @@ class AggregatesApplication[
             match obj:
                 case None:
                     continue
-                case AggregateEvent(decision=decision):
+                case StreamEvent(decision=decision):
                     self.check_decision_type(type(decision))
                 case _:
                     self.check_decision_type(type(obj))
@@ -937,7 +937,7 @@ class AggregatesApplication[
         # Take snapshots using IDs and types.
         if self.snapshots and self.snapshotting_intervals:
             for event in processing_event.events:
-                if isinstance(event, AggregateEventProtocol):
+                if isinstance(event, StreamEventProtocol):
                     try:
                         aggregate = processing_event.aggregates[event.stream_id]
                     except KeyError:
@@ -947,7 +947,7 @@ class AggregatesApplication[
                         try:
                             projector = self.snapshotting_projectors[type(aggregate)]
                         except KeyError:
-                            if not isinstance(event, AggregateEventProtocol):
+                            if not isinstance(event, StreamEventProtocol):
                                 msg = (
                                     f"Cannot take snapshot for {type(aggregate)} with "
                                     "default project_aggregate() function, because its "

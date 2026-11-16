@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, cast, override
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.common import reset_application
 from examples.shopvertical.events import (
     AddedItemToCart,
@@ -41,7 +41,7 @@ class TestSubmitCart(unittest.TestCase):
         new_events = cmd.handle(cart_events)
         self.assertEqual(len(new_events), 1)
         self.assertIsInstance(new_events[0].decision, SubmittedCart)
-        new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
+        new_event = cast(StreamEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
         self.assertEqual(new_event.stream_position, 1)
 
@@ -52,7 +52,7 @@ class TestSubmitCart(unittest.TestCase):
             cart_id=cart_id,
         )
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -62,7 +62,7 @@ class TestSubmitCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
@@ -73,7 +73,7 @@ class TestSubmitCart(unittest.TestCase):
         new_events = cmd.handle(cart_events)
         self.assertEqual(len(new_events), 1)
         self.assertIsInstance(new_events[0].decision, SubmittedCart)
-        new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
+        new_event = cast(StreamEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
         self.assertEqual(new_event.stream_position, 3)
 
@@ -83,7 +83,7 @@ class TestSubmitCart(unittest.TestCase):
             cart_id=cart_id,
         )
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=str(uuid4()),
                     name="",
@@ -93,7 +93,7 @@ class TestSubmitCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=ClearedCart(),
                 stream_id=cart_id,
                 stream_position=2,
@@ -102,7 +102,7 @@ class TestSubmitCart(unittest.TestCase):
         new_events = cmd.handle(cart_events)
         self.assertEqual(len(new_events), 1)
         self.assertIsInstance(new_events[0].decision, SubmittedCart)
-        new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
+        new_event = cast(StreamEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
         self.assertEqual(new_event.stream_position, 3)
 
@@ -113,7 +113,7 @@ class TestSubmitCart(unittest.TestCase):
         )
         product_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -146,7 +146,7 @@ class TestSubmitCart(unittest.TestCase):
             cart_id=cart_id,
         )
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -160,7 +160,7 @@ class TestSubmitCart(unittest.TestCase):
         new_events = cmd.handle(cart_events)
         self.assertEqual(len(new_events), 1)
         self.assertIsInstance(new_events[0].decision, SubmittedCart)
-        new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
+        new_event = cast(StreamEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
         self.assertEqual(new_event.stream_position, 2)
 
@@ -182,7 +182,7 @@ class TestSubmitCart(unittest.TestCase):
         cmd = SubmitCart(cart_id=cart_id)
 
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -192,7 +192,7 @@ class TestSubmitCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -225,7 +225,7 @@ class TestSubmitCart(unittest.TestCase):
             cart_id=cart_id,
         )
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -235,7 +235,7 @@ class TestSubmitCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -249,14 +249,14 @@ class TestSubmitCart(unittest.TestCase):
         new_events = cmd.handle(cart_events)
         self.assertEqual(len(new_events), 1)
         self.assertIsInstance(new_events[0].decision, SubmittedCart)
-        new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
+        new_event = cast(StreamEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
         self.assertEqual(new_event.stream_position, 3)
 
     def test_submit_cart_after_submitted_cart(self) -> None:
         cart_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=SubmittedCart(),
                 stream_id=cart_id,
                 stream_position=1,

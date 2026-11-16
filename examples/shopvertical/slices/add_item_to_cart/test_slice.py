@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.events import (
     AddedItemToCart,
     ClearedCart,
@@ -42,7 +42,7 @@ class TestAddItemToCart(unittest.TestCase):
         cart_id = str(uuid4())
         product_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -52,7 +52,7 @@ class TestAddItemToCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -62,7 +62,7 @@ class TestAddItemToCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=2,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -89,7 +89,7 @@ class TestAddItemToCart(unittest.TestCase):
         cart_id = str(uuid4())
         product_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -99,7 +99,7 @@ class TestAddItemToCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -109,7 +109,7 @@ class TestAddItemToCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=2,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -119,7 +119,7 @@ class TestAddItemToCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=3,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
@@ -142,7 +142,7 @@ class TestAddItemToCart(unittest.TestCase):
         cart_id = str(uuid4())
         product_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -152,7 +152,7 @@ class TestAddItemToCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -162,7 +162,7 @@ class TestAddItemToCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=2,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="",
@@ -172,7 +172,7 @@ class TestAddItemToCart(unittest.TestCase):
                 stream_id=cart_id,
                 stream_position=3,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=ClearedCart(),
                 stream_id=cart_id,
                 stream_position=4,
@@ -192,7 +192,7 @@ class TestAddItemToCart(unittest.TestCase):
     def test_add_item_after_submitted_cart(self) -> None:
         cart_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=SubmittedCart(),
                 stream_id=cart_id,
                 stream_position=1,

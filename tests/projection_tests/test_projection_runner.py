@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from eventsourcing.errors import WaitInterruptedError
 from eventsourcing.msgspec import AggregatesApplication, Transcoder
-from eventsourcing.persistence import AggregateEventMapper, TrackingRecorder
+from eventsourcing.persistence import StreamEventMapper, TrackingRecorder
 from eventsourcing.projection import (
     EventProcessor,
     ProjectionRunner,
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 class TestProjectionRunner(TestCase):
     env: ClassVar[dict[str, str]] = {
-        "MAPPER_TOPIC": get_topic(AggregateEventMapper),
+        "MAPPER_TOPIC": get_topic(StreamEventMapper),
         "TRANSCODER_TOPIC": get_topic(Transcoder),
         "PERSISTENCE_MODULE": "eventsourcing.popo",
     }

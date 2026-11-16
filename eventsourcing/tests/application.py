@@ -16,10 +16,10 @@ from eventsourcing.decorator import triggers
 from eventsourcing.domain import Aggregate
 from eventsourcing.errors import InfrastructureFactoryError
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     ApplicationRecorder,
     InfrastructureFactory,
     IntegrityError,
+    StreamEventMapper,
 )
 from eventsourcing.tests.bank_account_with_pydantic import (
     BankAccountWithPydantic,
@@ -176,7 +176,7 @@ class ApplicationTestCase(TestCase):
     @override
     def setUp(self) -> None:
         self.env: dict[str, str] = {
-            "MAPPER_TOPIC": get_topic(AggregateEventMapper),
+            "MAPPER_TOPIC": get_topic(StreamEventMapper),
             "TRANSCODER_TOPIC": get_topic(pydantic.Transcoder),
         }
 

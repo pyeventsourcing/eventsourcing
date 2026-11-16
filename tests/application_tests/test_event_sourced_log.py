@@ -14,13 +14,13 @@ from eventsourcing.dataclasses.legacy import (
 from eventsourcing.decorator import triggers
 from eventsourcing.domain import Aggregate, EventSourcedLog
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     EventStore,
+    StreamEventMapper,
 )
 from eventsourcing.popo import POPOAggregateRecorder
 
 if TYPE_CHECKING:
-    from eventsourcing.types import AggregateEventProtocol
+    from eventsourcing.types import StreamEventProtocol
     from eventsourcing.utils import EnvType
 
 
@@ -36,7 +36,7 @@ class TestEventSourcedLog(TestCase):
 
         event_recorder = POPOAggregateRecorder()
         event_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=transcoder),
+            mapper=StreamEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
 
@@ -152,7 +152,7 @@ class TestEventSourcedLog(TestCase):
 
         event_recorder = POPOAggregateRecorder()
         event_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=transcoder),
+            mapper=StreamEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
 
@@ -167,10 +167,10 @@ class TestEventSourcedLog(TestCase):
 
         # Subclass EventSourcedLog.
         class TransactionLog(EventSourcedLog[Decision, TransactionLogEvent]):
-            def account_credited(self) -> AggregateEventProtocol[Decision]:
+            def account_credited(self) -> StreamEventProtocol[Decision]:
                 return self._trigger_event(logged_cls=AccountCredited)
 
-            def account_debited(self) -> AggregateEventProtocol[Decision]:
+            def account_debited(self) -> StreamEventProtocol[Decision]:
                 return self._trigger_event(logged_cls=AccountDebited)
 
         transaction_log = TransactionLog(

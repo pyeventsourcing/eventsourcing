@@ -29,7 +29,7 @@ from tests.application_tests.test_processapplication import EmailProcess
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.domain import StreamEvent
 
 
 system_defined_as_global = System(
@@ -247,7 +247,7 @@ class TestFollower(TestCase):
             @override
             def policy(
                 self,
-                envelope: AggregateEvent[pydantic.Decision],
+                envelope: StreamEvent[pydantic.Decision],
                 processing_event: ProcessingEvent[pydantic.Decision],
             ) -> None:
                 match envelope.decision:

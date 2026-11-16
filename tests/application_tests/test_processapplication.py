@@ -4,7 +4,7 @@ from unittest.case import TestCase
 
 from eventsourcing import pydantic
 from eventsourcing.application import ProcessingEvent
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from eventsourcing.persistence import ApplicationRecorder, IntegrityError
 from eventsourcing.pydantic import Decision, ProcessApplication, Transcoder
 from eventsourcing.system import (
@@ -104,7 +104,7 @@ class EmailProcess(ProcessApplication):
     @override
     def policy(
         self,
-        envelope: AggregateEvent[pydantic.Decision],
+        envelope: StreamEvent[pydantic.Decision],
         processing_event: ProcessingEvent[pydantic.Decision],
     ) -> None:
         match envelope.decision:

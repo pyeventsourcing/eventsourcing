@@ -6,7 +6,7 @@ from unittest import TestCase
 from eventsourcing.msgspec.immutable import Decision
 from eventsourcing.msgspec.transcoder import Transcoder
 from eventsourcing.tests.persistence import (
-    AggregateEventMapperTestCase,
+    StreamEventMapperTestCase,
     TaggedEventMapperTestCase,
 )
 
@@ -45,9 +45,7 @@ class TestTaggedEventMapperWithMsgspecTranscoder(TaggedEventMapperTestCase[Decis
         return MyMsgspecDecision(a="1")
 
 
-class TestMsgspecTranscoderWithAggregateEventMapper(
-    AggregateEventMapperTestCase[Decision]
-):
+class TestMsgspecTranscoderWithStreamEventMapper(StreamEventMapperTestCase[Decision]):
     transcoder_class = Transcoder
 
     def test_aggregate_event_mapper(self) -> None:

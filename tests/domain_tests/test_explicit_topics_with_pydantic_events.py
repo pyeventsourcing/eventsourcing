@@ -249,42 +249,42 @@
 #         a = Aggregate._create(event_class=MyAggregate.Started)
 #
 #         # Without an explicit topic.
-#         class AggregateEvent1(Aggregate.Event):
+#         class StreamEvent1(Aggregate.Event):
 #             pass
 #
 #         with self.assertRaises(ProgrammingError) as cm:
-#             a.trigger_event(AggregateEvent1)
+#             a.trigger_event(StreamEvent1)
 #
 #         self.assertIn("not defined", str(cm.exception))
 #
 #         # Has an explicit topic but not registered.
-#         class AggregateEvent2(Aggregate.Event):
-#             TOPIC: ClassVar[str] = "AggregateEvent2"
+#         class StreamEvent2(Aggregate.Event):
+#             TOPIC: ClassVar[str] = "StreamEvent2"
 #
 #         with self.assertRaises(ProgrammingError) as cm:
-#             a.trigger_event(AggregateEvent2)
+#             a.trigger_event(StreamEvent2)
 #
 #         self.assertIn("not registered", str(cm.exception))
 #
 #         # Has an explicit topic but registered to another object.
-#         class AggregateEvent3(Aggregate.Event):
-#             TOPIC: ClassVar[str] = "AggregateEvent3"
+#         class StreamEvent3(Aggregate.Event):
+#             TOPIC: ClassVar[str] = "StreamEvent3"
 #
-#         register_topic(AggregateEvent3.TOPIC, Aggregate.Event)
+#         register_topic(StreamEvent3.TOPIC, Aggregate.Event)
 #
 #         with self.assertRaises(ProgrammingError) as cm:
-#             a.trigger_event(AggregateEvent3)
+#             a.trigger_event(StreamEvent3)
 #
 #         self.assertIn("already registered", str(cm.exception))
 #
 #         # Has an explicit topic and registered to correct.
-#         class AggregateEvent4(Aggregate.Event):
-#             TOPIC: ClassVar[str] = "AggregateEvent4"
+#         class StreamEvent4(Aggregate.Event):
+#             TOPIC: ClassVar[str] = "StreamEvent4"
 #
-#         register_topic(AggregateEvent4.TOPIC, AggregateEvent4)
+#         register_topic(StreamEvent4.TOPIC, StreamEvent4)
 #
 #         # This is okay.
-#         a.trigger_event(AggregateEvent4)
+#         a.trigger_event(StreamEvent4)
 #
 #     def test_raises_if_domain_event_is_triggered(self) -> None:
 #         # Define an aggregate.

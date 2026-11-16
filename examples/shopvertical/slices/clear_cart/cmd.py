@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.common import Command, get_events, put_events
 from examples.shopvertical.events import ClearedCart, SubmittedCart
 from examples.shopvertical.exceptions import CartAlreadySubmittedError
@@ -26,7 +26,7 @@ class ClearCart(Command):
             raise CartAlreadySubmittedError
 
         return (
-            AggregateEvent(
+            StreamEvent(
                 decision=ClearedCart(),
                 stream_id=self.cart_id,
                 stream_position=len(events) + 1,

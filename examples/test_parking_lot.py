@@ -11,7 +11,7 @@ from uuid import NAMESPACE_URL, uuid5
 from eventsourcing.application import AggregateNotFoundError
 from eventsourcing.decorator import triggers
 from eventsourcing.domain import (
-    AggregateEvent,
+    StreamEvent,
 )
 from eventsourcing.pydantic import Aggregate, AggregatesApplication, Decision
 from eventsourcing.system import NotificationLogReader
@@ -179,14 +179,14 @@ class TestParkingLot(TestCase):
 
         vehicle1_id = Vehicle.create_id("123-123")
         event0 = domain_events[0]
-        assert isinstance(event0, AggregateEvent)
+        assert isinstance(event0, StreamEvent)
         assert isinstance(event0.decision, Vehicle.Registered)
         self.assertEqual(event0.stream_id, vehicle1_id)
         self.assertEqual(event0.stream_position, 1)
         self.assertEqual(event0.decision.licence_plate_number, "123-123")
 
         event1 = domain_events[1]
-        assert isinstance(event1, AggregateEvent)
+        assert isinstance(event1, StreamEvent)
         assert isinstance(event1.decision, Vehicle.Booked)
         self.assertEqual(event1.stream_id, vehicle1_id)
         self.assertEqual(event1.stream_position, 2)
@@ -194,7 +194,7 @@ class TestParkingLot(TestCase):
         self.assertEqual(event1.decision.finish, booking1.finish)
 
         event2 = domain_events[2]
-        assert isinstance(event2, AggregateEvent)
+        assert isinstance(event2, StreamEvent)
         assert isinstance(event2.decision, Vehicle.Booked)
         self.assertEqual(event2.stream_id, vehicle1_id)
         self.assertEqual(event2.stream_position, 3)
@@ -202,7 +202,7 @@ class TestParkingLot(TestCase):
         self.assertEqual(event2.decision.finish, booking2.finish)
 
         event3 = domain_events[3]
-        assert isinstance(event3, AggregateEvent)
+        assert isinstance(event3, StreamEvent)
         assert isinstance(event3.decision, Vehicle.Unbooked)
         self.assertEqual(event3.stream_id, vehicle1_id)
         self.assertEqual(event3.stream_position, 4)

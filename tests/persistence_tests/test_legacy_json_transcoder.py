@@ -11,13 +11,13 @@ from eventsourcing.dataclasses.legacy import (
     LegacyJSONTranscoder,
     UUIDAsHex,
 )
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from eventsourcing.errors import (
     MapperDeserialisationError,
     TranscodingNotRegisteredError,
 )
 from eventsourcing.persistence import (
-    AggregateEventMapper,
+    StreamEventMapper,
 )
 from eventsourcing.tests.bank_account_with_dataclasses import BankAccountWithDataclasses
 from eventsourcing.utils import Environment, get_topic
@@ -40,7 +40,7 @@ class TestDataclassMapper(TestCase):
         compressor = ZlibCompressor()
 
         # Create a domain event.
-        domain_event = AggregateEvent[Decision](
+        domain_event = StreamEvent[Decision](
             decision=BankAccountWithDataclasses.TransactionAppended(
                 amount=Decimal("10.00"),
             ),
@@ -49,7 +49,7 @@ class TestDataclassMapper(TestCase):
         )
 
         # Construct mapper with transcoder.
-        mapper = AggregateEventMapper[Decision](transcoder=transcoder)
+        mapper = StreamEventMapper[Decision](transcoder=transcoder)
 
         # Map to stored event.
         stored_event = mapper.to_stored_event(domain_event)
@@ -67,7 +67,7 @@ class TestDataclassMapper(TestCase):
         self.assertEqual(copy, domain_event)
 
         # Construct mapper with less capable transcoder.
-        mapper = AggregateEventMapper(
+        mapper = StreamEventMapper(
             transcoder=LegacyJSONTranscoder(),
             cipher=cipher,
         )
@@ -86,7 +86,7 @@ class TestDataclassMapper(TestCase):
             mapper.to_stored_event(domain_event)
 
         # Construct mapper with cipher.
-        mapper = AggregateEventMapper(transcoder=transcoder, cipher=cipher)
+        mapper = StreamEventMapper(transcoder=transcoder, cipher=cipher)
 
         # Map to stored event.
         stored_event = mapper.to_stored_event(domain_event)
@@ -104,7 +104,7 @@ class TestDataclassMapper(TestCase):
         self.assertEqual(len(stored_event.state), 80)
 
         # Construct mapper with cipher and compressor.
-        mapper = AggregateEventMapper(
+        mapper = StreamEventMapper(
             transcoder=transcoder,
             cipher=cipher,
             compressor=compressor,

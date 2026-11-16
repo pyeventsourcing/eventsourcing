@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.events import (
     AddedItemToCart,
     AddedProductToShop,
@@ -22,7 +22,7 @@ class TestListProductsInShop(unittest.TestCase):
 
         product_id1 = str(uuid4())
         events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedProductToShop(
                     name="Coffee",
                     description="A very nice coffee",
@@ -45,7 +45,7 @@ class TestListProductsInShop(unittest.TestCase):
         product_id1 = str(uuid4())
         product_id2 = str(uuid4())
         events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedProductToShop(
                     name="Coffee",
                     description="A very nice coffee",
@@ -54,7 +54,7 @@ class TestListProductsInShop(unittest.TestCase):
                 stream_id=product_id1,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=str(uuid4()),
                     name="",
@@ -64,7 +64,7 @@ class TestListProductsInShop(unittest.TestCase):
                 stream_id=str(uuid4()),
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedProductToShop(
                     name="Tea",
                     description="A very nice tea",
@@ -92,7 +92,7 @@ class TestListProductsInShop(unittest.TestCase):
         product_id1 = str(uuid4())
         product_id2 = str(uuid4())
         events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedProductToShop(
                     name="Coffee",
                     description="A very nice coffee",
@@ -101,14 +101,14 @@ class TestListProductsInShop(unittest.TestCase):
                 stream_id=product_id1,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AdjustedProductInventory(
                     adjustment=2,
                 ),
                 stream_id=product_id1,
                 stream_position=2,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedProductToShop(
                     name="Tea",
                     description="A very nice tea",

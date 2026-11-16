@@ -38,7 +38,7 @@ class TaggedEvent(eventsourcing.domain.TaggedEvent[Decision]):
     pass
 
 
-class AggregateEvent(eventsourcing.domain.AggregateEvent[Decision]):
+class StreamEvent(eventsourcing.domain.StreamEvent[Decision]):
     pass
 
 
@@ -52,12 +52,12 @@ class ImmutableAggregateSnapshot(Decision):
     state: bytes
 
     @classmethod
-    def take(cls, aggregate: ImmutableAggregate) -> AggregateEvent:
+    def take(cls, aggregate: ImmutableAggregate) -> StreamEvent:
         decision = cls(
             topic=get_topic(type(aggregate)),
             state=msgspec.json.encode(aggregate),
         )
-        return AggregateEvent(
+        return StreamEvent(
             decision=decision,
             stream_id=aggregate.id,
             stream_position=aggregate.version,

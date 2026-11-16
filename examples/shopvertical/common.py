@@ -8,10 +8,10 @@ from eventsourcing.pydantic import AggregatesApplication, Immutable
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.domain import StreamEvent
     from eventsourcing.pydantic import Decision
 
-    type Events = Sequence[AggregateEvent[Decision]]
+    type Events = Sequence[StreamEvent[Decision]]
 
 
 class Command(Immutable, ABC):

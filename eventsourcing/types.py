@@ -10,7 +10,7 @@ from eventsourcing.utils import resolve_multi_generic_target
 if TYPE_CHECKING:
     from types import TracebackType
 
-    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.domain import StreamEvent
 
 type Evolver[TState, TEvent] = Callable[
     [TState | None, TEvent],
@@ -51,7 +51,7 @@ class EventEnvelopeProtocol[TDecision](Protocol):
 
 
 @runtime_checkable
-class AggregateEventProtocol[TDecision](EventEnvelopeProtocol[TDecision], Protocol):
+class StreamEventProtocol[TDecision](EventEnvelopeProtocol[TDecision], Protocol):
     @property
     def stream_id(self) -> str: ...
     @property
@@ -74,7 +74,7 @@ class ImmutableAggregateProtocol(Protocol):
 
 @runtime_checkable
 class MutableAggregateProtocol[
-    TEnvelope: AggregateEventProtocol[Any],
+    TEnvelope: StreamEventProtocol[Any],
 ](
     EventCollectorProtocol[TEnvelope],
     Protocol,
@@ -139,7 +139,7 @@ class WorksWithDecisions[TDecision]:
 class SnapshotProtocol[TDecision](Protocol):
     def take(
         self, obj: MutableAggregateProtocol[Any] | ImmutableAggregateProtocol
-    ) -> AggregateEvent[TDecision]: ...
+    ) -> StreamEvent[TDecision]: ...
 
 
 class ClosingContextManager(ABC):

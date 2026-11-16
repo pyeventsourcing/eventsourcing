@@ -11,7 +11,7 @@
 # from eventsourcing.domain_old import (
 #     Aggregate,
 #     AggregateCreated,
-#     AggregateEvent,
+#     StreamEvent,
 #     aggregate,
 # )
 # from eventsourcing.domain import datetime_now_with_tzinfo, event, triggers
@@ -1050,7 +1050,7 @@
 #         # that are applied using the decorated method.
 #         @aggregate
 #         class Order:
-#             class Confirmed(AggregateEvent):
+#             class Confirmed(StreamEvent):
 #                 at: datetime
 #
 #             @triggers(Confirmed)
@@ -1088,7 +1088,7 @@
 #                 self.is_confirmed1 = False
 #                 self.is_confirmed2 = False
 #
-#             class Confirmed(AggregateEvent):
+#             class Confirmed(StreamEvent):
 #                 def apply(self, aggregate: CanConfirm) -> None:
 #                     aggregate.is_confirmed2 = True
 #
@@ -1123,7 +1123,7 @@
 #         with self.assertRaises(TypeError) as cm:
 #
 #             class Order(Aggregate):
-#                 class Confirmed(AggregateEvent):
+#                 class Confirmed(StreamEvent):
 #                     at: datetime
 #
 #                 @triggers("Confirmed")
@@ -1160,7 +1160,7 @@
 #
 #             @aggregate
 #             class Order(Aggregate):
-#                 class Confirmed(AggregateEvent):
+#                 class Confirmed(StreamEvent):
 #                     at: datetime
 #
 #                 @triggers(Confirmed)
@@ -1513,7 +1513,7 @@
 #     def test_raises_when_decorated_mentions_non_nested_class(self) -> None:
 #         with self.assertRaises(TypeError):
 #
-#             class Something(AggregateEvent):
+#             class Something(StreamEvent):
 #                 pass
 #
 #             class Order(Aggregate):

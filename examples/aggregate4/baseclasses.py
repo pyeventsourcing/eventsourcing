@@ -11,7 +11,7 @@ from eventsourcing.dataclasses.immutable import (
     get_init_types,
 )
 from eventsourcing.domain import (
-    AggregateEvent,
+    StreamEvent,
 )
 from eventsourcing.timestamp import datetime_now_with_tzinfo
 from eventsourcing.types import WorksWithDecisions
@@ -32,7 +32,7 @@ class Aggregate(WorksWithDecisions[Decision]):
     version: int
     created_on: datetime
     modified_on: datetime
-    _pending_events: list[AggregateEvent[Decision]] = field(init=False)
+    _pending_events: list[StreamEvent[Decision]] = field(init=False)
 
     class Snapshot(TimestampedDecision):
         topic: str
@@ -42,10 +42,10 @@ class Aggregate(WorksWithDecisions[Decision]):
         def take(
             cls,
             aggregate: Aggregate,
-        ) -> AggregateEvent[Decision]:
+        ) -> StreamEvent[Decision]:
             aggregate_state = dict(aggregate.__dict__)
             aggregate_state.pop("_pending_events")
-            return AggregateEvent(
+            return StreamEvent(
                 decision=Aggregate.Snapshot(
                     topic=get_topic(type(aggregate)),
                     state=aggregate_state,
@@ -60,7 +60,7 @@ class Aggregate(WorksWithDecisions[Decision]):
         **kwargs: Any,
     ) -> None:
         kwargs = kwargs.copy()
-        new_event = AggregateEvent(
+        new_event = StreamEvent(
             decision=event_class(**kwargs),
             stream_id=self.id,
             stream_position=self.version + 1,
@@ -68,17 +68,17 @@ class Aggregate(WorksWithDecisions[Decision]):
         self.apply_event(new_event)
         self.append_event(new_event)
 
-    def append_event(self, *events: AggregateEvent[Decision]) -> None:
+    def append_event(self, *events: StreamEvent[Decision]) -> None:
         self._pending_events.extend(events)
 
-    def collect_events(self) -> list[AggregateEvent[Decision]]:
+    def collect_events(self) -> list[StreamEvent[Decision]]:
         events, self._pending_events = (
             self._pending_events,
-            list[AggregateEvent[Decision]](),
+            list[StreamEvent[Decision]](),
         )
         return events
 
-    def apply_event(self, envelope: AggregateEvent[Decision]) -> None:
+    def apply_event(self, envelope: StreamEvent[Decision]) -> None:
         match envelope.decision:
             case Aggregate.Snapshot(state=state):
                 validated_state = {}
@@ -99,7 +99,7 @@ class Aggregate(WorksWithDecisions[Decision]):
     def project_events(
         cls,
         _: Self | None,
-        events: Iterable[AggregateEvent[Decision]],
+        events: Iterable[StreamEvent[Decision]],
     ) -> Self | None:
         aggregate: Self = Aggregate.__new__(cls)
         for event in events:

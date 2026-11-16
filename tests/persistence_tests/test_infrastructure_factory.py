@@ -5,10 +5,10 @@ import eventsourcing.popo
 from eventsourcing.dataclasses.legacy import LegacyJSONTranscoder
 from eventsourcing.errors import InfrastructureFactoryError, ProgrammingError
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     ApplicationRecorder,
     EventStore,
     InfrastructureFactory,
+    StreamEventMapper,
     TrackingRecorder,
 )
 from eventsourcing.utils import Environment, get_topic
@@ -56,40 +56,38 @@ class TestInfrastructureFactory(TestCase):
         }
 
         factory = InfrastructureFactory.construct(env)
-        mapper: AggregateEventMapper[Any] = factory.mapper()
+        mapper: StreamEventMapper[Any] = factory.mapper()
 
-        self.assertIsInstance(mapper, AggregateEventMapper)
+        self.assertIsInstance(mapper, StreamEventMapper)
         self.assertIsInstance(mapper.transcoder, LegacyJSONTranscoder)
 
         # MYAPP_MAPPER_TOPIC set to MyMapper.
         env = {
-            "MYAPP_" + InfrastructureFactory.MAPPER_TOPIC: get_topic(
-                AggregateEventMapper
-            ),
+            "MYAPP_" + InfrastructureFactory.MAPPER_TOPIC: get_topic(StreamEventMapper),
             "MYAPP_" + InfrastructureFactory.TRANSCODER_TOPIC: get_topic(
                 LegacyJSONTranscoder
             ),
         }
         factory = InfrastructureFactory.construct(env=Environment("MyApp", env))
         mapper = factory.mapper()
-        self.assertIsInstance(mapper, AggregateEventMapper)
+        self.assertIsInstance(mapper, StreamEventMapper)
         self.assertIsInstance(mapper.transcoder, LegacyJSONTranscoder)
 
     def test_construct_event_store(self) -> None:
         factory: InfrastructureFactory[TrackingRecorder] = (
             InfrastructureFactory.construct(
                 env={
-                    "MAPPER_TOPIC": get_topic(AggregateEventMapper),
+                    "MAPPER_TOPIC": get_topic(StreamEventMapper),
                     "TRANSCODER_TOPIC": get_topic(LegacyJSONTranscoder),
                 }
             )
         )
         event_store: EventStore[Decision] = factory.event_store()
         self.assertIsInstance(event_store, EventStore)
-        self.assertIsInstance(event_store.mapper, AggregateEventMapper)
+        self.assertIsInstance(event_store.mapper, StreamEventMapper)
         self.assertIsInstance(event_store.recorder, ApplicationRecorder)
 
-        my_mapper: AggregateEventMapper[Decision] = factory.mapper()
+        my_mapper: StreamEventMapper[Decision] = factory.mapper()
         event_store = factory.event_store(mapper=my_mapper)
         self.assertEqual(id(event_store.mapper), id(my_mapper))
 

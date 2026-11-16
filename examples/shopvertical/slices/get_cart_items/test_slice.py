@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from unittest import TestCase
 from uuid import uuid4
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.events import (
     AddedItemToCart,
     ClearedCart,
@@ -25,7 +25,7 @@ class TestGetCartItems(TestCase):
         cart_id = str(uuid4())
         product_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="name",
@@ -47,7 +47,7 @@ class TestGetCartItems(TestCase):
         cart_id = str(uuid4())
         product_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="name",
@@ -57,7 +57,7 @@ class TestGetCartItems(TestCase):
                 stream_id=cart_id,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
@@ -72,7 +72,7 @@ class TestGetCartItems(TestCase):
         cart_id = str(uuid4())
         product_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="name",
@@ -82,7 +82,7 @@ class TestGetCartItems(TestCase):
                 stream_id=cart_id,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="name",
@@ -92,14 +92,14 @@ class TestGetCartItems(TestCase):
                 stream_id=cart_id,
                 stream_position=2,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
                 stream_id=cart_id,
                 stream_position=3,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
@@ -114,7 +114,7 @@ class TestGetCartItems(TestCase):
         cart_id = str(uuid4())
         product_id = str(uuid4())
         cart_events: Events = (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=product_id,
                     name="name",
@@ -124,7 +124,7 @@ class TestGetCartItems(TestCase):
                 stream_id=cart_id,
                 stream_position=1,
             ),
-            AggregateEvent(
+            StreamEvent(
                 decision=ClearedCart(),
                 stream_id=cart_id,
                 stream_position=2,

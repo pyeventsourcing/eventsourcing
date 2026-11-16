@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, override
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.common import Command, get_events, put_events
 from examples.shopvertical.events import (
     AddedItemToCart,
@@ -55,7 +55,7 @@ class SubmitCart(Command):
                 raise InsufficientInventoryError(msg)
 
         return (
-            AggregateEvent(
+            StreamEvent(
                 decision=SubmittedCart(),
                 stream_id=self.cart_id,
                 stream_position=len(events) + 1,

@@ -111,7 +111,7 @@ as the :ref:`simple example <Aggregate simple example>` in the domain module doc
     from dataclasses import dataclass
     from uuid import uuid4
 
-    from eventsourcing.domain import Aggregate, AggregateEvent
+    from eventsourcing.domain import Aggregate, StreamEvent
 
 
     class Dog(Aggregate):
@@ -128,7 +128,7 @@ as the :ref:`simple example <Aggregate simple example>` in the domain module doc
         def add_trick(self, trick: str) -> None:
             self.trigger_event(Dog.TrickAdded, trick=trick)
 
-        class TrickAdded(AggregateEvent):
+        class TrickAdded(StreamEvent):
             trick: str
 
             def apply(self, dog: Dog) -> None:
@@ -273,7 +273,7 @@ It is required to supply either an ``aggregate_cls`` or a ``projector``.
 The ``projector`` argument is also optional, and can be used to pass in an alternative
 "mutator function" that will be used as the "aggregate projector" to reconstruct
 the current state of the aggregate from stored snapshots and domain events.
-By default, the repository will use the :func:`~eventsourcing.domain.AggregateEvent.mutate`
+By default, the repository will use the :func:`~eventsourcing.domain.StreamEvent.mutate`
 methods of domain event objects to reconstruct the state of the requested aggregate.
 
 It is possible to enable caching of aggregates in the application repository.
@@ -619,7 +619,7 @@ aggregate classes ``Page`` and ``Index`` are defined in that section.
     from typing import Self
     from uuid import uuid5, NAMESPACE_URL
 
-    from eventsourcing.domain import Aggregate, AggregateEvent, AggregateCreated
+    from eventsourcing.domain import Aggregate, StreamEvent, AggregateCreated
 
 
     class Page(Aggregate):
@@ -643,7 +643,7 @@ aggregate classes ``Page`` and ``Index`` are defined in that section.
         def update_name(self, name: str) -> None:
             self.trigger_event(self.NameUpdated, name=name)
 
-        class NameUpdated(AggregateEvent):
+        class NameUpdated(StreamEvent):
             name: str
 
             def apply(self, page: Page) -> None:
@@ -672,7 +672,7 @@ aggregate classes ``Page`` and ``Index`` are defined in that section.
         def update_ref(self, ref: str) -> None:
             self.trigger_event(self.RefUpdated, ref=ref)
 
-        class RefUpdated(AggregateEvent):
+        class RefUpdated(StreamEvent):
             ref: UUID
 
             def apply(self, index: "Index") -> None:

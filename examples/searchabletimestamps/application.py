@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast, override
 
 from eventsourcing.application import AggregateNotFoundError
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.cargoshipping.application import BookingApplication
 from examples.cargoshipping.domainmodel import Cargo, CargoEvent
 from examples.searchabletimestamps.persistence import SearchableTimestampsRecorder
@@ -29,7 +29,7 @@ class SearchableTimestampsApplication(BookingApplication):
                 e.decision.timestamp,
             )
             for e in processing_event.events
-            if isinstance(e, AggregateEvent) and isinstance(e.decision, CargoEvent)
+            if isinstance(e, StreamEvent) and isinstance(e.decision, CargoEvent)
         ]
         processing_event.saved_kwargs["event_timestamps_data"] = event_timestamps_data
         return super()._record(processing_event)

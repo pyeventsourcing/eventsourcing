@@ -19,8 +19,8 @@ from eventsourcing.projection import (
 )
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.tests.projection import (
-    AggregateEventProjectionTestCase,
     SpannerThrownError,
+    StreamEventProjectionTestCase,
     StudentAggregate,
     StudentAnalyticsEventProcessor,
     StudentAnalyticsView,
@@ -133,8 +133,8 @@ class TestPostgresStudentAnalytics(StudentAnalyticsViewTestCase):
         return self.factory.tracking_recorder(PostgresStudentAnalyticsView)
 
 
-class TestAggregateEventProjectionWithPostgres(
-    AggregateEventProjectionTestCase[PostgresStudentAnalyticsView]
+class TestStreamEventProjectionWithPostgres(
+    StreamEventProjectionTestCase[PostgresStudentAnalyticsView]
 ):
     view_class = PostgresStudentAnalyticsView
     env: ClassVar[dict[str, str]] = {
@@ -250,5 +250,5 @@ class TestAggregateEventProjectionWithPostgres(
                 )
 
 
-del AggregateEventProjectionTestCase
+del StreamEventProjectionTestCase
 del StudentAnalyticsViewTestCase

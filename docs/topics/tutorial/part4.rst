@@ -201,7 +201,7 @@ is not capable of reconstructing.
 Projection example
 ==================
 
-The ``AggregateEventCountersProjection`` class processes events of an event-sourced application.
+The ``StreamEventCountersProjection`` class processes events of an event-sourced application.
 
 It inherits the :class:`~eventsourcing.projection.Projection` class, the type argument is ``EventCountersView``.
 It implements :func:`~eventsourcing.projection.Projection.process_event` by calling ``incr_created_event_counter()``
@@ -210,7 +210,7 @@ for :class:`Aggregate.Event <eventsourcing.domain.Aggregate.Event>` events.
 If a ``SpannerThrown`` event is being processed, then an exception is raised, to demonstrate error handling in process runners.
 
 .. literalinclude:: ../../../eventsourcing/tests/projection.py
-    :pyobject: AggregateEventCountersProjection
+    :pyobject: StreamEventCountersProjection
 
 By default, other kinds of events will be processed by calling :func:`~eventsourcing.persistence.TrackingRecorder.insert_tracking`,
 so that progress along an application sequence can be recorded. This can help bridge large gaps without risking repetitive pulling
@@ -222,7 +222,7 @@ Projection runner
 
 Let's consider how to run the projection, so events of an event-sourced application can be counted.
 
-As shown in the ``AggregateEventCountersProjectionTestCase`` class below, a :ref:`projection runner <Projection runner>`
+As shown in the ``StreamEventCountersProjectionTestCase`` class below, a :ref:`projection runner <Projection runner>`
 can be constructed with an application class, a projection class, a materialised view class, and an optional environment
 :class:`Mapping` object that specifies run-time configuration of the event-sourced application and the materialised view.
 
@@ -251,13 +251,13 @@ the view is backed by a durable database.
 
 
 .. literalinclude:: ../../../eventsourcing/tests/projection.py
-    :pyobject: AggregateEventCountersProjectionTestCase
+    :pyobject: StreamEventCountersProjectionTestCase
 
 The test method ``test_event_counters_projection()`` constructs a runner, and from the runner gets references
 to an event-sourced application "write model" and a materialised view "read model".
 
 Events are generated in the event-sourced application "write model". These events are then
-processed, according to the logic of the ``AggregateEventCountersProjection``, by updating the
+processed, according to the logic of the ``StreamEventCountersProjection``, by updating the
 materialised event counters view "read model".
 
 The counted numbers of each kind of event can be are obtained from the "read model". The materialised
@@ -280,7 +280,7 @@ The test case below runs the projection class with the ``POPOEventCounters`` vie
 
 
 .. literalinclude:: ../../../tests/projection_tests/test_projection_with_popo.py
-    :pyobject: TestAggregateEventCountersProjectionWithPOPO
+    :pyobject: TestStreamEventCountersProjectionWithPOPO
 
 When generating and counting events in memory, we need to use the projection runner's
 application and view objects for generating events and getting counted numbers.
@@ -298,7 +298,7 @@ any instance of the application can be used to write events, and any instance of
 obtain the counted numbers of events.
 
 .. literalinclude:: ../../../tests/projection_tests/test_projection_with_postgres.py
-    :pyobject: TestAggregateEventCountersProjectionWithPostgres
+    :pyobject: TestStreamEventCountersProjectionWithPostgres
 
 If a durable database is used in production, the event-sourced application object and the materialised view object
 could be horizontally scaled, with the event-processing component running as a separate operating system process.

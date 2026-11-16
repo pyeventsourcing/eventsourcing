@@ -4,9 +4,9 @@ from typing import Any, get_type_hints, override
 
 from eventsourcing import domain
 from eventsourcing.dataclasses.immutable import (
-    AggregateEvent,
     Decision,
     Immutable,
+    StreamEvent,
 )
 
 
@@ -14,7 +14,7 @@ class MutableAggregateSnapshot(Decision):
     state: Any
 
     @classmethod
-    def take(cls, aggregate: Aggregate) -> AggregateEvent:
+    def take(cls, aggregate: Aggregate) -> StreamEvent:
         type_of_snapshot_state = get_type_hints(cls)["state"]
         aggregate_state = dict(aggregate.__dict__)
         aggregate_state.pop("new_decisions")
@@ -22,7 +22,7 @@ class MutableAggregateSnapshot(Decision):
         aggregate_version = aggregate_state.pop("version")
         snapshot_state = type_of_snapshot_state(**aggregate_state)
         decision = cls(state=snapshot_state)
-        return AggregateEvent(
+        return StreamEvent(
             decision=decision,
             stream_id=aggregate_id,
             stream_position=aggregate_version,

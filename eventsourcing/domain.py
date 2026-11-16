@@ -27,12 +27,12 @@ from eventsourcing.decorator import (
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.metadata import get_metadata_from_context, set_metadata_in_context
 from eventsourcing.types import (
-    AggregateEventProtocol,
     Evolver,
     MutableAggregateProtocol,
     Projector,
     SelectorProtocol,
     StateMutatorProtocol,
+    StreamEventProtocol,
     TaggedEventProtocol,
     WorksWithDecisions,
 )
@@ -100,7 +100,7 @@ class TaggedEvent[TDecision](EventEnvelope[TDecision]):
 
 
 @dataclass(kw_only=True, frozen=True)
-class AggregateEvent[TDecision](EventEnvelope[TDecision]):
+class StreamEvent[TDecision](EventEnvelope[TDecision]):
     stream_id: str
     stream_position: int
 
@@ -392,13 +392,13 @@ class QuerySlice[TDecision](BaseSlice[TDecision]):
 class Aggregate[
     TDecision,
 ](
-    # MutableAggregateProtocol[AggregateEventProtocol[TDecision]],
+    # MutableAggregateProtocol[StreamEventProtocol[TDecision]],
     CallTriggersEvent[TDecision],
 ):
     id: str
     version: int
     INITIAL_VERSION = 1
-    new_decisions: list[AggregateEvent[TDecision]]
+    new_decisions: list[StreamEvent[TDecision]]
 
     def __new__(cls, *_: Any, **__: Any) -> Self:
         self = super().__new__(cls)
@@ -409,13 +409,13 @@ class Aggregate[
 
     def collect_events(
         self,
-    ) -> Sequence[AggregateEvent[TDecision]]:
+    ) -> Sequence[StreamEvent[TDecision]]:
         """
         Drains list of triggered events.
         """
         collected, self.new_decisions = (
             self.new_decisions,
-            list[AggregateEvent[TDecision]](),
+            list[StreamEvent[TDecision]](),
         )
         return collected
 
@@ -446,7 +446,7 @@ class Aggregate[
         Constructs new event and appends to list of uncommitted events.
         """
         self.check_decision_type(decision_cls)
-        envelope = AggregateEvent(
+        envelope = StreamEvent(
             decision=decision_cls(*args, **kwargs),
             stream_id=self.id,
             stream_position=self.version + 1,
@@ -483,7 +483,7 @@ def evolve_aggregate[
     TState: MutableAggregateProtocol[Any],
 ](
     obj: TState | None,
-    envelope: AggregateEvent[Any],
+    envelope: StreamEvent[Any],
 ) -> TState | None:
     return envelope.mutate(obj)
 
@@ -518,7 +518,7 @@ class EventSourcedLog[TDecision, SDecision]:
         self,
         next_stream_position: int | None = None,
         **kwargs: Any,
-    ) -> AggregateEvent[TDecision]:
+    ) -> StreamEvent[TDecision]:
         """Constructs and returns a new log event."""
         return self._trigger_event(
             logged_cls=self.event_cls,
@@ -531,7 +531,7 @@ class EventSourcedLog[TDecision, SDecision]:
         logged_cls: type[SDecision],
         next_stream_position: int | None = None,
         **kwargs: Any,
-    ) -> AggregateEvent[TDecision]:
+    ) -> StreamEvent[TDecision]:
         """Constructs and returns a new log event."""
         if next_stream_position is None:
             last_logged = self.get_last()
@@ -540,20 +540,20 @@ class EventSourcedLog[TDecision, SDecision]:
             else:
                 next_stream_position = last_logged.stream_position + 1
 
-        return AggregateEvent(
+        return StreamEvent(
             stream_id=self.stream_id,
             stream_position=next_stream_position,
             decision=cast(TDecision, logged_cls(**kwargs)),
         )
 
-    def get_first(self) -> AggregateEventProtocol[SDecision] | None:
+    def get_first(self) -> StreamEventProtocol[SDecision] | None:
         """Selects the first logged event."""
         try:
             return next(self.get(limit=1))
         except StopIteration:
             return None
 
-    def get_last(self) -> AggregateEventProtocol[SDecision] | None:
+    def get_last(self) -> StreamEventProtocol[SDecision] | None:
         """Selects the last logged event."""
         try:
             return next(self.get(desc=True, limit=1))
@@ -567,12 +567,12 @@ class EventSourcedLog[TDecision, SDecision]:
         lte: int | None = None,
         desc: bool = False,
         limit: int | None = None,
-    ) -> Iterator[AggregateEventProtocol[SDecision]]:
+    ) -> Iterator[StreamEventProtocol[SDecision]]:
         """Selects a range of logged events with limit,
         with ascending or descending order.
         """
         return cast(
-            Iterator[AggregateEventProtocol[SDecision]],
+            Iterator[StreamEventProtocol[SDecision]],
             self.events.get(
                 stream_id=self.stream_id,
                 gt=gt,

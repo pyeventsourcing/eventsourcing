@@ -15,7 +15,7 @@ from eventsourcing.application import (
     ProcessingEvent,
     SupportsApplicationSubscriptions,
 )
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from eventsourcing.errors import WaitInterruptedError
 from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.persistence import (
@@ -69,7 +69,7 @@ class EventProcessor[TEvent, TTrackingRecorder](AbstractEventProcessor[TEvent], 
 
 class EventSourcedEventProcessor[TDecision](
     AggregatesApplication[ProcessRecorder, TDecision],
-    AbstractEventProcessor[AggregateEvent[TDecision]],
+    AbstractEventProcessor[StreamEvent[TDecision]],
 ):
     """Extends the :py:class:`~eventsourcing.application.AggregatesApplication` class
     by using a process recorder as its application recorder, and by
@@ -89,7 +89,7 @@ class EventSourcedEventProcessor[TDecision](
 
     @override
     def process_event(
-        self, envelope: AggregateEvent[TDecision], tracking: Tracking
+        self, envelope: StreamEvent[TDecision], tracking: Tracking
     ) -> None:
         """Calls :func:`~eventsourcing.system.EventSourcedProjection.policy`
         method with the given domain event and a new
@@ -121,7 +121,7 @@ class EventSourcedEventProcessor[TDecision](
 
     def policy(
         self,
-        envelope: AggregateEvent[TDecision],
+        envelope: StreamEvent[TDecision],
         processing_event: ProcessingEvent[TDecision],
     ) -> None:
         """Abstract domain event processing policy method. Must be

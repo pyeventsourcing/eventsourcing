@@ -15,10 +15,10 @@ from eventsourcing.application import (
 from eventsourcing.errors import ProgrammingError
 from eventsourcing.metadata import null_metadata_in_context
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     ApplicationRecorder,
     Notification,
     ProcessRecorder,
+    StreamEventMapper,
     Tracking,
 )
 from eventsourcing.projection import EventSourcedEventProcessor
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from types import TracebackType
     from typing import Self
 
-    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.domain import StreamEvent
 
 type ProcessingJob[TEnvelope: EventEnvelopeProtocol[Any]] = tuple[TEnvelope, Tracking]
 
@@ -55,7 +55,7 @@ class Follower[TDecision](EventSourcedEventProcessor[TDecision]):
     def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
         super().__init__(env=env, context_name=context_name)
         self.readers: dict[str, NotificationLogReader] = {}
-        self.mappers: dict[str, AggregateEventMapper[TDecision]] = {}
+        self.mappers: dict[str, StreamEventMapper[TDecision]] = {}
         self.is_threading_enabled = False
 
     def follow(self, name: str, log: NotificationLog) -> None:
@@ -92,7 +92,7 @@ class Follower[TDecision](EventSourcedEventProcessor[TDecision]):
     @override
     def process_event(
         self,
-        envelope: AggregateEvent[TDecision],
+        envelope: StreamEvent[TDecision],
         tracking: Tracking,
     ) -> None:
         with self.processing_lock:
@@ -125,10 +125,10 @@ class Follower[TDecision](EventSourcedEventProcessor[TDecision]):
 
     def convert_notifications(
         self, leader_name: str, notifications: Iterable[Notification]
-    ) -> list[ProcessingJob[AggregateEvent[TDecision]]]:
+    ) -> list[ProcessingJob[StreamEvent[TDecision]]]:
         """Uses the given :class:`~eventsourcing.persistence.Mapper` to convert
         each received :class:`~eventsourcing.persistence.Notification`
-        object to an :class:`~eventsourcing.domain.AggregateEvent` object
+        object to an :class:`~eventsourcing.domain.StreamEvent` object
         paired with a :class:`~eventsourcing.persistence.Tracking` object.
         """
         mapper = self.mappers[leader_name]
@@ -176,8 +176,8 @@ class Leader[
     @override
     def save(
         self,
-        *objs: EventCollectorProtocol[AggregateEvent[TDecision]]
-        | AggregateEvent[TDecision]
+        *objs: EventCollectorProtocol[StreamEvent[TDecision]]
+        | StreamEvent[TDecision]
         | None,
         **kwargs: Any,
     ) -> int | None:

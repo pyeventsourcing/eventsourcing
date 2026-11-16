@@ -32,7 +32,7 @@ from tests.application_tests.test_processapplication import EmailProcess
 
 if TYPE_CHECKING:
     from eventsourcing.application import ProcessingEvent
-    from eventsourcing.domain import AggregateEvent
+    from eventsourcing.domain import StreamEvent
     from eventsourcing.persistence import Tracking
 
 
@@ -197,7 +197,7 @@ class RunnerTestCase[TRunner: RunnerProtocol[Any]](TestCase, ABC):
             @override
             def policy(
                 self,
-                envelope: AggregateEvent[Decision],
+                envelope: StreamEvent[Decision],
                 processing_event: ProcessingEvent[Decision],
             ) -> None:
                 match envelope.decision:
@@ -220,7 +220,7 @@ class RunnerTestCase[TRunner: RunnerProtocol[Any]](TestCase, ABC):
             @override
             def policy(
                 self,
-                envelope: AggregateEvent[Decision],
+                envelope: StreamEvent[Decision],
                 processing_event: ProcessingEvent[Decision],
             ) -> None:
                 match envelope.decision:
@@ -358,7 +358,7 @@ class BrokenInitialisation(EmailProcess):
 class BrokenProcessing(EmailProcess):
     @override
     def process_event(
-        self, envelope: AggregateEvent[Decision], tracking: Tracking
+        self, envelope: StreamEvent[Decision], tracking: Tracking
     ) -> None:
         msg = "Just testing error handling when processing is broken"
         raise DeliberateError(msg)

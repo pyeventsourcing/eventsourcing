@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal  # noqa: TC003
 from typing import TYPE_CHECKING, override
 
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from examples.shopvertical.common import Command, get_events, put_events
 from examples.shopvertical.events import (
     AddedItemToCart,
@@ -46,7 +46,7 @@ class AddItemToCart(Command):
             raise CartFullError
 
         return (
-            AggregateEvent(
+            StreamEvent(
                 decision=AddedItemToCart(
                     product_id=self.product_id,
                     name=self.name,

@@ -10,11 +10,11 @@ from eventsourcing.pydantic import Aggregate, Decision
 from eventsourcing.tests.bank_account_with_pydantic import BankAccountWithPydantic
 
 if TYPE_CHECKING:
-    from eventsourcing.types import AggregateEventProtocol
+    from eventsourcing.types import StreamEventProtocol
 
 
 def policy(
-    envelope: AggregateEventProtocol[Decision],
+    envelope: StreamEventProtocol[Decision],
     processing_event: ProcessingEvent[Decision],
 ) -> None:
     match envelope.decision:

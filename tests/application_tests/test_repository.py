@@ -13,8 +13,8 @@ from eventsourcing.application import (
     Repository,
 )
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     EventStore,
+    StreamEventMapper,
 )
 from eventsourcing.popo import POPOAggregateRecorder
 from eventsourcing.pydantic import Decision, Transcoder
@@ -27,14 +27,14 @@ from eventsourcing.types import StateMutatorProtocol
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from eventsourcing.types import AggregateEventProtocol
+    from eventsourcing.types import StreamEventProtocol
 
 
 class TestRepository(TestCase):
     def test_get(self) -> None:
         repository = Repository[Decision](
             EventStore(
-                mapper=AggregateEventMapper(transcoder=Transcoder()),
+                mapper=StreamEventMapper(transcoder=Transcoder()),
                 recorder=POPOAggregateRecorder(),
             )
         )
@@ -52,13 +52,13 @@ class TestRepository(TestCase):
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=(Transcoder())),
+            mapper=StreamEventMapper(transcoder=(Transcoder())),
             recorder=event_recorder,
         )
         snapshot_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         snapshot_recorder.create_table()
         snapshot_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=(Transcoder())),
+            mapper=StreamEventMapper(transcoder=(Transcoder())),
             recorder=snapshot_recorder,
         )
         repository = Repository(event_store, snapshot_store=snapshot_store)
@@ -146,7 +146,7 @@ class TestRepository(TestCase):
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=(Transcoder())),
+            mapper=StreamEventMapper(transcoder=(Transcoder())),
             recorder=event_recorder,
         )
         repository = Repository(event_store)
@@ -215,12 +215,12 @@ class TestRepository(TestCase):
     def test_with_alternative_mutator_function(self) -> None:
         def bank_account_projector(
             initial: BankAccountWithPydantic | None,
-            envelopes: Iterable[AggregateEventProtocol[Decision]],
+            envelopes: Iterable[StreamEventProtocol[Decision]],
         ) -> BankAccountWithPydantic | None:
             if initial is None:
                 initial = BankAccountWithPydantic.__new__(BankAccountWithPydantic)
 
-            def evolve(state: Any, event: AggregateEventProtocol[Any]) -> Any:
+            def evolve(state: Any, event: StreamEventProtocol[Any]) -> Any:
                 return cast(StateMutatorProtocol, event).mutate(state)
 
             return reduce(
@@ -234,13 +234,13 @@ class TestRepository(TestCase):
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=transcoder),
+            mapper=StreamEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
         snapshot_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         snapshot_recorder.create_table()
         snapshot_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=transcoder),
+            mapper=StreamEventMapper(transcoder=transcoder),
             recorder=snapshot_recorder,
         )
         repository = Repository[Decision](event_store, snapshot_store=snapshot_store)
@@ -345,7 +345,7 @@ class TestRepository(TestCase):
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=transcoder),
+            mapper=StreamEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
 
@@ -377,7 +377,7 @@ class TestRepository(TestCase):
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=transcoder),
+            mapper=StreamEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
         repository = Repository(event_store, cache_maxsize=2)
@@ -432,7 +432,7 @@ class TestRepository(TestCase):
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=transcoder),
+            mapper=StreamEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
         repository = Repository(
@@ -461,7 +461,7 @@ class TestRepository(TestCase):
         event_recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_recorder.create_table()
         event_store = EventStore[Decision](
-            mapper=AggregateEventMapper(transcoder=transcoder),
+            mapper=StreamEventMapper(transcoder=transcoder),
             recorder=event_recorder,
         )
         repository = Repository(
@@ -488,7 +488,7 @@ class TestRepository(TestCase):
     def test_fastforward_lock(self) -> None:
         repository = Repository[Decision](
             EventStore(
-                mapper=AggregateEventMapper(transcoder=Transcoder()),
+                mapper=StreamEventMapper(transcoder=Transcoder()),
                 recorder=POPOAggregateRecorder(),
             ),
             cache_maxsize=2,

@@ -25,13 +25,13 @@ from eventsourcing.errors import (
     ProgrammingError,
 )
 from eventsourcing.persistence import (
-    AggregateEventMapper,
     AggregateRecorder,
     ApplicationRecorder,
     IntegrityError,
     InternalError,
     ProcessRecorder,
     StoredEvent,
+    StreamEventMapper,
     Tracking,
     TrackingRecorder,
 )
@@ -1363,7 +1363,7 @@ class TestPostgresFactory(InfrastructureFactoryTestCase[PostgresFactory]):
         self.env[PostgresFactory.POSTGRES_PORT] = "5432"
         self.env[PostgresFactory.POSTGRES_USER] = "eventsourcing"
         self.env[PostgresFactory.POSTGRES_PASSWORD] = "eventsourcing"
-        self.env[PostgresFactory.MAPPER_TOPIC] = get_topic(AggregateEventMapper)
+        self.env[PostgresFactory.MAPPER_TOPIC] = get_topic(StreamEventMapper)
         self.env[PostgresFactory.TRANSCODER_TOPIC] = get_topic(Transcoder)
         super().setUp()
 

@@ -4,13 +4,13 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from eventsourcing.dataclasses import Decision, Immutable
-from eventsourcing.domain import AggregateEvent
+from eventsourcing.domain import StreamEvent
 from eventsourcing.errors import ProgrammingError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from eventsourcing.types import AggregateEventProtocol
+    from eventsourcing.types import StreamEventProtocol
 
 
 class Dog(Immutable):
@@ -27,16 +27,16 @@ class Dog(Immutable):
 
     def trigger_event(
         self, cls: type[Decision], **kwargs: Any
-    ) -> AggregateEvent[Decision]:
-        return AggregateEvent(
+    ) -> StreamEvent[Decision]:
+        return StreamEvent(
             decision=cls(**kwargs),
             stream_id=self.id,
             stream_position=self.version + 1,
         )
 
     @staticmethod
-    def register(name: str) -> tuple[Dog, AggregateEvent[Decision]]:
-        event: AggregateEvent[Decision] = AggregateEvent(
+    def register(name: str) -> tuple[Dog, StreamEvent[Decision]]:
+        event: StreamEvent[Decision] = StreamEvent(
             decision=Dog.Registered(
                 name=name,
             ),
@@ -46,13 +46,13 @@ class Dog(Immutable):
         dog = Dog.mutate(event, None)
         return dog, event
 
-    def add_trick(self, trick: str) -> tuple[Dog, AggregateEvent[Decision]]:
+    def add_trick(self, trick: str) -> tuple[Dog, StreamEvent[Decision]]:
         event = self.trigger_event(Dog.TrickAdded, trick=trick)
         dog = Dog.mutate(event, self)
         return dog, event
 
     @staticmethod
-    def mutate(event: AggregateEventProtocol[Any], dog: Dog | None) -> Dog:
+    def mutate(event: StreamEventProtocol[Any], dog: Dog | None) -> Dog:
         """Mutates aggregate with event."""
         match event.decision:
             case Dog.Registered(name=name):
@@ -78,7 +78,7 @@ class Dog(Immutable):
 
     @staticmethod
     def projector(
-        dog: Dog | None, events: Iterable[AggregateEventProtocol[Decision]]
+        dog: Dog | None, events: Iterable[StreamEventProtocol[Decision]]
     ) -> Dog | None:
         for event in events:
             dog = Dog.mutate(event, dog)
