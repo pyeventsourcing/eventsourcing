@@ -1773,14 +1773,14 @@ class TaggedEventMapperTestCase[TDecision](TestCase, ABC):
         mapper = self.construct_mapper()
         dcb_event = mapper.to_dcb_event(event)
         self.assertEqual(dcb_event.tags, event.tags)
-        self.assertEqual(dcb_event.event_id, event.uuid)
+        self.assertEqual(dcb_event.event_id, event.event_id)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
         copy = mapper.to_tagged_event(dcb_event)
         self.assertEqual(type(copy), TaggedEvent)
         self.assertEqual(copy.tags, event.tags)
         self.assertEqual(copy.decision, event.decision)
-        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.event_id, event.event_id)
         self.assertEqual(copy.metadata, event.metadata)
 
         # With compressor
@@ -1788,14 +1788,14 @@ class TaggedEventMapperTestCase[TDecision](TestCase, ABC):
         mapper = self.construct_mapper(compressor=zlib_compressor)
         dcb_event = mapper.to_dcb_event(event)
         self.assertEqual(dcb_event.tags, event.tags)
-        self.assertEqual(dcb_event.event_id, event.uuid)
+        self.assertEqual(dcb_event.event_id, event.event_id)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
         copy = mapper.to_tagged_event(dcb_event)
         self.assertEqual(type(copy), TaggedEvent)
         self.assertEqual(copy.tags, event.tags)
         self.assertEqual(copy.decision, event.decision)
-        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.event_id, event.event_id)
         self.assertEqual(copy.metadata, event.metadata)
 
         # With cipher
@@ -1805,28 +1805,28 @@ class TaggedEventMapperTestCase[TDecision](TestCase, ABC):
         mapper = self.construct_mapper(cipher=aes_cipher)
         dcb_event = mapper.to_dcb_event(event)
         self.assertEqual(dcb_event.tags, event.tags)
-        self.assertEqual(dcb_event.event_id, event.uuid)
+        self.assertEqual(dcb_event.event_id, event.event_id)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
         copy = mapper.to_tagged_event(dcb_event)
         self.assertEqual(type(copy), TaggedEvent)
         self.assertEqual(copy.tags, event.tags)
         self.assertEqual(copy.decision, event.decision)
-        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.event_id, event.event_id)
         self.assertEqual(copy.metadata, event.metadata)
 
         # With compressor and cipher
         mapper = self.construct_mapper(compressor=zlib_compressor, cipher=aes_cipher)
         dcb_event = mapper.to_dcb_event(event)
         self.assertEqual(dcb_event.tags, event.tags)
-        self.assertEqual(dcb_event.event_id, event.uuid)
+        self.assertEqual(dcb_event.event_id, event.event_id)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
         copy = mapper.to_tagged_event(dcb_event)
         self.assertEqual(type(copy), TaggedEvent)
         self.assertEqual(copy.tags, event.tags)
         self.assertEqual(copy.decision, event.decision)
-        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.event_id, event.event_id)
         self.assertEqual(copy.metadata, event.metadata)
 
     @abstractmethod
@@ -1859,7 +1859,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         stored_event = mapper.to_stored_event(event)
         self.assertEqual(stored_event.originator_id, event.originator_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
-        self.assertEqual(stored_event.event_id, event.uuid)
+        self.assertEqual(stored_event.event_id, event.event_id)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
@@ -1867,7 +1867,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertEqual(copy.originator_version, event.originator_version)
         self.assertEqual(copy.decision, event.decision)
-        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.event_id, event.event_id)
         self.assertEqual(copy.metadata, event.metadata)
 
         # With compressor
@@ -1876,7 +1876,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         stored_event = mapper.to_stored_event(event)
         self.assertEqual(stored_event.originator_id, event.originator_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
-        self.assertEqual(stored_event.event_id, event.uuid)
+        self.assertEqual(stored_event.event_id, event.event_id)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
@@ -1884,7 +1884,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertEqual(copy.originator_version, event.originator_version)
         self.assertEqual(copy.decision, event.decision)
-        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.event_id, event.event_id)
         self.assertEqual(copy.metadata, event.metadata)
 
         # With cipher
@@ -1895,7 +1895,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         stored_event = mapper.to_stored_event(event)
         self.assertEqual(stored_event.originator_id, event.originator_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
-        self.assertEqual(stored_event.event_id, event.uuid)
+        self.assertEqual(stored_event.event_id, event.event_id)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
@@ -1903,7 +1903,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertEqual(copy.originator_version, event.originator_version)
         self.assertEqual(copy.decision, event.decision)
-        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.event_id, event.event_id)
         self.assertEqual(copy.metadata, event.metadata)
 
         # With compressor and cipher
@@ -1911,7 +1911,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         stored_event = mapper.to_stored_event(event)
         self.assertEqual(stored_event.originator_id, event.originator_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
-        self.assertEqual(stored_event.event_id, event.uuid)
+        self.assertEqual(stored_event.event_id, event.event_id)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
@@ -1919,7 +1919,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         self.assertEqual(copy.originator_id, event.originator_id)
         self.assertEqual(copy.originator_version, event.originator_version)
         self.assertEqual(copy.decision, event.decision)
-        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.event_id, event.event_id)
         self.assertEqual(copy.metadata, event.metadata)
 
     @abstractmethod

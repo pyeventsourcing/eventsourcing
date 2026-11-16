@@ -349,8 +349,8 @@ def test_dog_school(
     assert events[2].decision.trick == 'play dead'
 
     # Check the event envelopes.
-    assert events[0].uuid != events[1].uuid
-    assert events[1].uuid != events[2].uuid
+    assert events[0].event_id != events[1].event_id
+    assert events[1].event_id != events[2].event_id
     assert events[0].metadata == context_attributes
     assert events[1].metadata == context_attributes
     assert events[2].metadata == context_attributes

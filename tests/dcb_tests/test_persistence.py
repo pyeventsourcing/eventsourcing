@@ -50,7 +50,7 @@ class TestEventStore(TestCase):
         self.assertEqual(type(copy), TaggedEvent)
         self.assertEqual(copy.tags, event.tags)
         self.assertEqual(copy.decision, event.decision)
-        self.assertEqual(copy.uuid, event.uuid)
+        self.assertEqual(copy.event_id, event.event_id)
 
 
 class TestInMemoryDcbRecorder(TestCase):

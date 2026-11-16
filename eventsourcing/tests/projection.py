@@ -478,7 +478,7 @@ class EventSourcedProjectionTestCase(TestCase):
                     domain_event.metadata["correlation_id"],
                     domain_event.metadata["causation_id"],
                 )
-                original_events[str(domain_event.uuid)] = domain_event
+                original_events[str(domain_event.event_id)] = domain_event
 
             for notification in runner.downstream_app.notification_log.select(
                 start=projection_max_id,

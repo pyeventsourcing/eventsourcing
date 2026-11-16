@@ -1331,7 +1331,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
             originator_version=domain_event.originator_version,
             topic=topic,
             state=stored_state,
-            event_id=domain_event.uuid,
+            event_id=domain_event.event_id,
             metadata=domain_event.metadata,
         )
 
@@ -1356,7 +1356,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
         else:
             return AggregateEvent(
                 decision=decision,
-                uuid=stored_event.event_id,
+                event_id=stored_event.event_id,
                 metadata=stored_event.metadata,
                 originator_id=stored_event.originator_id,
                 originator_version=stored_event.originator_version,
@@ -1384,7 +1384,7 @@ class TaggedEventMapper[TDecision]:
             type=get_topic(type(event.decision)),
             data=data,
             tags=event.tags,
-            event_id=event.uuid,
+            event_id=event.event_id,
             metadata=event.metadata,
         )
 
@@ -1397,6 +1397,6 @@ class TaggedEventMapper[TDecision]:
         return TaggedEvent(
             tags=event.tags,
             decision=self.transcoder.decode(data, resolve_topic(event.type)),
-            uuid=event.event_id,
+            event_id=event.event_id,
             metadata=event.metadata,
         )

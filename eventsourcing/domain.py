@@ -86,7 +86,7 @@ class Decision(ABC):
 @dataclass(kw_only=True, frozen=True)
 class EventEnvelope[TDecision]:
     decision: TDecision
-    uuid: UUID = field(default_factory=uuid4)
+    event_id: UUID = field(default_factory=uuid4)
     metadata: dict[str, str] = field(default_factory=get_metadata_from_context)
 
     def mutate[TState](self, obj: TState | None) -> TState | None:

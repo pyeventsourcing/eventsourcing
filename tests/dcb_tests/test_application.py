@@ -74,7 +74,7 @@ class TestDcbApplication(TestCase):
             # Check the events have IDs and metadata.
             events = list(app.events.read())
             self.assertEqual(len(events), 1)
-            self.assertTrue(events[0].uuid)
+            self.assertTrue(events[0].event_id)
             self.assertEqual(metadata, events[0].metadata)
 
     def test_supports_compression(self) -> None:

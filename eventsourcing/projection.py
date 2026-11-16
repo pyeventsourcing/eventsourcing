@@ -112,7 +112,7 @@ class EventSourcedEventProcessor[TDecision](
         metadata = {}
         with contextlib.suppress(KeyError):
             metadata["correlation_id"] = envelope.metadata["correlation_id"]
-            metadata["causation_id"] = str(envelope.uuid)
+            metadata["causation_id"] = str(envelope.event_id)
         with put_metadata_in_context(metadata):
             self.policy(envelope, processing_event)
         recordings = self._record(processing_event)
