@@ -29,9 +29,7 @@ class TestEventStore(TestCase):
         pending = account.collect_events()
 
         # Construct event store.
-        recorder = SQLiteAggregateRecorder(
-            SQLiteDatastore(":memory:", originator_id_type="text")
-        )
+        recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
         event_store = EventStore[Decision](
             mapper=AggregateEventMapper(Transcoder()),
             recorder=recorder,

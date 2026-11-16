@@ -5,7 +5,7 @@ import logging
 from asyncio import CancelledError
 from contextlib import contextmanager
 from threading import Thread
-from typing import TYPE_CHECKING, Any, Generic, Literal, NamedTuple, cast, override
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple, cast, override
 
 import psycopg
 import psycopg.errors
@@ -157,7 +157,6 @@ class PostgresDatastore:
         pool_open_timeout: float | None = None,
         get_password_func: Callable[[], str] | None = None,
         single_row_tracking: bool = True,
-        originator_id_type: Literal["uuid", "text"] = "text",
         enable_db_functions: bool = False,
     ):
         self.idle_in_transaction_session_timeout = idle_in_transaction_session_timeout
@@ -166,14 +165,6 @@ class PostgresDatastore:
         self.single_row_tracking = single_row_tracking
         self.lock_timeout = lock_timeout
         self.schema = schema.strip() or "public"
-        if originator_id_type.lower() not in ("uuid", "text"):
-            msg = (
-                f"Invalid originator_id_type '{originator_id_type}', "
-                f"must be 'uuid' or 'text'"
-            )
-            raise ValueError(msg)
-        self.originator_id_type = originator_id_type.lower()
-
         self.enable_db_functions = enable_db_functions
 
         check = ConnectionPool.check_connection if pre_ping else None
@@ -379,16 +370,14 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
             f"{self.events_table_name}_notification_id_idx"
         )
 
-        self.stored_event_type_name = (
-            f"stored_event_{self.datastore.originator_id_type}"
-        )
+        self.stored_event_type_name = "stored_event"
         self.datastore.db_type_names.add(self.stored_event_type_name)
         self.datastore.register_type_adapters()
         self.create_table_statement_index = len(self.sql_create_statements)
         self.sql_create_statements.append(
             SQL(
                 "CREATE TABLE IF NOT EXISTS {schema}.{table} ("
-                "originator_id {originator_id_type} NOT NULL, "
+                "originator_id text NOT NULL, "
                 "originator_version bigint NOT NULL, "
                 "topic text, "
                 "state bytea, "
@@ -406,7 +395,6 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
             ).format(
                 schema=Identifier(self.datastore.schema),
                 table=Identifier(self.events_table_name),
-                originator_id_type=Identifier(self.datastore.originator_id_type),
             )
         )
 
@@ -445,7 +433,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         self.sql_create_statements.append(
             SQL(
                 "CREATE TYPE {schema}.{name} "
-                "AS (originator_id {originator_id_type}, "
+                "AS (originator_id text, "
                 "originator_version bigint, "
                 "topic text, "
                 "state bytea, "
@@ -454,7 +442,6 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
             ).format(
                 schema=Identifier(self.datastore.schema),
                 name=Identifier(self.stored_event_type_name),
-                originator_id_type=Identifier(self.datastore.originator_id_type),
             )
         )
 
@@ -569,7 +556,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         super().__init__(datastore, events_table_name=events_table_name)
         self.sql_create_statements[self.create_table_statement_index] = SQL(
             "CREATE TABLE IF NOT EXISTS {schema}.{table} ("
-            "originator_id {originator_id_type} NOT NULL, "
+            "originator_id text NOT NULL, "
             "originator_version bigint NOT NULL, "
             "topic text, "
             "state bytea, "
@@ -588,7 +575,6 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         ).format(
             schema=Identifier(self.datastore.schema),
             table=Identifier(self.events_table_name),
-            originator_id_type=Identifier(self.datastore.originator_id_type),
         )
 
         self.sql_create_statements.append(
@@ -620,9 +606,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             ),
         ]
 
-        self.pg_function_name_insert_events = (
-            f"es_insert_events_{self.datastore.originator_id_type}"
-        )
+        self.pg_function_name_insert_events = "es_insert_events"
         self.sql_invoke_pg_function_insert_events = SQL(
             "SELECT * FROM {schema}.{insert_events}((%s))"
         ).format(
@@ -1201,7 +1185,6 @@ class BasePostgresFactory(BaseInfrastructureFactory):
     )
     POSTGRES_SCHEMA = "POSTGRES_SCHEMA"
     POSTGRES_SINGLE_ROW_TRACKING = "SINGLE_ROW_TRACKING"
-    ORIGINATOR_ID_TYPE = "ORIGINATOR_ID_TYPE"
     POSTGRES_ENABLE_DB_FUNCTIONS = "POSTGRES_ENABLE_DB_FUNCTIONS"
     CREATE_TABLE = "CREATE_TABLE"
 
@@ -1363,17 +1346,6 @@ class BasePostgresFactory(BaseInfrastructureFactory):
             self.env.get(self.POSTGRES_SINGLE_ROW_TRACKING, "t")
         )
 
-        originator_id_type = cast(
-            Literal["uuid", "text"],
-            self.env.get(self.ORIGINATOR_ID_TYPE, "text"),
-        )
-        if originator_id_type.lower() not in ("uuid", "text"):
-            msg = (
-                f"Invalid {self.ORIGINATOR_ID_TYPE} '{originator_id_type}', "
-                f"must be 'uuid' or 'text'"
-            )
-            raise OSError(msg)
-
         enable_db_functions = strtobool(
             self.env.get(self.POSTGRES_ENABLE_DB_FUNCTIONS) or "no"
         )
@@ -1395,7 +1367,6 @@ class BasePostgresFactory(BaseInfrastructureFactory):
             schema=schema,
             get_password_func=get_password_func,
             single_row_tracking=single_row_tracking,
-            originator_id_type=originator_id_type,
             enable_db_functions=enable_db_functions,
         )
 

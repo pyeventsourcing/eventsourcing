@@ -88,8 +88,7 @@ def drop_tables() -> None:
 
             # Also drop composite types.
             composite_types = [
-                "stored_event_uuid",
-                "stored_event_text",
+                "stored_event",
                 PG_TYPE_NAME_DCB_EVENT_TS,
                 DB_TYPE_NAME_DCB_EVENT_TT,
                 DB_TYPE_NAME_DCB_QUERY_ITEM_TT,
@@ -103,8 +102,7 @@ def drop_tables() -> None:
 
             # Also drop functions.
             functions = [
-                "es_insert_events_uuid",
-                "es_insert_events_text",
+                "es_insert_events",
                 PG_FUNCTION_NAME_DCB_INSERT_EVENTS_TS,
                 PG_FUNCTION_NAME_DCB_SELECT_EVENTS_TS,
                 PG_FUNCTION_NAME_DCB_CHECK_APPEND_CONDITION_TS,

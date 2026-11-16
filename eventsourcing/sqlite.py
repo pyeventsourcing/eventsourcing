@@ -4,7 +4,7 @@ import json
 import sqlite3
 import typing
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Literal, cast, override
+from typing import TYPE_CHECKING, Any, override
 from uuid import UUID
 
 from eventsourcing.domain import NIL_UUID
@@ -226,7 +226,6 @@ class SQLiteDatastore:
         max_age: float | None = None,
         pre_ping: bool = False,
         single_row_tracking: bool = True,
-        originator_id_type: Literal["uuid", "text"] = "text",
     ):
         self.pool = SQLiteConnectionPool(
             db_name=db_name,
@@ -238,7 +237,6 @@ class SQLiteDatastore:
             pre_ping=pre_ping,
         )
         self.single_row_tracking = single_row_tracking
-        self.originator_id_type = originator_id_type
 
     @contextmanager
     def transaction(self, *, commit: bool) -> typing.Generator[SQLiteCursor]:
@@ -282,13 +280,6 @@ class SQLiteRecorder(Recorder):
     def _create_table(self, c: SQLiteCursor) -> None:
         for statement in self.create_table_statements:
             c.execute(statement)
-
-    def convert_originator_id(self, originator_id: str) -> UUID | str:
-        return (
-            UUID(originator_id)
-            if self.datastore.originator_id_type == "uuid"
-            else originator_id
-        )
 
     @staticmethod
     def convert_event_id(event_id: str) -> UUID:
@@ -391,16 +382,14 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
             c.execute(statement, params)
             return [
                 StoredEvent(
-                    # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
-                    originator_id=cast(
-                        str, self.convert_originator_id(row["originator_id"])
-                    ),
+                    originator_id=row["originator_id"],
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
                     event_id=self.convert_event_id(row["event_id"]),
-                ) for row in c.fetchall()
+                )
+                for row in c.fetchall()
             ]
 
 
@@ -511,16 +500,14 @@ class SQLiteApplicationRecorder(
             return [
                 Notification(
                     id=row["rowid"],
-                    # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
-                    originator_id=cast(
-                        str, self.convert_originator_id(row["originator_id"])
-                    ),
+                    originator_id=row["originator_id"],
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
                     event_id=self.convert_event_id(row["event_id"]),
-                ) for row in c.fetchall()
+                )
+                for row in c.fetchall()
             ]
 
     @override
@@ -730,7 +717,6 @@ class SQLiteFactory(InfrastructureFactory[SQLiteTrackingRecorder]):
     SQLITE_DBNAME = "SQLITE_DBNAME"
     SQLITE_LOCK_TIMEOUT = "SQLITE_LOCK_TIMEOUT"
     SQLITE_SINGLE_ROW_TRACKING = "SINGLE_ROW_TRACKING"
-    ORIGINATOR_ID_TYPE = "ORIGINATOR_ID_TYPE"
     CREATE_TABLE = "CREATE_TABLE"
 
     aggregate_recorder_class = SQLiteAggregateRecorder
@@ -770,22 +756,10 @@ class SQLiteFactory(InfrastructureFactory[SQLiteTrackingRecorder]):
             self.env.get(self.SQLITE_SINGLE_ROW_TRACKING, "t")
         )
 
-        originator_id_type = cast(
-            Literal["uuid", "text"],
-            self.env.get(self.ORIGINATOR_ID_TYPE, "text"),
-        )
-        if originator_id_type.lower() not in ("uuid", "text"):
-            msg = (
-                f"Invalid {self.ORIGINATOR_ID_TYPE} '{originator_id_type}', "
-                f"must be 'uuid' or 'text'"
-            )
-            raise OSError(msg)
-
         self.datastore = SQLiteDatastore(
             db_name=db_name,
             lock_timeout=lock_timeout,
             single_row_tracking=single_row_tracking,
-            originator_id_type=originator_id_type,
         )
 
     @override

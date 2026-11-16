@@ -779,8 +779,6 @@ class AggregatesApplication[
     AGGREGATE_CACHE_FASTFORWARD_SKIPPING = "AGGREGATE_CACHE_FASTFORWARD_SKIPPING"
     DEEPCOPY_FROM_AGGREGATE_CACHE = "DEEPCOPY_FROM_AGGREGATE_CACHE"
 
-    # aggregate_id_type: ClassVar[type[UUID | str]] = UUID
-
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         # Set the 'is snapshotting enabled' environment variable.
@@ -789,24 +787,6 @@ class AggregatesApplication[
                 cls.env = {}
             if "IS_SNAPSHOTTING_ENABLED" not in cls.env:
                 cls.env["IS_SNAPSHOTTING_ENABLED"] = "y"
-
-        # if "aggregate_id_type" not in cls.__dict__:
-        #     application_type_args = resolve_multi_generic_target(cls, Application)
-        #     assert len(application_type_args) == 1, application_type_args
-        #     aggregate_id_type = application_type_args[0]
-        #     if aggregate_id_type in [UUID, str]:
-        #         cls.aggregate_id_type = aggregate_id_type
-        #     else:
-        #         msg = (
-        #             f"Invalid type argument for Application[TAggregateID]:"
-        #             f" {aggregate_id_type}"
-        #         )
-        #         raise TypeError(msg)
-        # if cls.snapshot_class is not None and not isinstance(cls.snapshot_class, type)
-        # :
-        #     msg = f"The 'snapshot_class' of {cls} is not a class: {cls.snapshot_class}
-        #     "
-        #     raise ProgrammingError(msg)
 
     def __init__(self, *, env: EnvType | None = None, context_name: str | None = None):
         """Initialises an application with an
@@ -841,23 +821,6 @@ class AggregatesApplication[
         notifications.
         """
         return self._notification_log
-
-    # def construct_env(self, name: str, env: EnvType | None = None) -> Environment:
-    #     """Constructs environment from which application will be configured."""
-    #     return super().construct_env(name, env)
-    #
-    #     # # Set the 'originator id type' environment variable.
-    #     # try:
-    #     #     _env["ORIGINATOR_ID_TYPE"] = {
-    #     #         UUID: "uuid",
-    #     #         str: "text",
-    #     #     }[type(self).aggregate_id_type]
-    #     # except KeyError:
-    #     #     msg = (
-    #     #         f"Invalid type argument for Application[TAggregateID]:"
-    #     #         f" {type(self).aggregate_id_type}"
-    #     #     )
-    #     #     raise TypeError(msg) from None
 
     def construct_factory(
         self, env: Environment | EnvType | None = None

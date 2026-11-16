@@ -118,11 +118,6 @@ class WorksWithDecisions[TDecision]:
             type_args = resolve_multi_generic_target(cls, WorksWithDecisions)
             assert len(type_args) == 1, type_args
             resolved_decision_type = type_args[0]
-
-            # if not _is_valid_id_type(resolved_originator_id_type):
-            #     msg = f"Aggregate ID type arg cannot be {resolved_originator_id_type}"
-            #     raise TypeError(msg)
-
             cls.works_with_decision_type = resolved_decision_type
 
     @classmethod

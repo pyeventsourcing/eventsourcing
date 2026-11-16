@@ -3,7 +3,7 @@ from __future__ import annotations
 from concurrent.futures.thread import ThreadPoolExecutor
 from threading import Event, Thread
 from time import sleep
-from typing import TYPE_CHECKING, Literal, override
+from typing import TYPE_CHECKING, override
 from unittest import TestCase
 from unittest.mock import Mock
 from uuid import uuid4
@@ -360,49 +360,6 @@ class TestPostgresDatastore(TestCase):
             AttemptWithBackoff.DELAY_JITTER = original_delay_jitter
             AttemptWithBackoff.DELAY_BACKOFF = original_delay_backoff
 
-    def test_originator_id_type(self) -> None:
-        with PostgresDatastore(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="password",  # noqa: S106
-        ) as datastore:
-            self.assertEqual(datastore.originator_id_type, "text")
-
-        with PostgresDatastore(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="password",  # noqa: S106
-            originator_id_type="uuid",
-        ) as datastore:
-            self.assertEqual(datastore.originator_id_type, "uuid")
-
-        with PostgresDatastore(
-            dbname="eventsourcing",
-            host="127.0.0.1",
-            port="5432",
-            user="eventsourcing",
-            password="password",  # noqa: S106
-            originator_id_type="text",
-        ) as datastore:
-            self.assertEqual(datastore.originator_id_type, "text")
-
-        with (
-            self.assertRaises(ValueError),
-            PostgresDatastore(
-                dbname="eventsourcing",
-                host="127.0.0.1",
-                port="5432",
-                user="eventsourcing",
-                password="password",  # noqa: S106
-                originator_id_type="integer",  # type: ignore[arg-type]
-            ) as datastore,
-        ):
-            self.assertEqual(datastore.originator_id_type, "text")
-
 
 MAX_IDENTIFIER_LEN = 63
 
@@ -423,7 +380,6 @@ class SetupPostgresDatastore(TestCase):
     pool_size = 1
     max_overflow = 0
     max_waiting = 0
-    originator_id_type: Literal["uuid", "text"] = "text"
     enable_db_functions = False
 
     @override
@@ -440,7 +396,6 @@ class SetupPostgresDatastore(TestCase):
             max_overflow=self.max_overflow,
             max_waiting=self.max_waiting,
             schema=self.schema,
-            originator_id_type=self.originator_id_type,
             enable_db_functions=self.enable_db_functions,
         )
 
@@ -1775,26 +1730,6 @@ class TestPostgresFactory(InfrastructureFactoryTestCase[PostgresFactory]):
         self.env[PostgresFactory.POSTGRES_SINGLE_ROW_TRACKING] = "f"
         factory = PostgresFactory(self.env)
         self.assertEqual(factory.datastore.single_row_tracking, False)
-
-    def test_originator_id_type(self) -> None:
-        factory = PostgresFactory(self.env)
-        self.assertEqual(factory.datastore.originator_id_type, "text")
-
-        self.env[PostgresFactory.ORIGINATOR_ID_TYPE] = "uuid"
-        factory = PostgresFactory(self.env)
-        self.assertEqual(factory.datastore.originator_id_type, "uuid")
-
-        self.env[PostgresFactory.ORIGINATOR_ID_TYPE] = "text"
-        factory = PostgresFactory(self.env)
-        self.assertEqual(factory.datastore.originator_id_type, "text")
-
-        self.env[PostgresFactory.ORIGINATOR_ID_TYPE] = "integer"
-        with self.assertRaises(OSError) as cm:
-            PostgresFactory(self.env)
-
-        self.assertIn(
-            f"Invalid {PostgresFactory.ORIGINATOR_ID_TYPE}", str(cm.exception)
-        )
 
     def test_use_db_functions(self) -> None:
         factory = PostgresFactory(self.env)

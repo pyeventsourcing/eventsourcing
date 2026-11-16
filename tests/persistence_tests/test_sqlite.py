@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from sqlite3 import Connection
-from typing import Any, Literal, override
+from typing import Any, override
 from unittest import TestCase
 from unittest.mock import Mock
 from uuid import uuid4
@@ -195,14 +195,12 @@ class TestSqliteDatastore(TestCase):
 
 class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
     db_name = ":memory:"
-    originator_id_type: Literal["uuid", "text"] = "text"
 
     @override
     def create_recorder(self) -> AggregateRecorder:
         recorder = SQLiteAggregateRecorder(
             SQLiteDatastore(
                 db_name=self.db_name,
-                originator_id_type=self.originator_id_type,
             )
         )
         recorder.create_table()
@@ -234,7 +232,6 @@ class TestSQLiteApplicationRecorder(
     ApplicationRecorderTestCase[SQLiteApplicationRecorder]
 ):
     db_uri = ":memory:"
-    originator_id_type: Literal["uuid", "text"] = "text"
 
     @override
     def create_recorder(self) -> SQLiteApplicationRecorder:
@@ -242,7 +239,6 @@ class TestSQLiteApplicationRecorder(
             SQLiteDatastore(
                 db_name=self.db_uri,
                 pool_size=100,
-                originator_id_type=self.originator_id_type,
             )
         )
         recorder.create_table()
@@ -407,16 +403,9 @@ class TestSQLiteTrackingRecorder(TrackingRecorderTestCase):
 
 
 class TestSQLiteProcessRecorder(ProcessRecorderTestCase):
-    originator_id_type: Literal["uuid", "text"] = "text"
-
     @override
     def create_recorder(self) -> ProcessRecorder:
-        recorder = SQLiteProcessRecorder(
-            SQLiteDatastore(
-                db_name=":memory:",
-                originator_id_type=self.originator_id_type,
-            )
-        )
+        recorder = SQLiteProcessRecorder(SQLiteDatastore(db_name=":memory:"))
         recorder.create_table()
         return recorder
 
@@ -540,20 +529,6 @@ class TestSQLiteInfrastructureFactory(InfrastructureFactoryTestCase[SQLiteFactor
         self.env[SQLiteFactory.SQLITE_SINGLE_ROW_TRACKING] = "f"
         factory = SQLiteFactory(self.env)
         self.assertEqual(factory.datastore.single_row_tracking, False)
-
-    def test_originator_id_type(self) -> None:
-        factory = SQLiteFactory(self.env)
-        self.assertEqual(factory.datastore.originator_id_type, "text")
-
-        self.env[SQLiteFactory.ORIGINATOR_ID_TYPE] = "text"
-        factory = SQLiteFactory(self.env)
-        self.assertEqual(factory.datastore.originator_id_type, "text")
-
-        self.env[SQLiteFactory.ORIGINATOR_ID_TYPE] = "int"
-        with self.assertRaises(OSError) as cm:
-            SQLiteFactory(self.env)
-
-        self.assertIn("Invalid ORIGINATOR_ID_TYPE", str(cm.exception))
 
 
 del AggregateRecorderTestCase
