@@ -45,7 +45,7 @@ class TestRemoveItemFromCart(unittest.TestCase):
                     description="",
                     price=Decimal(1),
                 ),
-                originator_id=cart_id,
+                stream_id=cart_id,
                 originator_version=1,
             ),
         )
@@ -68,14 +68,14 @@ class TestRemoveItemFromCart(unittest.TestCase):
                     description="",
                     price=Decimal(1),
                 ),
-                originator_id=cart_id,
+                stream_id=cart_id,
                 originator_version=1,
             ),
             AggregateEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
-                originator_id=cart_id,
+                stream_id=cart_id,
                 originator_version=2,
             ),
         )
@@ -97,12 +97,12 @@ class TestRemoveItemFromCart(unittest.TestCase):
                     description="",
                     price=Decimal(1),
                 ),
-                originator_id=cart_id,
+                stream_id=cart_id,
                 originator_version=1,
             ),
             AggregateEvent(
                 decision=ClearedCart(),
-                originator_id=cart_id,
+                stream_id=cart_id,
                 originator_version=2,
             ),
         )
@@ -119,7 +119,7 @@ class TestRemoveItemFromCart(unittest.TestCase):
         cart_events: Events = (
             AggregateEvent(
                 decision=SubmittedCart(),
-                originator_id=cart_id,
+                stream_id=cart_id,
                 originator_version=1,
             ),
         )

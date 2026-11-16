@@ -31,7 +31,7 @@ class Dog(Aggregate):
             decision=cls.Registered(
                 name=name,
             ),
-            originator_id=str(uuid4()),
+            stream_id=str(uuid4()),
             originator_version=1,
         )
         dog = cls.project_events(None, [event])
@@ -46,7 +46,7 @@ class Dog(Aggregate):
     def apply_event(self, envelope: AggregateEvent[Decision]) -> None:
         match envelope.decision:
             case Dog.Registered(timestamp=timestamp, name=name):
-                self.id = envelope.originator_id
+                self.id = envelope.stream_id
                 self.version = envelope.originator_version
                 self.created_on = timestamp
                 self.modified_on = timestamp

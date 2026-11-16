@@ -21,10 +21,10 @@ class TestNotificationLog(TestCase):
         self.assertEqual(section.next_id, None)
 
         # Write 5 events.
-        originator_id = str(uuid4())
+        stream_id = str(uuid4())
         for i in range(5):
             stored_event = StoredEvent(
-                originator_id=originator_id,
+                stream_id=stream_id,
                 originator_version=i,
                 topic="topic",
                 state=b"state",
@@ -60,10 +60,10 @@ class TestNotificationLog(TestCase):
         self.assertEqual(section.next_id, None)
 
         # Write 4 events.
-        originator_id = str(uuid4())
+        stream_id = str(uuid4())
         for i in range(4):
             stored_event = StoredEvent(
-                originator_id=originator_id,
+                stream_id=stream_id,
                 originator_version=i,
                 topic="topic",
                 state=b"state",
@@ -163,10 +163,10 @@ class TestNotificationLog(TestCase):
         self.assertEqual(len(notifications), 0)
 
         # Write 5 events.
-        originator_id = str(uuid4())
+        stream_id = str(uuid4())
         for i in range(5):
             stored_event = StoredEvent(
-                originator_id=originator_id,
+                stream_id=stream_id,
                 originator_version=i,
                 topic="topic",
                 state=b"state",
@@ -196,10 +196,10 @@ class TestNotificationLog(TestCase):
         self.assertEqual(len(notifications), 0)
 
         # Write 4 events.
-        originator_id = str(uuid4())
+        stream_id = str(uuid4())
         for i in range(4):
             stored_event = StoredEvent(
-                originator_id=originator_id,
+                stream_id=stream_id,
                 originator_version=i,
                 topic="topic",
                 state=b"state",

@@ -64,7 +64,7 @@ class Shop(AggregatesApplication):
                 limit=1000000,
                 topics=[get_topic(ProductAdded)],
             )
-            if (product := self.repository.get(n.originator_id, Product))
+            if (product := self.repository.get(n.stream_id, Product))
         )
 
     def get_cart_items(self, cart_id: str) -> Sequence[CartItem]:

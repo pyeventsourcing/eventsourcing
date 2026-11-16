@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 import pytest
 
@@ -57,13 +57,10 @@ param_arg_values = [
     # ("postgres", 100),
     ("postgres-text", 1),
     # # ("postgres", 10),
-    # ("postgres-text", 100),
     ("postgres-functions", 1),
     # # ("postgres", 10),
     # ("postgres-functions", 100),
-    ("postgres-functions-and-text", 1),
     # # ("postgres", 10),
-    # ("postgres-functions-and-text", 100),
 ]
 
 rounds = {
@@ -72,19 +69,18 @@ rounds = {
     "postgres": 1000,
     "postgres-text": 1000,
     "postgres-functions": 1000,
-    "postgres-functions-and-text": 1000,
 }
 
 
 @pytest.mark.parametrize("num_events", [1, 100])
 @pytest.mark.benchmark(group="construct-stored-event")
 def test_stored_event(num_events: int, benchmark: BenchmarkFixture) -> None:
-    originator_id = str(uuid4())
+    stream_id = str(uuid4())
 
     def func() -> None:
         _ = [
             StoredEvent(
-                originator_id=originator_id,
+                stream_id=stream_id,
                 originator_version=i + 1,
                 topic="topic1",
                 state=b"state1",
@@ -115,11 +111,10 @@ def test_recorder_insert_events_1(
     recorder = factory.application_recorder()
 
     def setup() -> Any:
-        # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
-        originator_id: str | UUID = "test-" + str(uuid4()) if "text" in env else uuid4()
+        stream_id = "test-" + str(uuid4())
         events = [
             StoredEvent(
-                originator_id=cast(str, originator_id),
+                stream_id=stream_id,
                 originator_version=i + 1,
                 topic="topic1",
                 state=b"state1",
@@ -151,12 +146,11 @@ def test_recorder_insert_events_2(
     num_events *= 2
 
     def setup() -> Any:
-        # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
-        originator_id: str | UUID = "test-" + str(uuid4()) if "text" in env else uuid4()
+        stream_id = "test-" + str(uuid4())
 
         events = [
             StoredEvent(
-                originator_id=cast(str, originator_id),
+                stream_id=stream_id,
                 originator_version=i + 1,
                 topic="topic1",
                 state=b"state1",
@@ -188,11 +182,11 @@ def test_recorder_insert_events_100(
     num_events *= 100
 
     def setup() -> Any:
-        originator_id: str = "test-" + str(uuid4())
+        stream_id: str = "test-" + str(uuid4())
 
         events = [
             StoredEvent(
-                originator_id=originator_id,
+                stream_id=stream_id,
                 originator_version=i + 1,
                 topic="topic1",
                 state=b"state1",
@@ -224,11 +218,11 @@ def test_recorder_select_events(
     if "text" in env or "functions" in env:
         pytest.skip("nothing to do")
 
-    originator_id = str(uuid4())
+    stream_id = str(uuid4())
 
     events = [
         StoredEvent(
-            originator_id=originator_id,
+            stream_id=stream_id,
             originator_version=i + 1,
             topic="topic1",
             state=b"state1",
@@ -239,7 +233,7 @@ def test_recorder_select_events(
     recorder.insert_events(events)
 
     def func() -> None:
-        recorder.select_events(originator_id)
+        recorder.select_events(stream_id)
 
     try:
         benchmark(func)

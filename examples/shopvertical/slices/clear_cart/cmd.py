@@ -28,7 +28,7 @@ class ClearCart(Command):
         return (
             AggregateEvent(
                 decision=ClearedCart(),
-                originator_id=self.cart_id,
+                stream_id=self.cart_id,
                 originator_version=len(events) + 1,
             ),
         )

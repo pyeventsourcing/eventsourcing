@@ -278,11 +278,11 @@ but in this example only four events have been stored.
 
     assert 'Dog.Registered' in notifications[0].topic
     assert b'Fido' in notifications[0].state
-    assert dog_id == notifications[0].originator_id
+    assert dog_id == notifications[0].stream_id
 
     assert 'Dog.TrickAdded' in notifications[1].topic
     assert b'roll over' in notifications[1].state
-    assert dog_id == notifications[1].originator_id
+    assert dog_id == notifications[1].stream_id
 
     # Second subsequence of event notifications.
     notifications = application.notification_log.select(
@@ -292,11 +292,11 @@ but in this example only four events have been stored.
 
     assert 'Dog.TrickAdded' in notifications[0].topic
     assert b'fetch ball' in notifications[0].state
-    assert dog_id == notifications[0].originator_id
+    assert dog_id == notifications[0].stream_id
 
     assert 'Dog.TrickAdded' in notifications[1].topic
     assert b'play dead' in notifications[1].state
-    assert dog_id == notifications[1].originator_id
+    assert dog_id == notifications[1].stream_id
 
 
 Why do we need to propagate the state of the application? The application query methods

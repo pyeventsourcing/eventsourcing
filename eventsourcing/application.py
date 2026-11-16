@@ -316,7 +316,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
                         if fastforward_lock.acquire(blocking=blocking):
                             try:
                                 new_events = self.event_store.get(
-                                    originator_id=aggregate_id, gt=aggregate.version
+                                    stream_id=aggregate_id, gt=aggregate.version
                                 )
                                 _aggregate = projector(
                                     aggregate,
@@ -353,7 +353,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
             # Try to get a snapshot.
             snapshots = list(
                 self.snapshot_store.get(
-                    originator_id=aggregate_id,
+                    stream_id=aggregate_id,
                     desc=True,
                     limit=1,
                     lte=version,
@@ -366,7 +366,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
 
         # Get aggregate events.
         aggregate_events = self.event_store.get(
-            originator_id=aggregate_id,
+            stream_id=aggregate_id,
             gt=gt,
             lte=version,
         )
@@ -939,7 +939,7 @@ class AggregatesApplication[
             for event in processing_event.events:
                 if isinstance(event, AggregateEventProtocol):
                     try:
-                        aggregate = processing_event.aggregates[event.originator_id]
+                        aggregate = processing_event.aggregates[event.stream_id]
                     except KeyError:
                         continue
                     interval = self.snapshotting_intervals.get(type(aggregate))
@@ -963,7 +963,7 @@ class AggregatesApplication[
 
                             projector = evolve_aggregate
                         self.take_snapshot(
-                            aggregate_id=event.originator_id,
+                            aggregate_id=event.stream_id,
                             aggregate_cls=aggregate.__class__,
                             version=event.originator_version,
                             projector=projector,

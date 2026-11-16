@@ -383,12 +383,12 @@ created, and then two ``TrickAdded`` events occurred ("roll over", "fetch ball")
 
     notification = notifications[0]
     assert "Dog.Created" in notification.topic
-    assert notification.originator_id == dog_id
+    assert notification.stream_id == dog_id
 
     notification = notifications[1]
     assert "Dog.TrickAdded" in notification.topic
     assert b"roll over" in notification.state
-    assert notification.originator_id == dog_id
+    assert notification.stream_id == dog_id
 
 
 We can continue to select event notifications, by using the
@@ -474,10 +474,10 @@ are four notifications in the notification log.
     assert section.items[2].id == 3
     assert section.items[3].id == 4
 
-    assert section.items[0].originator_id == dog_id
-    assert section.items[1].originator_id == dog_id
-    assert section.items[2].originator_id == dog_id
-    assert section.items[3].originator_id == dog_id
+    assert section.items[0].stream_id == dog_id
+    assert section.items[1].stream_id == dog_id
+    assert section.items[2].stream_id == dog_id
+    assert section.items[3].stream_id == dog_id
 
     assert section.items[0].originator_version == 1
     assert section.items[1].originator_version == 2
@@ -502,11 +502,11 @@ will also be encrypted, but the mapper will decrypt the event notification.
 
     domain_event = dog_school.mapper.to_domain_event(section.items[0])
     assert isinstance(domain_event, Dog.Created)
-    assert domain_event.originator_id == dog_id
+    assert domain_event.stream_id == dog_id
 
     domain_event = dog_school.mapper.to_domain_event(section.items[3])
     assert isinstance(domain_event, Dog.TrickAdded)
-    assert domain_event.originator_id == dog_id
+    assert domain_event.stream_id == dog_id
     assert domain_event.trick == "play dead"
 
 
@@ -830,7 +830,7 @@ discovered. The aggregate IDs are then accessed in pages of a fixed size.
             super().__init__(env=env)
             self.aggregate_log = EventSourcedLog(
                 events=self.events,
-                originator_id=uuid5(NAMESPACE_URL, "/aggregates"),
+                stream_id=uuid5(NAMESPACE_URL, "/aggregates"),
                 logged_cls=LoggedID,
             )
 
@@ -1227,7 +1227,7 @@ by selecting in descending order with a limit of 1.
     assert len(snapshots) == 1, len(snapshots)
     snapshot = snapshots[0]
 
-    assert snapshot.originator_id == dog_id
+    assert snapshot.stream_id == dog_id
     assert snapshot.originator_version == 4
 
 When snapshotting is enabled, the application repository looks for snapshots in this way.
@@ -1272,10 +1272,10 @@ than 2, perhaps more like 100.
 
     assert len(snapshots) == 2
 
-    assert snapshots[0].originator_id == dog_id
+    assert snapshots[0].stream_id == dog_id
     assert snapshots[0].originator_version == 2
 
-    assert snapshots[1].originator_id == dog_id
+    assert snapshots[1].stream_id == dog_id
     assert snapshots[1].originator_version == 4
 
 

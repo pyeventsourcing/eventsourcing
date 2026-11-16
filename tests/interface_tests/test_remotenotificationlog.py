@@ -32,14 +32,14 @@ class TestRemoteNotificationLog(TestCase):
         # Get the "first" section of log.
         section = client.log["1,10"]
         self.assertEqual(len(section.items), 2)
-        self.assertEqual(section.items[0].originator_id, account_id1)
-        self.assertEqual(section.items[1].originator_id, account_id2)
+        self.assertEqual(section.items[0].stream_id, account_id1)
+        self.assertEqual(section.items[1].stream_id, account_id2)
 
         # Get notifications start 1, limit 10.
         notifications = client.log.select(start=1, limit=10)
         self.assertEqual(len(notifications), 2)
-        self.assertEqual(notifications[0].originator_id, account_id1)
-        self.assertEqual(notifications[1].originator_id, account_id2)
+        self.assertEqual(notifications[0].stream_id, account_id1)
+        self.assertEqual(notifications[1].stream_id, account_id2)
 
     def test_with_http(self) -> None:
         server_address = ("127.0.0.1", 8080)
@@ -64,14 +64,14 @@ class TestRemoteNotificationLog(TestCase):
             # Get the "first" section of log.
             section = client.log["1,10"]
             self.assertEqual(len(section.items), 2)
-            self.assertEqual(section.items[0].originator_id, account_id1)
-            self.assertEqual(section.items[1].originator_id, account_id2)
+            self.assertEqual(section.items[0].stream_id, account_id1)
+            self.assertEqual(section.items[1].stream_id, account_id2)
 
             # Get notifications start 1, limit 10.
             notifications = client.log.select(1, 10)
             self.assertEqual(len(notifications), 2)
-            self.assertEqual(notifications[0].originator_id, account_id1)
-            self.assertEqual(notifications[1].originator_id, account_id2)
+            self.assertEqual(notifications[0].stream_id, account_id1)
+            self.assertEqual(notifications[1].stream_id, account_id2)
         finally:
             server.stop()
 

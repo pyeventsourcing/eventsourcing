@@ -919,19 +919,19 @@
 #
 #         # Try to mutate aggregate with an invalid domain event.
 #         event = AggregateEvent(
-#             originator_id=a.id,
+#             stream_id=a.id,
 #             originator_version=a.version,  # NB not +1.
 #         )
 #         # Check raises "VersionError".
 #         with self.assertRaises(OriginatorVersionError):
 #             event.mutate(a)
 #
-#     def test_event_mutate_raises_originator_id_error(self) -> None:
+#     def test_event_mutate_raises_stream_id_error(self) -> None:
 #         a = Aggregate()
 #
 #         # Try to mutate aggregate with an invalid domain event.
 #         event = AggregateEvent(
-#             originator_id=uuid4(),
+#             stream_id=uuid4(),
 #             originator_version=a.version + 1,
 #         )
 #         # Check raises "VersionError".

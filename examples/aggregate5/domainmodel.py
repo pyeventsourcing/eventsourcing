@@ -30,7 +30,7 @@ class Dog(Immutable):
     ) -> AggregateEvent[Decision]:
         return AggregateEvent(
             decision=cls(**kwargs),
-            originator_id=self.id,
+            stream_id=self.id,
             originator_version=self.version + 1,
         )
 
@@ -40,7 +40,7 @@ class Dog(Immutable):
             decision=Dog.Registered(
                 name=name,
             ),
-            originator_id=str(uuid4()),
+            stream_id=str(uuid4()),
             originator_version=1,
         )
         dog = Dog.mutate(event, None)
@@ -57,7 +57,7 @@ class Dog(Immutable):
         match event.decision:
             case Dog.Registered(name=name):
                 return Dog(
-                    id=event.originator_id,
+                    id=event.stream_id,
                     version=event.originator_version,
                     name=name,
                     tricks=(),

@@ -35,7 +35,7 @@ class TrickAdded(Decision):
 def register_dog(name: str) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=DogRegistered(name=name),
-        originator_id=str(uuid4()),
+        stream_id=str(uuid4()),
         originator_version=1,
     )
 
@@ -43,7 +43,7 @@ def register_dog(name: str) -> AggregateEvent[Decision]:
 def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=TrickAdded(trick=trick),
-        originator_id=dog.id,
+        stream_id=dog.id,
         originator_version=dog.version + 1,
     )
 
@@ -57,7 +57,7 @@ def evolve_dog(
     match envelope.decision:
         case DogRegistered(name=name):
             return Dog(
-                id=envelope.originator_id,
+                id=envelope.stream_id,
                 version=envelope.originator_version,
                 name=name,
                 tricks=(),

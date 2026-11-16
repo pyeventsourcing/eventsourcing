@@ -123,7 +123,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
     #
     #     @dataclass(frozen=True)
     #     class DomainEvent(metaclass=MetaDomainEvent):
-    #         originator_id: str
+    #         stream_id: str
     #         originator_version: int
     #         timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     #         metadata: dict[str, str] = field(default_factory=get_metadata_from_context
@@ -131,7 +131,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
     #         event_id: UUID = field(default_factory=uuid4)
     #
     #         def __post_init__(self) -> None:
-    #             assert isinstance(self.originator_id, str), "Not a string"
+    #             assert isinstance(self.stream_id, str), "Not a string"
     #
     #     @dataclass(frozen=True, kw_only=True)
     #     class StrSnapshot(DomainEvent, CanSnapshotAggregate[str]):

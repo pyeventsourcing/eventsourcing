@@ -36,7 +36,7 @@
 #
 #     def test_domain_event_uuid(self) -> None:
 #         domain_event = DomainEventUuidID(
-#             originator_id=uuid4(),
+#             stream_id=uuid4(),
 #             originator_version=2,
 #             timestamp=datetime_now_with_tzinfo(),
 #             a=1,
@@ -44,7 +44,7 @@
 #         stored = self.mapper.to_stored_event(domain_event)
 #         copy = self.mapper.to_domain_event(stored)
 #         assert isinstance(copy, DomainEventUuidID), type(copy)
-#         self.assertEqual(copy.originator_id, domain_event.originator_id)
+#         self.assertEqual(copy.stream_id, domain_event.stream_id)
 #         self.assertEqual(copy.originator_version, domain_event.originator_version)
 #         self.assertEqual(copy.timestamp, domain_event.timestamp)
 #         self.assertEqual(copy.metadata, domain_event.metadata)
@@ -70,7 +70,7 @@
 #
 #     def test_domain_event_str(self) -> None:
 #         domain_event = DomainEventStrID(
-#             originator_id=str(uuid4()),
+#             stream_id=str(uuid4()),
 #             originator_version=2,
 #             timestamp=datetime_now_with_tzinfo(),
 #             a=1,
@@ -78,7 +78,7 @@
 #         stored = self.mapper.to_stored_event(domain_event)
 #         copy = self.mapper.to_domain_event(stored)
 #         assert isinstance(copy, DomainEventStrID)
-#         self.assertEqual(copy.originator_id, domain_event.originator_id)
+#         self.assertEqual(copy.stream_id, domain_event.stream_id)
 #         self.assertEqual(copy.originator_version, domain_event.originator_version)
 #         self.assertEqual(copy.timestamp, domain_event.timestamp)
 #         self.assertEqual(copy.metadata, domain_event.metadata)

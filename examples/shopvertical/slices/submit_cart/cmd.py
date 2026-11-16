@@ -57,7 +57,7 @@ class SubmitCart(Command):
         return (
             AggregateEvent(
                 decision=SubmittedCart(),
-                originator_id=self.cart_id,
+                stream_id=self.cart_id,
                 originator_version=len(events) + 1,
             ),
         )

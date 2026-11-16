@@ -50,7 +50,7 @@ class Aggregate(WorksWithDecisions[Decision]):
                     topic=get_topic(type(aggregate)),
                     state=aggregate_state,
                 ),
-                originator_id=aggregate.id,
+                stream_id=aggregate.id,
                 originator_version=aggregate.version,
             )
 
@@ -62,7 +62,7 @@ class Aggregate(WorksWithDecisions[Decision]):
         kwargs = kwargs.copy()
         new_event = AggregateEvent(
             decision=event_class(**kwargs),
-            originator_id=self.id,
+            stream_id=self.id,
             originator_version=self.version + 1,
         )
         self.apply_event(new_event)

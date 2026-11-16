@@ -28,7 +28,7 @@
 #         event = register_dog(name)
 #         dog = project_dog(None, [event])
 #         self.save(dog, event)
-#         return event.originator_id
+#         return event.stream_id
 #
 #     def add_trick(self, dog_id: UUID, trick: str) -> None:
 #         dog = self.repository.get(dog_id, projector=project_dog)

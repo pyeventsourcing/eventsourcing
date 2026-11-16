@@ -23,7 +23,7 @@ def test_encode_with_dataclasstranscoder(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=str(uuid4()),
+        stream_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -51,7 +51,7 @@ def test_decode_with_jsontranscoder(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=str(uuid4()),
+        stream_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -81,7 +81,7 @@ def test_encode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=str(uuid4()),
+        stream_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -108,7 +108,7 @@ def test_decode_with_pydantic(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=str(uuid4()),
+        stream_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -137,7 +137,7 @@ def test_encode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=str(uuid4()),
+        stream_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,
@@ -164,7 +164,7 @@ def test_decode_with_msgspec(benchmark: BenchmarkFixture) -> None:
         d: Decimal
 
     obj = AggregateEvent(
-        originator_id=str(uuid4()),
+        stream_id=str(uuid4()),
         originator_version=1,
         decision=MyObj(
             a=1,

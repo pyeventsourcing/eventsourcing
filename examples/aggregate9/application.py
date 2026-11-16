@@ -17,7 +17,7 @@ class DogSchool(AggregatesApplication):
     def register_dog(self, name: str) -> str:
         event = register_dog(name)
         self.save(event)
-        return event.originator_id
+        return event.stream_id
 
     def add_trick(self, dog_id: str, trick: str) -> None:
         dog = self.repository.get(dog_id, projector=evolve_dog)

@@ -462,7 +462,7 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
 
         # Write a stored event.
         stored_event1 = StoredEvent(
-            originator_id=str(uuid4()),
+            stream_id=str(uuid4()),
             originator_version=0,
             topic="topic1",
             state=b"state1",
@@ -566,7 +566,7 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
         # Write a stored event without creating the table.
         # This should firstly fail because the composite type isn't registered.
         stored_event1 = StoredEvent(
-            originator_id=str(uuid4()),
+            stream_id=str(uuid4()),
             originator_version=0,
             topic="topic1",
             state=b"state1",
@@ -606,7 +606,7 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
         # Write a stored event with broken statement.
         recorder.insert_events_statement = SQL("BLAH").format()
         stored_event1 = StoredEvent(
-            originator_id=str(uuid4()),
+            stream_id=str(uuid4()),
             originator_version=0,
             topic="topic1",
             state=b"state1",
@@ -621,9 +621,9 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
         recorder = self.create_recorder()
 
         # Select events without creating the table.
-        originator_id = str(uuid4())
+        stream_id = str(uuid4())
         with self.assertRaises(ProgrammingError):
-            recorder.select_events(originator_id=originator_id)
+            recorder.select_events(stream_id=stream_id)
 
     def test_select_events_raises_programming_error_when_sql_is_broken(self) -> None:
         # Construct the recorder.
@@ -634,9 +634,9 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
 
         # Select events with broken statement.
         recorder.select_events_statement = SQL("BLAH").format()
-        originator_id = str(uuid4())
+        stream_id = str(uuid4())
         with self.assertRaises(ProgrammingError):
-            recorder.select_events(originator_id=originator_id)
+            recorder.select_events(stream_id=stream_id)
 
 
 class TestPostgresSubscription(TestCase):
@@ -715,7 +715,7 @@ class TestPostgresApplicationRecorder(
                 events = []
                 for _ in range(batch_size):
                     stored_event = StoredEvent(
-                        originator_id=self.new_originator_id(),
+                        stream_id=self.new_stream_id(),
                         originator_version=self.INITIAL_VERSION,
                         topic="topic1",
                         state=b"state1",
@@ -794,7 +794,7 @@ class TestPostgresApplicationRecorder(
                 events = []
                 for _ in range(batch_size):
                     stored_event = StoredEvent(
-                        originator_id=self.new_originator_id(),
+                        stream_id=self.new_stream_id(),
                         originator_version=self.INITIAL_VERSION,
                         topic="topic1",
                         state=b"state1",
@@ -883,9 +883,9 @@ class TestPostgresApplicationRecorder(
         self.assertFalse(self.datastore.pool._pool[0].closed)
 
         # Write a stored event.
-        originator_id = self.new_originator_id()
+        stream_id = self.new_stream_id()
         stored_event1 = StoredEvent(
-            originator_id=originator_id,
+            stream_id=stream_id,
             originator_version=0,
             topic="topic1",
             state=b"state1",
@@ -918,9 +918,9 @@ class TestPostgresApplicationRecorder(
         conn_id_before = id(self.datastore.pool._pool[0])
 
         # Write a stored event.
-        originator_id = self.new_originator_id()
+        stream_id = self.new_stream_id()
         stored_event1 = StoredEvent(
-            originator_id=originator_id,
+            stream_id=stream_id,
             originator_version=0,
             topic="topic1",
             state=b"state1",
@@ -945,13 +945,13 @@ class TestPostgresApplicationRecorder(
         recorder = self.create_recorder()
 
         stored_event1 = StoredEvent(
-            originator_id=str(uuid4()),
+            stream_id=str(uuid4()),
             originator_version=1,
             topic="topic1",
             state=b"state1",
         )
         stored_event2 = StoredEvent(
-            originator_id=str(uuid4()),
+            stream_id=str(uuid4()),
             originator_version=1,
             topic="topic1",
             state=b"state1",
@@ -1051,7 +1051,7 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
         def make_events() -> Sequence[StoredEvent]:
             return [
                 StoredEvent(
-                    originator_id=str(uuid4()),
+                    stream_id=str(uuid4()),
                     originator_version=1,
                     state=b"",
                     topic="",
@@ -1070,8 +1070,8 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
         )
         recorder.insert_events_statement = SQL(
             "    INSERT INTO {schema}.{table} AS t ("
-            "    originator_id, originator_version, topic, state)"
-            "    SELECT originator_id, originator_version, topic, state"
+            "    stream_id, originator_version, topic, state)"
+            "    SELECT stream_id, originator_version, topic, state"
             "    FROM unnest(%s)"
         ).format(
             schema=Identifier(recorder.datastore.schema),
@@ -1251,9 +1251,9 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
         self.assertFalse(self.datastore.pool._pool[0].closed)
 
         # Write a tracking record.
-        originator_id = str(uuid4())
+        stream_id = str(uuid4())
         stored_event1 = StoredEvent(
-            originator_id=originator_id,
+            stream_id=stream_id,
             originator_version=0,
             topic="topic1",
             state=b"state1",

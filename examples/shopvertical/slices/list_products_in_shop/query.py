@@ -34,16 +34,16 @@ class ListProductsInShop(Query):
                 case AddedProductToShop(
                     name=name, description=description, price=price
                 ):
-                    products[event.originator_id] = ProductDetails(
-                        id=event.originator_id,
+                    products[event.stream_id] = ProductDetails(
+                        id=event.stream_id,
                         name=name,
                         description=description,
                         price=price,
                     )
                 case AdjustedProductInventory(adjustment=adjustment):
-                    product = products[event.originator_id]
-                    products[event.originator_id] = ProductDetails(
-                        id=event.originator_id,
+                    product = products[event.stream_id]
+                    products[event.stream_id] = ProductDetails(
+                        id=event.stream_id,
                         name=product.name,
                         description=product.description,
                         price=product.price,

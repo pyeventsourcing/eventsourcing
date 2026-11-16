@@ -52,7 +52,7 @@ class RecorderTestCase(TestCase, ABC):
     recorder_supports_idempotent_appends: ClassVar[bool] = False
     INITIAL_VERSION = 1
 
-    def new_originator_id(self) -> str:
+    def new_stream_id(self) -> str:
         return str(uuid4())
 
     def assert_events_eq(
@@ -65,7 +65,7 @@ class RecorderTestCase(TestCase, ABC):
             self.assert_event_eq(events1[i], events2[i])
 
     def assert_event_eq(self, event1: StoredEvent, event2: StoredEvent) -> None:
-        self.assertEqual(event1.originator_id, event2.originator_id)
+        self.assertEqual(event1.stream_id, event2.stream_id)
         self.assertEqual(event1.originator_version, event2.originator_version)
         self.assertEqual(event1.topic, event2.topic)
         self.assertEqual(event1.state, event2.state)
@@ -88,15 +88,15 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
         self.assertEqual(notification_id, None)
 
         # Select stored events, expect empty list.
-        originator_id1 = self.new_originator_id()
+        stream_id1 = self.new_stream_id()
         self.assert_events_eq(
-            recorder.select_events(originator_id1, desc=True, limit=1),
+            recorder.select_events(stream_id1, desc=True, limit=1),
             [],
         )
 
         # Write a stored event.
         event1 = StoredEvent(
-            originator_id=originator_id1,
+            stream_id=stream_id1,
             originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
@@ -107,7 +107,7 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
         self.assertEqual(notification_id, None)
 
         # Select stored events, expect list of one.
-        self.assert_events_eq(recorder.select_events(originator_id1), [event1])
+        self.assert_events_eq(recorder.select_events(stream_id1), [event1])
 
         if self.recorder_supports_idempotent_appends:
             # Check get record conflict doesn't error when we attempt to store it again.
@@ -119,7 +119,7 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
 
         # Check writing of events is atomic.
         event2 = StoredEvent(
-            originator_id=originator_id1,
+            stream_id=stream_id1,
             originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
@@ -133,11 +133,11 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
             recorder.insert_events([event2, event2])
 
         # Check still only have one record.
-        self.assert_events_eq(recorder.select_events(originator_id1), [event1])
+        self.assert_events_eq(recorder.select_events(stream_id1), [event1])
 
         # Check can write two events together.
         event3 = StoredEvent(
-            originator_id=originator_id1,
+            stream_id=stream_id1,
             originator_version=self.INITIAL_VERSION + 2,
             topic="topic3",
             state=b"state3",
@@ -149,20 +149,20 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
 
         # Check we got what was written.
         self.assert_events_eq(
-            recorder.select_events(originator_id1),
+            recorder.select_events(stream_id1),
             [event1, event2, event3],
         )
 
         # Check we can get the last one recorded (used to get last snapshot).
         self.assert_events_eq(
-            recorder.select_events(originator_id1, desc=True, limit=1),
+            recorder.select_events(stream_id1, desc=True, limit=1),
             [event3],
         )
 
         # Check we can get the last one before a particular version.
         self.assert_events_eq(
             recorder.select_events(
-                originator_id1, lte=self.INITIAL_VERSION + 1, desc=True, limit=1
+                stream_id1, lte=self.INITIAL_VERSION + 1, desc=True, limit=1
             ),
             [event2],
         )
@@ -170,34 +170,34 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
         # Check we can get events between versions (historical state with snapshot).
         self.assert_events_eq(
             recorder.select_events(
-                originator_id1, gt=self.INITIAL_VERSION, lte=self.INITIAL_VERSION + 1
+                stream_id1, gt=self.INITIAL_VERSION, lte=self.INITIAL_VERSION + 1
             ),
             [event2],
         )
 
         # Check aggregate sequences are distinguished.
-        originator_id2 = self.new_originator_id()
-        self.assertEqual(recorder.select_events(originator_id2), [])
+        stream_id2 = self.new_stream_id()
+        self.assertEqual(recorder.select_events(stream_id2), [])
 
         # Write a stored event in a different sequence.
         event4 = StoredEvent(
-            originator_id=originator_id2,
+            stream_id=stream_id2,
             originator_version=0,
             topic="topic4",
             state=b"state4",
         )
         recorder.insert_events([event4])
-        self.assert_events_eq(recorder.select_events(originator_id2), [event4])
+        self.assert_events_eq(recorder.select_events(stream_id2), [event4])
 
     def test_performance(self) -> None:
         # Construct the recorder.
         recorder = self.create_recorder()
 
         def insert() -> None:
-            originator_id = self.new_originator_id()
+            stream_id = self.new_stream_id()
 
             event = StoredEvent(
-                originator_id=originator_id,
+                stream_id=stream_id,
                 originator_version=self.INITIAL_VERSION,
                 topic="topic1",
                 state=b"state1",
@@ -250,11 +250,11 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
         self.assertEqual(recorder.max_notification_id(), initial_notification_id)
 
         # Write two stored events.
-        originator_id1 = self.new_originator_id()
-        originator_id2 = self.new_originator_id()
+        stream_id1 = self.new_stream_id()
+        stream_id2 = self.new_stream_id()
 
         stored_event1 = StoredEvent(
-            originator_id=originator_id1,
+            stream_id=stream_id1,
             originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
@@ -262,7 +262,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
             metadata={"correlation_id": str(uuid4())},
         )
         stored_event2 = StoredEvent(
-            originator_id=originator_id1,
+            stream_id=stream_id1,
             originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
@@ -275,7 +275,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
 
         # Store a third event.
         stored_event3 = StoredEvent(
-            originator_id=originator_id2,
+            stream_id=stream_id2,
             originator_version=self.INITIAL_VERSION,
             topic="topic3",
             state=b"state3",
@@ -285,8 +285,8 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
         notification_id = recorder.insert_events([stored_event3])
         self.assertEqual(notification_id, start + 3)
 
-        stored_events1 = recorder.select_events(originator_id1)
-        stored_events2 = recorder.select_events(originator_id2)
+        stored_events1 = recorder.select_events(stream_id1)
+        stored_events2 = recorder.select_events(stream_id2)
 
         # Check we got what was written.
         self.assertEqual(len(stored_events1), 2)
@@ -424,10 +424,10 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
         recorder = self.create_recorder()
 
         def insert() -> None:
-            originator_id = self.new_originator_id()
+            stream_id = self.new_stream_id()
 
             event = StoredEvent(
-                originator_id=originator_id,
+                stream_id=stream_id,
                 originator_version=self.INITIAL_VERSION,
                 topic="topic1",
                 state=b"state1",
@@ -476,10 +476,10 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
             # thread_num = threads[thread_id]
             # count = counts[thread_id]
 
-            originator_id = self.new_originator_id()
+            stream_id = self.new_stream_id()
             events = [
                 StoredEvent(
-                    originator_id=originator_id,
+                    stream_id=stream_id,
                     originator_version=i,
                     topic="topic",
                     state=b"state",
@@ -565,10 +565,10 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
         num_workers = 4
 
         def insert_events() -> None:
-            originator_id = self.new_originator_id()
+            stream_id = self.new_stream_id()
             events = [
                 StoredEvent(
-                    originator_id=originator_id,
+                    stream_id=stream_id,
                     originator_version=i,
                     topic="topic",
                     state=b"state",
@@ -616,17 +616,17 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
         max_notification_id1 = recorder.max_notification_id()
 
         # Write two stored events.
-        originator_id1 = self.new_originator_id()
-        originator_id2 = self.new_originator_id()
+        stream_id1 = self.new_stream_id()
+        stream_id2 = self.new_stream_id()
 
         event1 = StoredEvent(
-            originator_id=originator_id1,
+            stream_id=stream_id1,
             originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
         )
         event2 = StoredEvent(
-            originator_id=originator_id1,
+            stream_id=stream_id1,
             originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
@@ -664,11 +664,11 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
                     break
 
             # Check the events we received are the ones that were written.
-            self.assertEqual(event1.originator_id, notifications[0].originator_id)
+            self.assertEqual(event1.stream_id, notifications[0].stream_id)
             self.assertEqual(
                 event1.originator_version, notifications[0].originator_version
             )
-            self.assertEqual(event2.originator_id, notifications[1].originator_id)
+            self.assertEqual(event2.stream_id, notifications[1].stream_id)
             self.assertEqual(
                 event2.originator_version, notifications[1].originator_version
             )
@@ -678,7 +678,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
 
             # Store a third event.
             event3 = StoredEvent(
-                originator_id=originator_id2,
+                stream_id=stream_id2,
                 originator_version=self.INITIAL_VERSION,
                 topic="topic3",
                 state=b"state3",
@@ -694,7 +694,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
                     break
 
             # Check the events we received are the ones that were written.
-            self.assertEqual(event3.originator_id, notifications[2].originator_id)
+            self.assertEqual(event3.stream_id, notifications[2].stream_id)
             self.assertEqual(
                 event3.originator_version, notifications[2].originator_version
             )
@@ -712,7 +712,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
                     break
 
             # Check the events we received are the ones that were written.
-            self.assertEqual(event3.originator_id, notifications[0].originator_id)
+            self.assertEqual(event3.stream_id, notifications[0].stream_id)
 
         # Start a subscription, call stop() during iteration.
         with recorder.subscribe(gt=initial_position) as subscription:
@@ -747,7 +747,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
             for notification in subscription:
                 self.assertEqual(notification.topic, "topic3")
                 if (
-                    notification.originator_id == event3.originator_id
+                    notification.stream_id == event3.stream_id
                     and notification.originator_version == event3.originator_version
                 ):
                     break
@@ -850,29 +850,29 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
         self.assertIsNone(recorder.max_tracking_id("upstream_app"))
 
         # Write two stored events.
-        originator_id1 = self.new_originator_id()
-        originator_id2 = self.new_originator_id()
+        stream_id1 = self.new_stream_id()
+        stream_id2 = self.new_stream_id()
 
         event1 = StoredEvent(
-            originator_id=originator_id1,
+            stream_id=stream_id1,
             originator_version=1,
             topic="topic1",
             state=b"state1",
         )
         event2 = StoredEvent(
-            originator_id=originator_id1,
+            stream_id=stream_id1,
             originator_version=2,
             topic="topic2",
             state=b"state2",
         )
         event3 = StoredEvent(
-            originator_id=originator_id2,
+            stream_id=stream_id2,
             originator_version=1,
             topic="topic3",
             state=b"state3",
         )
         event4 = StoredEvent(
-            originator_id=originator_id2,
+            stream_id=stream_id2,
             originator_version=2,
             topic="topic4",
             state=b"state4",
@@ -1030,10 +1030,10 @@ class ProcessRecorderTestCase(RecorderTestCase, ABC):
         notification_ids = iter(range(1, number + 1))
 
         def insert_events() -> None:
-            originator_id = self.new_originator_id()
+            stream_id = self.new_stream_id()
 
             event = StoredEvent(
-                originator_id=originator_id,
+                stream_id=stream_id,
                 originator_version=0,
                 topic="topic1",
                 state=b"state1",
@@ -1068,8 +1068,8 @@ class NonInterleavingNotificationIDsBaseCase(RecorderTestCase, ABC):
 
         race_started = Event()
 
-        originator1_id = self.new_originator_id()
-        originator2_id = self.new_originator_id()
+        originator1_id = self.new_stream_id()
+        originator2_id = self.new_stream_id()
 
         stack1 = self.create_stack(originator1_id)
         stack2 = self.create_stack(originator2_id)
@@ -1104,10 +1104,10 @@ class NonInterleavingNotificationIDsBaseCase(RecorderTestCase, ABC):
             inclusive_of_start=False,
         )
         ids_for_sequence1 = [
-            e.id for e in notifications if e.originator_id == originator1_id
+            e.id for e in notifications if e.stream_id == originator1_id
         ]
         ids_for_sequence2 = [
-            e.id for e in notifications if e.originator_id == originator2_id
+            e.id for e in notifications if e.stream_id == originator2_id
         ]
         self.assertEqual(self.insert_num, len(ids_for_sequence1))
         self.assertEqual(self.insert_num, len(ids_for_sequence2))
@@ -1122,10 +1122,10 @@ class NonInterleavingNotificationIDsBaseCase(RecorderTestCase, ABC):
         else:
             self.assertGreater(min_id_for_sequence2, max_id_for_sequence1)
 
-    def create_stack(self, originator_id: str) -> Sequence[StoredEvent]:
+    def create_stack(self, stream_id: str) -> Sequence[StoredEvent]:
         return [
             StoredEvent(
-                originator_id=originator_id,
+                stream_id=stream_id,
                 originator_version=i,
                 topic="non-interleaving-test-event",
                 state=b"{}",
@@ -1298,13 +1298,13 @@ class InfrastructureFactoryTestCase[TFactory: InfrastructureFactory[Any]](
         )
 
         domain_event = AggregateEvent(
-            originator_id=str(uuid4()),
+            stream_id=str(uuid4()),
             originator_version=1,
             decision=dataclasses.Decision(),
         )
         stored_event = mapper1.to_stored_event(domain_event)
         copy = mapper1.to_domain_event(stored_event)
-        self.assertEqual(domain_event.originator_id, copy.originator_id)
+        self.assertEqual(domain_event.stream_id, copy.stream_id)
 
         self.env.name = "App2"
         mapper2 = self.factory.mapper(
@@ -1850,21 +1850,21 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
 
     def _test_aggregate_event_mapper(self) -> None:
         event = AggregateEvent(
-            originator_id=str(uuid4()),
+            stream_id=str(uuid4()),
             originator_version=10,
             decision=self.construct_decision(),
         )
 
         mapper = self.construct_mapper()
         stored_event = mapper.to_stored_event(event)
-        self.assertEqual(stored_event.originator_id, event.originator_id)
+        self.assertEqual(stored_event.stream_id, event.stream_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
         self.assertEqual(stored_event.event_id, event.event_id)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
         self.assertEqual(type(copy), AggregateEvent)
-        self.assertEqual(copy.originator_id, event.originator_id)
+        self.assertEqual(copy.stream_id, event.stream_id)
         self.assertEqual(copy.originator_version, event.originator_version)
         self.assertEqual(copy.decision, event.decision)
         self.assertEqual(copy.event_id, event.event_id)
@@ -1874,14 +1874,14 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         zlib_compressor = ZlibCompressor()
         mapper = self.construct_mapper(compressor=zlib_compressor)
         stored_event = mapper.to_stored_event(event)
-        self.assertEqual(stored_event.originator_id, event.originator_id)
+        self.assertEqual(stored_event.stream_id, event.stream_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
         self.assertEqual(stored_event.event_id, event.event_id)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
         self.assertEqual(type(copy), AggregateEvent)
-        self.assertEqual(copy.originator_id, event.originator_id)
+        self.assertEqual(copy.stream_id, event.stream_id)
         self.assertEqual(copy.originator_version, event.originator_version)
         self.assertEqual(copy.decision, event.decision)
         self.assertEqual(copy.event_id, event.event_id)
@@ -1893,14 +1893,14 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         )
         mapper = self.construct_mapper(cipher=aes_cipher)
         stored_event = mapper.to_stored_event(event)
-        self.assertEqual(stored_event.originator_id, event.originator_id)
+        self.assertEqual(stored_event.stream_id, event.stream_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
         self.assertEqual(stored_event.event_id, event.event_id)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
         self.assertEqual(type(copy), AggregateEvent)
-        self.assertEqual(copy.originator_id, event.originator_id)
+        self.assertEqual(copy.stream_id, event.stream_id)
         self.assertEqual(copy.originator_version, event.originator_version)
         self.assertEqual(copy.decision, event.decision)
         self.assertEqual(copy.event_id, event.event_id)
@@ -1909,14 +1909,14 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         # With compressor and cipher
         mapper = self.construct_mapper(compressor=zlib_compressor, cipher=aes_cipher)
         stored_event = mapper.to_stored_event(event)
-        self.assertEqual(stored_event.originator_id, event.originator_id)
+        self.assertEqual(stored_event.stream_id, event.stream_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
         self.assertEqual(stored_event.event_id, event.event_id)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
         self.assertEqual(type(copy), AggregateEvent)
-        self.assertEqual(copy.originator_id, event.originator_id)
+        self.assertEqual(copy.stream_id, event.stream_id)
         self.assertEqual(copy.originator_version, event.originator_version)
         self.assertEqual(copy.decision, event.decision)
         self.assertEqual(copy.event_id, event.event_id)

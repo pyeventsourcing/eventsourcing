@@ -28,7 +28,7 @@ class TestAdjustProductInventory(unittest.TestCase):
                     description="A very nice tea",
                     price=Decimal("3.99"),
                 ),
-                originator_id=product_id,
+                stream_id=product_id,
                 originator_version=1,
             ),
         )
@@ -36,7 +36,7 @@ class TestAdjustProductInventory(unittest.TestCase):
         assert len(new_events) == 1
         self.assertIsInstance(new_events[0].decision, AdjustedProductInventory)
         new_event = cast(AggregateEvent[AdjustedProductInventory], new_events[0])
-        self.assertEqual(new_event.originator_id, product_id)
+        self.assertEqual(new_event.stream_id, product_id)
         self.assertEqual(new_event.originator_version, 2)
         self.assertEqual(new_event.decision.adjustment, 2)
 

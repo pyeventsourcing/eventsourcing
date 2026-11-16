@@ -65,5 +65,5 @@ class TestEventStore(TestCase):
         self.assertEqual(len(events_tuple), 1)
         last_event = events_tuple[0]
 
-        self.assertEqual(last_event.originator_id, account.id)
+        self.assertEqual(last_event.stream_id, account.id)
         assert type(last_event.decision) is BankAccountWithPydantic.TransactionAppended

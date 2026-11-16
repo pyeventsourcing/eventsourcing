@@ -101,7 +101,7 @@ class TaggedEvent[TDecision](EventEnvelope[TDecision]):
 
 @dataclass(kw_only=True, frozen=True)
 class AggregateEvent[TDecision](EventEnvelope[TDecision]):
-    originator_id: str
+    stream_id: str
     originator_version: int
 
     @override
@@ -111,14 +111,14 @@ class AggregateEvent[TDecision](EventEnvelope[TDecision]):
         assert isinstance(obj, MutableAggregateProtocol)
         if obj.id == NIL_UUID_STR:
             # We received a shell, so initialise the `id` and `version`.
-            obj.id = self.originator_id
+            obj.id = self.stream_id
             obj.version = self.originator_version
 
             # Apply the event to the aggregate.
             return super().mutate(obj)
 
         # Check this event belongs to this aggregate.
-        assert self.originator_id == obj.id
+        assert self.stream_id == obj.id
         # Check this event is the next one for this aggregate.
         assert self.originator_version == obj.version + 1, (
             self.originator_version,
@@ -448,11 +448,11 @@ class Aggregate[
         self.check_decision_type(decision_cls)
         envelope = AggregateEvent(
             decision=decision_cls(*args, **kwargs),
-            originator_id=self.id,
+            stream_id=self.id,
             originator_version=self.version + 1,
         )
         # print(
-        #     f"Triggered {envelope.originator_id} version {envelope.originator_version}
+        #     f"Triggered {envelope.stream_id} version {envelope.originator_version}
         #     "
         # )
         envelope.mutate(self)
@@ -505,13 +505,13 @@ class EventSourcedLog[TDecision, SDecision]:
     def __init__(
         self,
         events: EventStore[TDecision],
-        originator_id: str,
+        stream_id: str,
         event_cls: type[SDecision],
     ):
         # TODO: Change `EventStore` to subclass WorksWithDecisions, then
         #  assert that event_cls is a subclass of its decision class.
         self.events = events
-        self.originator_id = originator_id
+        self.stream_id = stream_id
         self.event_cls = event_cls
 
     def trigger_event(
@@ -541,7 +541,7 @@ class EventSourcedLog[TDecision, SDecision]:
                 next_originator_version = last_logged.originator_version + 1
 
         return AggregateEvent(
-            originator_id=self.originator_id,
+            stream_id=self.stream_id,
             originator_version=next_originator_version,
             decision=cast(TDecision, logged_cls(**kwargs)),
         )
@@ -574,7 +574,7 @@ class EventSourcedLog[TDecision, SDecision]:
         return cast(
             Iterator[AggregateEventProtocol[SDecision]],
             self.events.get(
-                originator_id=self.originator_id,
+                stream_id=self.stream_id,
                 gt=gt,
                 lte=lte,
                 desc=desc,

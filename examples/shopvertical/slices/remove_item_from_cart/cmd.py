@@ -49,7 +49,7 @@ class RemoveItemFromCart(Command):
                 decision=RemovedItemFromCart(
                     product_id=self.product_id,
                 ),
-                originator_id=self.cart_id,
+                stream_id=self.cart_id,
                 originator_version=len(events) + 1,
             ),
         )

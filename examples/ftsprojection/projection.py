@@ -39,16 +39,16 @@ class FtsProjection(EventProcessor[AggregateEvent[Decision], FtsViewInterface]):
         match envelope.decision:
             case Page.Created(title=title, slug=slug, body=body):
                 new_page = PageInfo(
-                    id=envelope.originator_id,
+                    id=envelope.stream_id,
                     title=title,
                     slug=slug,
                     body=body,
                 )
                 self.view.insert_pages_with_tracking([new_page], tracking)
             case Page.BodyUpdated(diff=diff):
-                old_page = self.view.select_page(envelope.originator_id)
+                old_page = self.view.select_page(envelope.stream_id)
                 new_page = PageInfo(
-                    id=envelope.originator_id,
+                    id=envelope.stream_id,
                     slug=old_page.slug,
                     title=old_page.title,
                     body=apply_diff(old_page.body, diff),

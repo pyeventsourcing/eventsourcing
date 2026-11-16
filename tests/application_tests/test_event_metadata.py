@@ -20,7 +20,7 @@ class TestEventMetadata(TestCase):
             put_metadata_in_context({"correlation_id": "cor-1"}),
         ):
             event = AggregateEvent(
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
                 decision=Decision(),
             )
@@ -34,7 +34,7 @@ class TestEventMetadata(TestCase):
             null_metadata_in_context(),
         ):
             event = AggregateEvent(
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
                 metadata={"user_id": "user-2"},
                 decision=Decision(),
@@ -47,7 +47,7 @@ class TestEventMetadata(TestCase):
             null_metadata_in_context(),
         ):
             event = AggregateEvent(
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
                 decision=Decision(),
             )
@@ -71,7 +71,7 @@ class TestEventMetadata(TestCase):
         new_id = str(uuid4())
         for stored_event in stored_events:
             legacy_stored_event = StoredEvent(
-                originator_id=new_id,
+                stream_id=new_id,
                 originator_version=stored_event.originator_version,
                 topic=stored_event.topic,
                 state=stored_event.state,

@@ -16,7 +16,7 @@
 #             pass
 #
 #         event = MyEvent(
-#             originator_id=uuid4(),
+#             stream_id=uuid4(),
 #             originator_version=1,
 #         )
 #
@@ -26,4 +26,4 @@
 #             self.mapper.to_domain_event(stored)
 #
 #         self.assertIn("Failed to decode msgspec struct", str(cm.exception))
-#         self.assertIn("originator_id: ~TAggregateID", str(cm.exception))
+#         self.assertIn("stream_id: ~TAggregateID", str(cm.exception))

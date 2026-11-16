@@ -173,7 +173,7 @@ is a Python frozen data class.
 
     from eventsourcing.persistence import StoredEvent
 
-A :class:`~eventsourcing.persistence.StoredEvent` has an :class:`~eventsourcing.persistence.StoredEvent.originator_id`
+A :class:`~eventsourcing.persistence.StoredEvent` has an :class:`~eventsourcing.persistence.StoredEvent.stream_id`
 attribute which is a :class:`UUID` that identifies the aggregate sequence to
 which the domain event belongs. It has an :class:`~eventsourcing.persistence.StoredEvent.originator_version` attribute which
 is a Python :class:`int` that identifies the position of the domain event in that
@@ -189,7 +189,7 @@ A stored event object also has a :class:`~eventsourcing.persistence.StoredEvent.
     from uuid import uuid4
 
     stored_event = StoredEvent(
-        originator_id=uuid4(),
+        stream_id=uuid4(),
         originator_version=1,
         topic="eventsourcing.model:DomainEvent",
         state=b'{"a": 4}',
@@ -533,7 +533,7 @@ objects.
         obj: ComplexCustomValue
 
     domain_event = MyDomainEvent(
-        originator_id=id1,
+        stream_id=id1,
         originator_version=1,
         obj=obj1,
     )
@@ -715,7 +715,7 @@ the position of a stored event in an application sequence.
 
     notification = Notification(
         id=123,
-        originator_id=uuid4(),
+        stream_id=uuid4(),
         originator_version=1,
         state=b"{}",
         topic="eventsourcing.model:DomainEvent",
@@ -943,7 +943,7 @@ The :class:`~eventsourcing.popo.POPOAggregateRecorder` class implements the
     aggregate_recorder.insert_events([stored_event])
 
     # Select stored events from an aggregate sequence.
-    recorded_events = aggregate_recorder.select_events(stored_event.originator_id)
+    recorded_events = aggregate_recorder.select_events(stored_event.stream_id)
     assert recorded_events[0] == stored_event
 
 
@@ -962,13 +962,13 @@ by extending :class:`~eventsourcing.popo.POPOAggregateRecorder`.
     application_recorder.insert_events([stored_event])
 
     # Select stored events from an aggregate sequence.
-    recorded_events = application_recorder.select_events(stored_event.originator_id)
+    recorded_events = application_recorder.select_events(stored_event.stream_id)
     assert recorded_events[0] == stored_event
 
     # Select notifications from the application sequence.
     notifications = application_recorder.select_notifications(start=1, limit=10)
     assert notifications[0].id == 1
-    assert notifications[0].originator_id == stored_event.originator_id
+    assert notifications[0].stream_id == stored_event.stream_id
     assert notifications[0].originator_version == stored_event.originator_version
     assert notifications[0].state == stored_event.state
     assert notifications[0].topic == stored_event.topic
@@ -980,7 +980,7 @@ by extending :class:`~eventsourcing.popo.POPOAggregateRecorder`.
             max_tracking_id = notification.id
 
             assert notifications[0].id == 1
-            assert notifications[0].originator_id == stored_event.originator_id
+            assert notifications[0].stream_id == stored_event.stream_id
             assert notifications[0].originator_version == stored_event.originator_version
             assert notifications[0].state == stored_event.state
             assert notifications[0].topic == stored_event.topic
@@ -1005,13 +1005,13 @@ by extending :class:`~eventsourcing.popo.POPOApplicationRecorder`.
     process_recorder.insert_events([stored_event], tracking=tracking)
 
     # Select stored events from an aggregate sequence.
-    recorded_events = process_recorder.select_events(stored_event.originator_id)
+    recorded_events = process_recorder.select_events(stored_event.stream_id)
     assert recorded_events[0] == stored_event
 
     # Select notifications from the application sequence.
     notifications = process_recorder.select_notifications(start=1, limit=10)
     assert notifications[0].id == 1
-    assert notifications[0].originator_id == stored_event.originator_id
+    assert notifications[0].stream_id == stored_event.stream_id
     assert notifications[0].originator_version == stored_event.originator_version
     assert notifications[0].state == stored_event.state
     assert notifications[0].topic == stored_event.topic
@@ -1058,7 +1058,7 @@ to create a database table for stored events.
     aggregate_recorder.insert_events([stored_event])
 
     # Select stored events from an aggregate sequence.
-    recorded_events = aggregate_recorder.select_events(stored_event.originator_id)
+    recorded_events = aggregate_recorder.select_events(stored_event.stream_id)
 
 
 The :class:`~eventsourcing.sqlite.SQLiteApplicationRecorder` class
@@ -1085,7 +1085,7 @@ method, and so does not support subscribing to application sequences.
     application_recorder.insert_events([stored_event])
 
     # Select stored events from an aggregate sequence.
-    recorded_events = application_recorder.select_events(stored_event.originator_id)
+    recorded_events = application_recorder.select_events(stored_event.stream_id)
 
     # Select notifications from the application sequence.
     notifications = application_recorder.select_notifications(start=1, limit=10)
@@ -1137,7 +1137,7 @@ by extending :class:`~eventsourcing.sqlite.SQLiteApplicationRecorder`.
     process_recorder.insert_events([stored_event], tracking=tracking)
 
     # Select stored events from an aggregate sequence.
-    recorded_events = process_recorder.select_events(stored_event.originator_id)
+    recorded_events = process_recorder.select_events(stored_event.stream_id)
 
     # Select notifications from the application sequence.
     notifications = process_recorder.select_notifications(start=1, limit=10)
@@ -1193,8 +1193,8 @@ a method to create a database table for stored events.
     aggregate_recorder.insert_events([stored_event])
 
     # Select stored events from an aggregate sequence.
-    recorded_events = aggregate_recorder.select_events(stored_event.originator_id)
-    assert recorded_events[0].originator_id == stored_event.originator_id
+    recorded_events = aggregate_recorder.select_events(stored_event.stream_id)
+    assert recorded_events[0].stream_id == stored_event.stream_id
 
 
 
@@ -1227,14 +1227,14 @@ by extending :class:`~eventsourcing.postgres.PostgresAggregateRecorder`.
     application_recorder.insert_events([stored_event])
 
     # Select stored events from an aggregate sequence.
-    recorded_events = application_recorder.select_events(stored_event.originator_id)
-    assert recorded_events[0].originator_id == stored_event.originator_id
+    recorded_events = application_recorder.select_events(stored_event.stream_id)
+    assert recorded_events[0].stream_id == stored_event.stream_id
     assert recorded_events[0].originator_version == stored_event.originator_version
 
     # Select notifications from the application sequence.
     notifications = application_recorder.select_notifications(start=1, limit=10)
     assert notifications[0].id == 1
-    assert notifications[0].originator_id == stored_event.originator_id
+    assert notifications[0].stream_id == stored_event.stream_id
     assert notifications[0].originator_version == stored_event.originator_version
 
     # Subscribe to application sequence from a tracked position.
@@ -1244,7 +1244,7 @@ by extending :class:`~eventsourcing.postgres.PostgresAggregateRecorder`.
             max_tracking_id = notification.id
 
             assert notifications[0].id == 1
-            assert notifications[0].originator_id == stored_event.originator_id
+            assert notifications[0].stream_id == stored_event.stream_id
             assert notifications[0].originator_version == stored_event.originator_version
             subscription.stop()
 
@@ -1305,13 +1305,13 @@ by combining and extending :class:`~eventsourcing.postgres.PostgresApplicationRe
     process_recorder.insert_events([stored_event], tracking=tracking)
 
     # Select stored events from an aggregate sequence.
-    recorded_events = process_recorder.select_events(stored_event.originator_id)
-    assert recorded_events[0].originator_id == stored_event.originator_id
+    recorded_events = process_recorder.select_events(stored_event.stream_id)
+    assert recorded_events[0].stream_id == stored_event.stream_id
 
     # Select notifications from the application sequence.
     notifications = process_recorder.select_notifications(start=1, limit=10)
     assert notifications[0].id == 1
-    assert notifications[0].originator_id == stored_event.originator_id
+    assert notifications[0].stream_id == stored_event.stream_id
     assert notifications[0].originator_version == stored_event.originator_version
 
     # Get latest tracked position.
@@ -1358,7 +1358,7 @@ be raised and none of the new events will be stored.
 
 The :class:`~eventsourcing.persistence.EventStore` class defines an object method
 :func:`~eventsourcing.persistence.EventStore.get` which can be used to
-get a list of domain event objects. Only the :data:`originator_id` argument
+get a list of domain event objects. Only the :data:`stream_id` argument
 is required, which is the ID of the aggregate for which existing events
 are wanted. The arguments :data:`gt`, :data:`lte`, :data:`limit`, and :data:`desc`
 condition the selection of events to be greater than a particular version

@@ -28,7 +28,7 @@ class TestListProductsInShop(unittest.TestCase):
                     description="A very nice coffee",
                     price=Decimal("5.99"),
                 ),
-                originator_id=product_id1,
+                stream_id=product_id1,
                 originator_version=1,
             ),
         )
@@ -51,7 +51,7 @@ class TestListProductsInShop(unittest.TestCase):
                     description="A very nice coffee",
                     price=Decimal("5.99"),
                 ),
-                originator_id=product_id1,
+                stream_id=product_id1,
                 originator_version=1,
             ),
             AggregateEvent(
@@ -61,7 +61,7 @@ class TestListProductsInShop(unittest.TestCase):
                     description="",
                     price=Decimal("5.99"),
                 ),
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
             ),
             AggregateEvent(
@@ -70,7 +70,7 @@ class TestListProductsInShop(unittest.TestCase):
                     description="A very nice tea",
                     price=Decimal("3.99"),
                 ),
-                originator_id=product_id2,
+                stream_id=product_id2,
                 originator_version=1,
             ),
         )
@@ -98,14 +98,14 @@ class TestListProductsInShop(unittest.TestCase):
                     description="A very nice coffee",
                     price=Decimal("5.99"),
                 ),
-                originator_id=product_id1,
+                stream_id=product_id1,
                 originator_version=1,
             ),
             AggregateEvent(
                 decision=AdjustedProductInventory(
                     adjustment=2,
                 ),
-                originator_id=product_id1,
+                stream_id=product_id1,
                 originator_version=2,
             ),
             AggregateEvent(
@@ -114,7 +114,7 @@ class TestListProductsInShop(unittest.TestCase):
                     description="A very nice tea",
                     price=Decimal("3.99"),
                 ),
-                originator_id=product_id2,
+                stream_id=product_id2,
                 originator_version=1,
             ),
         )

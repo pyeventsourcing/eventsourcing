@@ -42,7 +42,7 @@ class TestEventSourcedLog(TestCase):
 
         log = EventSourcedLog(
             events=event_store,
-            originator_id=str(uuid5(NAMESPACE_URL, "/aggregates")),
+            stream_id=str(uuid5(NAMESPACE_URL, "/aggregates")),
             event_cls=LoggedID,
         )
         id1 = str(uuid4())
@@ -107,7 +107,7 @@ class TestEventSourcedLog(TestCase):
                 super().__init__(env=env, context_name=context_name)
                 self.aggregate_log = EventSourcedLog(
                     events=self.events,
-                    originator_id=str(uuid5(NAMESPACE_URL, "/aggregates")),
+                    stream_id=str(uuid5(NAMESPACE_URL, "/aggregates")),
                     event_cls=LoggedID,
                 )
 
@@ -175,7 +175,7 @@ class TestEventSourcedLog(TestCase):
 
         transaction_log = TransactionLog(
             events=event_store,
-            originator_id=str(uuid5(NAMESPACE_URL, "/aggregates")),
+            stream_id=str(uuid5(NAMESPACE_URL, "/aggregates")),
             event_cls=TransactionLogEvent,
         )
 

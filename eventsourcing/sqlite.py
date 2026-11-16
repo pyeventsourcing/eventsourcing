@@ -298,7 +298,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
             f"INSERT INTO {self.events_table_name} VALUES (?,?,?,?,?,?)"
         )
         self.select_events_statement = (
-            f"SELECT * FROM {self.events_table_name} WHERE originator_id=? "
+            f"SELECT * FROM {self.events_table_name} WHERE stream_id=? "
         )
 
     @override
@@ -307,14 +307,14 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
         statements.append(
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
-            "originator_id TEXT, "
+            "stream_id TEXT, "
             "originator_version INTEGER, "
             "topic TEXT, "
             "state BLOB, "
             "event_id TEXT, "
             "metadata BLOB, "
             "PRIMARY KEY "
-            "(originator_id, originator_version)) "
+            "(stream_id, originator_version)) "
             "WITHOUT ROWID"
         )
         return statements
@@ -334,11 +334,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
     ) -> int | None:
         params = [
             (
-                (
-                    s.originator_id.hex
-                    if isinstance(s.originator_id, UUID)
-                    else s.originator_id
-                ),
+                s.stream_id,
                 s.originator_version,
                 s.topic,
                 s.state,
@@ -353,7 +349,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
     @override
     def select_events(
         self,
-        originator_id: str,
+        stream_id: str,
         *,
         gt: int | None = None,
         lte: int | None = None,
@@ -361,9 +357,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
         limit: int | None = None,
     ) -> Sequence[StoredEvent]:
         statement = self.select_events_statement
-        params: list[Any] = [
-            originator_id.hex if isinstance(originator_id, UUID) else originator_id
-        ]
+        params: list[Any] = [stream_id]
         if gt is not None:
             statement += "AND originator_version>? "
             params.append(gt)
@@ -382,7 +376,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
             c.execute(statement, params)
             return [
                 StoredEvent(
-                    originator_id=row["originator_id"],
+                    stream_id=row["stream_id"],
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=row["state"],
@@ -412,14 +406,14 @@ class SQLiteApplicationRecorder(
         statement = (
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
-            "originator_id TEXT, "
+            "stream_id TEXT, "
             "originator_version INTEGER, "
             "topic TEXT, "
             "state BLOB, "
             "event_id TEXT, "
             "metadata BLOB, "
             "PRIMARY KEY "
-            "(originator_id, originator_version))"
+            "(stream_id, originator_version))"
         )
         return [statement]
 
@@ -435,11 +429,7 @@ class SQLiteApplicationRecorder(
             c.execute(
                 self.insert_events_statement,
                 (
-                    (
-                        s.originator_id.hex
-                        if isinstance(s.originator_id, UUID)
-                        else s.originator_id
-                    ),
+                    s.stream_id,
                     s.originator_version,
                     s.topic,
                     s.state,
@@ -500,7 +490,7 @@ class SQLiteApplicationRecorder(
             return [
                 Notification(
                     id=row["rowid"],
-                    originator_id=row["originator_id"],
+                    stream_id=row["stream_id"],
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=row["state"],

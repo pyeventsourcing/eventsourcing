@@ -12,6 +12,6 @@ if TYPE_CHECKING:
 class SearchableTimestampsRecorder(ApplicationRecorder):
     @abstractmethod
     def get_version_at_timestamp(
-        self, originator_id: str, timestamp: datetime
+        self, stream_id: str, timestamp: datetime
     ) -> int | None:
         """Returns originator version at timestamp for given originator ID."""

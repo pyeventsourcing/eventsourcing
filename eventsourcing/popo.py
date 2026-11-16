@@ -55,10 +55,10 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
         new = set()
         for s in stored_events:
             # Check events don't already exist.
-            if s.originator_version in self._stored_events_index[s.originator_id]:
+            if s.originator_version in self._stored_events_index[s.stream_id]:
                 msg = f"Stored event already recorded: {s}"
                 raise IntegrityError(msg)
-            new.add((s.originator_id, s.originator_version))
+            new.add((s.stream_id, s.originator_version))
         # Check new events are unique.
         if len(new) < len(stored_events):
             msg = f"Stored events are not unique: {stored_events}"
@@ -70,7 +70,7 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
         notification_id: int | None = None
         for s in stored_events:
             self._stored_events.append(s)
-            self._stored_events_index[s.originator_id][s.originator_version] = (
+            self._stored_events_index[s.stream_id][s.originator_version] = (
                 len(self._stored_events) - 1
             )
             notification_id = len(self._stored_events)
@@ -79,7 +79,7 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
     @override
     def select_events(
         self,
-        originator_id: str,
+        stream_id: str,
         *,
         gt: int | None = None,
         lte: int | None = None,
@@ -89,7 +89,7 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
         with self._database_lock:
             results = []
 
-            index = self._stored_events_index[originator_id]
+            index = self._stored_events_index[stream_id]
             positions: Iterable[int]
             positions = reversed_keys(index) if desc else index.keys()
             for p in positions:
@@ -148,7 +148,7 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
                     continue
                 n = Notification(
                     id=i,
-                    originator_id=s.originator_id,
+                    stream_id=s.stream_id,
                     originator_version=s.originator_version,
                     topic=s.topic,
                     state=s.state,

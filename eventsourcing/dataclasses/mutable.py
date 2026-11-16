@@ -24,7 +24,7 @@ class MutableAggregateSnapshot(Decision):
         decision = cls(state=snapshot_state)
         return AggregateEvent(
             decision=decision,
-            originator_id=aggregate_id,
+            stream_id=aggregate_id,
             originator_version=aggregate_version,
         )
 

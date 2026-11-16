@@ -29,7 +29,7 @@ class FtsProcess(ProcessApplication):
                 processing_event.collect_events(
                     insert_pages=[
                         PageInfo(
-                            id=envelope.originator_id,
+                            id=envelope.stream_id,
                             title=title,
                             slug=slug,
                             body=body,
@@ -38,12 +38,12 @@ class FtsProcess(ProcessApplication):
                 )
             case Page.BodyUpdated(diff=diff):
                 recorder = cast(FtsRecorder, cast(Recorder, self.recorder))
-                page = recorder.select_page(envelope.originator_id)
+                page = recorder.select_page(envelope.stream_id)
                 page_body = apply_diff(page.body, diff)
                 processing_event.collect_events(
                     update_pages=[
                         PageInfo(
-                            id=envelope.originator_id,
+                            id=envelope.stream_id,
                             slug=page.slug,
                             title=page.title,
                             body=page_body,

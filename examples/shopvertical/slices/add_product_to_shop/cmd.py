@@ -29,7 +29,7 @@ class AddProductToShop(Command):
                     description=self.description,
                     price=self.price,
                 ),
-                originator_id=self.product_id,
+                stream_id=self.product_id,
                 originator_version=1,
             ),
         )

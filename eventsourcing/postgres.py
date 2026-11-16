@@ -74,7 +74,7 @@ NO_TRACEBACK = (Error, KeyboardInterrupt, CancelledError)
 
 
 class PgStoredEvent(NamedTuple):
-    originator_id: str
+    stream_id: str
     originator_version: int
     topic: str
     state: bytes
@@ -377,14 +377,14 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         self.sql_create_statements.append(
             SQL(
                 "CREATE TABLE IF NOT EXISTS {schema}.{table} ("
-                "originator_id text NOT NULL, "
+                "stream_id text NOT NULL, "
                 "originator_version bigint NOT NULL, "
                 "topic text, "
                 "state bytea, "
                 "event_id uuid, "
                 "metadata jsonb, "
                 "PRIMARY KEY "
-                "(originator_id, originator_version)) "
+                "(stream_id, originator_version)) "
                 "WITH ("
                 "    autovacuum_enabled = true,"
                 "    autovacuum_vacuum_threshold = 100000000,"
@@ -400,7 +400,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
 
         self.insert_events_statement = SQL(
             "    INSERT INTO {schema}.{table} AS t ("
-            "        originator_id,"
+            "        stream_id,"
             "        originator_version,"
             "        topic,"
             "        state,"
@@ -408,7 +408,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
             "        metadata"
             "    )"
             "    SELECT"
-            "        originator_id,"
+            "        stream_id,"
             "        originator_version,"
             "        topic,"
             "        state,"
@@ -422,7 +422,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         )
 
         self.select_events_statement = SQL(
-            "SELECT * FROM {schema}.{table} WHERE originator_id = %s"
+            "SELECT * FROM {schema}.{table} WHERE stream_id = %s"
         ).format(
             schema=Identifier(self.datastore.schema),
             table=Identifier(self.events_table_name),
@@ -433,7 +433,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         self.sql_create_statements.append(
             SQL(
                 "CREATE TYPE {schema}.{name} "
-                "AS (originator_id text, "
+                "AS (stream_id text, "
                 "originator_version bigint, "
                 "topic text, "
                 "state bytea, "
@@ -447,7 +447,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
 
     def construct_pg_stored_event(
         self,
-        originator_id: str,
+        stream_id: str,
         originator_version: int,
         topic: str,
         state: bytes,
@@ -456,7 +456,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
     ) -> PgStoredEvent:
         try:
             return self.datastore.psycopg_python_types[self.stored_event_type_name](
-                originator_id,
+                stream_id,
                 originator_version,
                 topic,
                 state,
@@ -488,7 +488,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         # Construct composite type.
         pg_stored_events = [
             self.construct_pg_stored_event(
-                stored_event.originator_id,
+                stored_event.stream_id,
                 stored_event.originator_version,
                 stored_event.topic,
                 stored_event.state,
@@ -507,7 +507,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
     @override
     def select_events(
         self,
-        originator_id: str,
+        stream_id: str,
         *,
         gt: int | None = None,
         lte: int | None = None,
@@ -515,7 +515,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         limit: int | None = None,
     ) -> Sequence[StoredEvent]:
         statement = self.select_events_statement
-        params: list[Any] = [originator_id]
+        params: list[Any] = [stream_id]
         if gt is not None:
             params.append(gt)
             statement += SQL(" AND originator_version > %s")
@@ -535,7 +535,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
             curs.execute(statement, params, prepare=True)
             return [
                 StoredEvent(
-                    originator_id=row["originator_id"],
+                    stream_id=row["stream_id"],
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=bytes(row["state"]),
@@ -556,7 +556,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         super().__init__(datastore, events_table_name=events_table_name)
         self.sql_create_statements[self.create_table_statement_index] = SQL(
             "CREATE TABLE IF NOT EXISTS {schema}.{table} ("
-            "originator_id text NOT NULL, "
+            "stream_id text NOT NULL, "
             "originator_version bigint NOT NULL, "
             "topic text, "
             "state bytea, "
@@ -564,7 +564,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             "metadata jsonb, "
             "notification_id bigserial, "
             "PRIMARY KEY "
-            "(originator_id, originator_version)) "
+            "(stream_id, originator_version)) "
             "WITH ("
             "    autovacuum_enabled = true,"
             "    autovacuum_vacuum_threshold = 100000000,"
@@ -626,7 +626,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             "    NOTIFY {channel};"
             "    RETURN QUERY"
             "    INSERT INTO {schema}.{table} AS t ("
-            "        originator_id,"
+            "        stream_id,"
             "        originator_version,"
             "        topic,"
             "        state,"
@@ -634,7 +634,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             "        metadata"
             "    )"
             "    SELECT"
-            "        originator_id,"
+            "        stream_id,"
             "        originator_version,"
             "        topic,"
             "        state,"
@@ -663,7 +663,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         if self.datastore.enable_db_functions:
             pg_stored_events = [
                 self.construct_pg_stored_event(
-                    originator_id=e.originator_id,
+                    stream_id=e.stream_id,
                     originator_version=e.originator_version,
                     topic=e.topic,
                     state=e.state,
@@ -792,7 +792,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             return [
                 Notification(
                     id=row["notification_id"],
-                    originator_id=row["originator_id"],
+                    stream_id=row["stream_id"],
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=bytes(row["state"]),

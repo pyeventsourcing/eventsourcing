@@ -74,7 +74,7 @@ class SearchableTimestampsApplicationRecorder(
         )
         self.select_event_timestamp_statement = (
             f"SELECT originator_version FROM {self.event_timestamps_table_name} WHERE "
-            "originator_id = ? AND "
+            "stream_id = ? AND "
             "timestamp <= ? "
             "ORDER BY originator_version DESC "
             "LIMIT 1"
@@ -86,11 +86,11 @@ class SearchableTimestampsApplicationRecorder(
         statements.append(
             "CREATE TABLE IF NOT EXISTS "
             f"{self.event_timestamps_table_name} ("
-            "originator_id TEXT, "
+            "stream_id TEXT, "
             "timestamp timestamp, "
             "originator_version INTEGER, "
             "PRIMARY KEY "
-            "(originator_id, timestamp))"
+            "(stream_id, timestamp))"
         )
         return statements
 
@@ -107,20 +107,20 @@ class SearchableTimestampsApplicationRecorder(
         event_timestamps_data = cast(
             "list[tuple[str, int, dt.datetime]]", kwargs["event_timestamps_data"]
         )
-        for originator_id, timestamp, originator_version in event_timestamps_data:
+        for stream_id, timestamp, originator_version in event_timestamps_data:
             c.execute(
                 self.insert_event_timestamp_statement,
-                (originator_id, originator_version, timestamp),
+                (stream_id, originator_version, timestamp),
             )
 
         return notification_id
 
     @override
     def get_version_at_timestamp(
-        self, originator_id: str, timestamp: dt.datetime
+        self, stream_id: str, timestamp: dt.datetime
     ) -> int | None:
         with self.datastore.transaction(commit=False) as c:
-            c.execute(self.select_event_timestamp_statement, (originator_id, timestamp))
+            c.execute(self.select_event_timestamp_statement, (stream_id, timestamp))
             for row in c.fetchall():
                 return row["originator_version"]
             return None

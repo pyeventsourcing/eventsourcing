@@ -48,7 +48,7 @@ class MuetableAggregateSnapshot(Decision):
         snapshot_state = type_of_snapshot_state(**aggregate_state)
         return AggregateEvent(
             decision=cls(state=snapshot_state),
-            originator_id=aggregate_id,
+            stream_id=aggregate_id,
             originator_version=aggregate_version,
         )
 

@@ -38,8 +38,8 @@ def reset_application() -> None:
     _Globals.app = AggregatesApplication()
 
 
-def get_events(originator_id: str) -> Events:
-    return tuple(_Globals.app.events.get(originator_id))
+def get_events(stream_id: str) -> Events:
+    return tuple(_Globals.app.events.get(stream_id))
 
 
 def put_events(events: Events) -> int | None:

@@ -76,7 +76,7 @@
 #         self.assertEqual(a.created_on, a.modified_on)
 #         self.assertIsInstance(a.pending_events[0], Aggregate.Event)
 #         self.assertIsInstance(a.pending_events[0], Aggregate.Created)
-#         self.assertEqual(a.pending_events[0].originator_id, a.id)
+#         self.assertEqual(a.pending_events[0].stream_id, a.id)
 #         self.assertEqual(a.pending_events[0].originator_version, 1)
 #
 #         aggregate_id = a.id
@@ -92,7 +92,7 @@
 #         self.assertLess(a.created_on, a.modified_on)
 #         self.assertIsInstance(a.pending_events[1], Aggregate.Event)
 #         self.assertNotIsInstance(a.pending_events[1], Aggregate.Created)
-#         self.assertEqual(a.pending_events[1].originator_id, a.id)
+#         self.assertEqual(a.pending_events[1].stream_id, a.id)
 #         self.assertEqual(a.pending_events[1].originator_version, 2)
 #
 #         self.assertEqual(
@@ -114,7 +114,7 @@
 #         self.assertEqual(a.created_on, a.modified_on)
 #         self.assertIsInstance(a.pending_events[0], Aggregate.Event)
 #         self.assertIsInstance(a.pending_events[0], Aggregate.Created)
-#         self.assertEqual(a.pending_events[0].originator_id, a.id)
+#         self.assertEqual(a.pending_events[0].stream_id, a.id)
 #         self.assertEqual(a.pending_events[0].originator_version, 1)
 #
 #         # Raises type error if event class can't be constructed.
@@ -198,7 +198,7 @@
 #         self.assertEqual(a.created_on, a.modified_on)
 #         self.assertIsInstance(a.pending_events[0], A.Event)
 #         self.assertIsInstance(a.pending_events[0], A.Created)
-#         self.assertEqual(a.pending_events[0].originator_id, a.id)
+#         self.assertEqual(a.pending_events[0].stream_id, a.id)
 #         self.assertEqual(a.pending_events[0].originator_version, 1)
 #
 #         aggregate_id = a.id
@@ -214,7 +214,7 @@
 #         self.assertLess(a.created_on, a.modified_on)
 #         self.assertIsInstance(a.pending_events[1], A.Event)
 #         self.assertNotIsInstance(a.pending_events[1], A.Created)
-#         self.assertEqual(a.pending_events[1].originator_id, a.id)
+#         self.assertEqual(a.pending_events[1].stream_id, a.id)
 #         self.assertEqual(a.pending_events[1].originator_version, 2)
 #
 #     def test_annotations_mention_id_no_default(self) -> None:
@@ -802,7 +802,7 @@
 #         )
 #
 #         class DomainEvent(BaseModel):
-#             originator_id: UUID
+#             stream_id: UUID
 #             originator_version: int
 #             timestamp: datetime
 #
@@ -849,7 +849,7 @@
 #
 #         @dataclass(frozen=True)
 #         class DomainEvent:
-#             originator_id: UUID
+#             stream_id: UUID
 #             originator_version: int
 #             timestamp: datetime
 #

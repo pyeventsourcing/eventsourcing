@@ -60,10 +60,10 @@ class NotificationLogJSONService[
                 "items": [
                     {
                         "id": item.id,
-                        "originator_id": (
-                            item.originator_id.hex
-                            if isinstance(item.originator_id, UUID)
-                            else item.originator_id
+                        "stream_id": (
+                            item.stream_id.hex
+                            if isinstance(item.stream_id, UUID)
+                            else item.stream_id
                         ),
                         "originator_version": item.originator_version,
                         "topic": item.topic,
@@ -93,10 +93,10 @@ class NotificationLogJSONService[
             [
                 {
                     "id": notification.id,
-                    "originator_id": (
-                        notification.originator_id.hex
-                        if isinstance(notification.originator_id, UUID)
-                        else notification.originator_id
+                    "stream_id": (
+                        notification.stream_id.hex
+                        if isinstance(notification.stream_id, UUID)
+                        else notification.stream_id
                     ),
                     "originator_version": notification.originator_version,
                     "topic": notification.topic,
@@ -128,7 +128,7 @@ class NotificationLogJSONClient(NotificationLog):
             items=[
                 Notification(
                     id=item["id"],
-                    originator_id=item["originator_id"],
+                    stream_id=item["stream_id"],
                     originator_version=item["originator_version"],
                     topic=item["topic"],
                     state=b64decode(item["state"].encode("utf8")),
@@ -154,7 +154,7 @@ class NotificationLogJSONClient(NotificationLog):
         return [
             Notification(
                 id=item["id"],
-                originator_id=item["originator_id"],
+                stream_id=item["stream_id"],
                 originator_version=item["originator_version"],
                 topic=item["topic"],
                 state=b64decode(item["state"].encode("utf8")),

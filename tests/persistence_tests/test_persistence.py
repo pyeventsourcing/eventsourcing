@@ -33,21 +33,21 @@ class TestListNotifySubscriptionSubscription(TestCase):
         subscription._notifications = [
             Notification(
                 id=1,
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
                 topic="",
                 state=b"",
             ),
             Notification(
                 id=2,
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
                 topic="",
                 state=b"",
             ),
             Notification(
                 id=3,
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
                 topic="",
                 state=b"",
@@ -68,21 +68,21 @@ class TestListNotifySubscriptionSubscription(TestCase):
         subscription._notifications = [
             Notification(
                 id=4,
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
                 topic="",
                 state=b"",
             ),
             Notification(
                 id=5,
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
                 topic="",
                 state=b"",
             ),
             Notification(
                 id=6,
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
                 topic="",
                 state=b"",

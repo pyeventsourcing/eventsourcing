@@ -24,7 +24,7 @@ class SearchableTimestampsApplication(BookingApplication):
     def _record(self, processing_event: ProcessingEvent[Decision]) -> int | None:
         event_timestamps_data = [
             (
-                e.originator_id,
+                e.stream_id,
                 e.originator_version,
                 e.decision.timestamp,
             )

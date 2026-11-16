@@ -27,7 +27,7 @@
 #
 #
 # class DomainEvent(Immutable):
-#     originator_id: UUID
+#     stream_id: UUID
 #     originator_version: int
 #     timestamp: datetime = Field(default_factory=datetime_now_with_tzinfo)
 #     metadata: dict[str, str] = Field(default_factory=get_metadata_from_context)

@@ -233,7 +233,7 @@ class RunnerTestCase[TRunner: RunnerProtocol[Any]](TestCase, ABC):
                             error = str(e)
                             output = b""
                         result = Result(
-                            command_id=envelope.originator_id,
+                            command_id=envelope.stream_id,
                             output=output.decode("utf8"),
                             error=error,
                         )

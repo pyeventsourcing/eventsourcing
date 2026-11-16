@@ -30,7 +30,7 @@ class TrickAdded(DomainEvent):
 def register_dog(name: str) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=DogRegistered(name=name),
-        originator_id=str(uuid4()),
+        stream_id=str(uuid4()),
         originator_version=1,
     )
 
@@ -38,7 +38,7 @@ def register_dog(name: str) -> AggregateEvent[Decision]:
 def add_trick(dog: Dog, trick: str) -> AggregateEvent[Decision]:
     return AggregateEvent(
         decision=TrickAdded(trick=trick),
-        originator_id=dog.id,
+        stream_id=dog.id,
         originator_version=dog.version + 1,
     )
 
@@ -48,7 +48,7 @@ def mutate_dog(dog: Dog | None, event: AggregateEvent[Decision]) -> Dog | None:
     match event.decision:
         case DogRegistered(name=name):
             return Dog(
-                id=event.originator_id,
+                id=event.stream_id,
                 version=event.originator_version,
                 name=name,
                 tricks=(),

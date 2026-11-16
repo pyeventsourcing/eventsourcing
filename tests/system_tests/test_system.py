@@ -326,7 +326,7 @@ class TestFollower(TestCase):
         notifications = [
             Notification(
                 id=1,
-                originator_id=str(uuid4()),
+                stream_id=str(uuid4()),
                 originator_version=1,
                 state=b"",
                 topic="topic1",

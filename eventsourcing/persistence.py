@@ -209,7 +209,7 @@ class StoredEvent:
     objects and :class:`~eventsourcing.domain.Snapshot` objects.
     """
 
-    originator_id: str
+    stream_id: str
     """ID of the originating aggregate."""
     originator_version: int
     """Position in an aggregate sequence."""
@@ -278,86 +278,6 @@ class Mapper[TEnvelope: EventEnvelopeProtocol[Any], TDecision](
         """Converts the given :class:`StoredEvent` to a domain event object."""
 
 
-# # TODO: Eliminate this by adjusting JSONTranscoder to extract 'event_state' dict
-# #  (`event_state = dict(vars(domain_event.decision))`) and reconstructing Decision
-# #  class.
-# class DataclassMapper(Mapper):
-#     """Converts between dataclass domain event objects and :class:`StoredEvent` object
-#     s.
-#
-#     Uses a :class:`Transcoder`, and optionally a cryptographic cipher and compressor.
-#     """
-#
-#     def to_stored_event(self, domain_event: AggregateEvent[TDecision]) -> StoredEvent:
-#         topic = get_topic(domain_event.decision.__class__)
-#         event_state = dict(vars(domain_event.decision))
-#         # originator_id = event_state.pop("originator_id")
-#         # originator_version = event_state.pop("originator_version")
-#         class_version = getattr(type(domain_event.decision), "class_version", 1)
-#         if class_version > 1:
-#             event_state["class_version"] = class_version
-#         stored_state = self.transcoder.encode(event_state)
-#         if self.compressor:
-#             stored_state = self.compressor.compress(stored_state)
-#         if self.cipher:
-#             stored_state = self.cipher.encrypt(stored_state)
-#         return StoredEvent(
-#             originator_id=domain_event.originator_id,
-#             originator_version=domain_event.originator_version,
-#             topic=topic,
-#             state=stored_state,
-#             metadata=domain_event.metadata,
-#             uuid=domain_event.uuid,
-#         )
-#
-#     def to_domain_event(self, stored_event: StoredEvent) -> AggregateEvent[TDecision]:
-#         """Converts the given :class:`StoredEvent` to a domain event object."""
-#         cls = resolve_topic(stored_event.topic)
-#
-#         stored_state = stored_event.state
-#         try:
-#             if self.cipher:
-#                 stored_state = self.cipher.decrypt(stored_state)
-#             if self.compressor:
-#                 stored_state = self.compressor.decompress(stored_state)
-#             event_state: dict[str, Any] = self.transcoder.decode(stored_state, cls)
-#         except Exception as e:
-#             msg = (
-#                 f"Failed to deserialise state of stored event with "
-#                 f"topic '{stored_event.topic}', "
-#                 f"originator_id '{stored_event.originator_id}' and "
-#                 f"originator_version {stored_event.originator_version}: {e}"
-#             )
-#             raise MapperDeserialisationError(msg) from e
-#
-#         # Support legacy data by supplementing domain event metadata
-#         # from separately stored event metadata.
-#         # # TODO: Also maybe store metadata separately from domain event as config opt
-#          ion?
-#         # stored_metadata = stored_event.metadata
-#         # event_metadata = event_state.get("metadata")
-#         # if isinstance(stored_metadata, dict) and isinstance(event_metadata, dict):
-#         #     for key, value in stored_metadata.items():
-#         #         if key not in event_metadata:
-#         #             event_metadata[key] = value
-#
-#         # if "event_id" not in event_state and stored_event.event_id:
-#         #     event_state["event_id"] = stored_event.event_id
-#         class_version = getattr(cls, "class_version", 1)
-#         from_version = event_state.pop("class_version", 1)
-#         while from_version < class_version:
-#             getattr(cls, f"upcast_v{from_version}_v{from_version + 1}")(event_state)
-#             from_version += 1
-#         decision = cls(**event_state)
-#         return AggregateEvent(
-#             decision=decision,
-#             uuid=stored_event.uuid,
-#             metadata=stored_event.metadata,
-#             originator_id=stored_event.originator_id,
-#             originator_version=stored_event.originator_version,
-#         )
-
-
 class IntegrityError(DatabaseError, RecordConflictError):
     """Exception raised when the relational integrity of the
     database is affected, e.g. a foreign key check fails.
@@ -387,7 +307,7 @@ class AggregateRecorder(Recorder, ABC):
     @abstractmethod
     def select_events(
         self,
-        originator_id: str,
+        stream_id: str,
         *,
         gt: int | None = None,
         lte: int | None = None,
@@ -551,7 +471,7 @@ class EventStore[TDecision]:
 
     def get(
         self,
-        originator_id: str,
+        stream_id: str,
         *,
         gt: int | None = None,
         lte: int | None = None,
@@ -563,7 +483,7 @@ class EventStore[TDecision]:
             return map(
                 self.mapper.to_domain_event,
                 self.recorder.select_events(
-                    originator_id=originator_id,
+                    stream_id=stream_id,
                     gt=gt,
                     lte=lte,
                     desc=desc,
@@ -1327,7 +1247,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
         if self.cipher:
             stored_state = self.cipher.encrypt(stored_state)
         return StoredEvent(
-            originator_id=domain_event.originator_id,
+            stream_id=domain_event.stream_id,
             originator_version=domain_event.originator_version,
             topic=topic,
             state=stored_state,
@@ -1349,7 +1269,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
             msg = (
                 f"Failed to deserialise state of stored event with "
                 f"topic '{stored_event.topic}', "
-                f"originator_id '{stored_event.originator_id}' and "
+                f"stream_id '{stored_event.stream_id}' and "
                 f"originator_version {stored_event.originator_version}: {e}"
             )
             raise MapperDeserialisationError(msg) from e
@@ -1358,7 +1278,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
                 decision=decision,
                 event_id=stored_event.event_id,
                 metadata=stored_event.metadata,
-                originator_id=stored_event.originator_id,
+                stream_id=stored_event.stream_id,
                 originator_version=stored_event.originator_version,
             )
 
