@@ -203,12 +203,12 @@ class TestDataclassAggregate(TestCase):
         collected = a.collect_events()
         self.assertEqual(len(collected), 2)
         self.assertEqual(collected[0].stream_id, a.id)
-        self.assertEqual(collected[0].originator_version, 1)
+        self.assertEqual(collected[0].stream_position, 1)
         self.assertIsInstance(collected[0].decision, Initial)
         assert isinstance(collected[0].decision, Initial)  # for mypy
         self.assertEqual(collected[0].decision.a, 1)
         self.assertEqual(collected[1].stream_id, a.id)
-        self.assertEqual(collected[1].originator_version, 2)
+        self.assertEqual(collected[1].stream_position, 2)
         self.assertIsInstance(collected[1].decision, Next)
         assert isinstance(collected[1].decision, Next)  # for mypy
         self.assertEqual(collected[1].decision.b, 2)
@@ -240,11 +240,11 @@ class TestDataclassAggregate(TestCase):
         collected = a.collect_events()
         self.assertEqual(len(collected), 2)
         self.assertEqual(collected[0].stream_id, a.id)
-        self.assertEqual(collected[0].originator_version, 1)
+        self.assertEqual(collected[0].stream_position, 1)
         self.assertIsInstance(collected[0].decision, MyAggregate.Initial)  # type: ignore[attr-defined]
         self.assertEqual(collected[0].decision.a, 1)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].stream_id, a.id)
-        self.assertEqual(collected[1].originator_version, 2)
+        self.assertEqual(collected[1].stream_position, 2)
         self.assertIsInstance(collected[1].decision, MyAggregate.Next)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].decision.b, 2)  # type: ignore[attr-defined]
 
@@ -283,11 +283,11 @@ class TestPydanticAggregate(TestCase):
         collected = a.collect_events()
         self.assertEqual(len(collected), 2)
         self.assertEqual(collected[0].stream_id, a.id)
-        self.assertEqual(collected[0].originator_version, 1)
+        self.assertEqual(collected[0].stream_position, 1)
         self.assertIsInstance(collected[0].decision, Initial)
         self.assertEqual(collected[0].decision.a, 1)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].stream_id, a.id)
-        self.assertEqual(collected[1].originator_version, 2)
+        self.assertEqual(collected[1].stream_position, 2)
         self.assertIsInstance(collected[1].decision, Next)
         self.assertEqual(collected[1].decision.b, 2)  # type: ignore[attr-defined]
 
@@ -318,11 +318,11 @@ class TestPydanticAggregate(TestCase):
         collected = a.collect_events()
         self.assertEqual(len(collected), 2)
         self.assertEqual(collected[0].stream_id, a.id)
-        self.assertEqual(collected[0].originator_version, 1)
+        self.assertEqual(collected[0].stream_position, 1)
         self.assertIsInstance(collected[0].decision, MyAggregate.Initial)  # type: ignore[attr-defined]
         self.assertEqual(collected[0].decision.a, 1)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].stream_id, a.id)
-        self.assertEqual(collected[1].originator_version, 2)
+        self.assertEqual(collected[1].stream_position, 2)
         self.assertIsInstance(collected[1].decision, MyAggregate.Next)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].decision.b, 2)  # type: ignore[attr-defined]
 
@@ -361,12 +361,12 @@ class TestMsgspecAggregate(TestCase):
         collected = a.collect_events()
         self.assertEqual(len(collected), 2)
         self.assertEqual(collected[0].stream_id, a.id)
-        self.assertEqual(collected[0].originator_version, 1)
+        self.assertEqual(collected[0].stream_position, 1)
         self.assertIsInstance(collected[0].decision, Initial)
         assert isinstance(collected[0].decision, Initial)  # for mypy
         self.assertEqual(collected[0].decision.a, 1)
         self.assertEqual(collected[1].stream_id, a.id)
-        self.assertEqual(collected[1].originator_version, 2)
+        self.assertEqual(collected[1].stream_position, 2)
         self.assertIsInstance(collected[1].decision, Next)
         assert isinstance(collected[1].decision, Next)  # for mypy
         self.assertEqual(collected[1].decision.b, 2)
@@ -398,11 +398,11 @@ class TestMsgspecAggregate(TestCase):
         collected = a.collect_events()
         self.assertEqual(len(collected), 2)
         self.assertEqual(collected[0].stream_id, a.id)
-        self.assertEqual(collected[0].originator_version, 1)
+        self.assertEqual(collected[0].stream_position, 1)
         self.assertIsInstance(collected[0].decision, MyAggregate.Initial)  # type: ignore[attr-defined]
         self.assertEqual(collected[0].decision.a, 1)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].stream_id, a.id)
-        self.assertEqual(collected[1].originator_version, 2)
+        self.assertEqual(collected[1].stream_position, 2)
         self.assertIsInstance(collected[1].decision, MyAggregate.Next)  # type: ignore[attr-defined]
         self.assertEqual(collected[1].decision.b, 2)  # type: ignore[attr-defined]
 

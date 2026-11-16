@@ -41,8 +41,8 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
         # Check snapshots have been taken at regular intervals.
         snapshots = list(app.snapshots.get(account_id))
         self.assertEqual(len(snapshots), 2)
-        self.assertEqual(snapshots[0].originator_version, 5)
-        self.assertEqual(snapshots[1].originator_version, 10)
+        self.assertEqual(snapshots[0].stream_position, 5)
+        self.assertEqual(snapshots[1].stream_position, 10)
 
         # # Check another type of aggregate is not snapshotted.
         # aggregate = Aggregate()
@@ -124,7 +124,7 @@ class TestApplicationWithAutomaticSnapshotting(TestCase):
     #     @dataclass(frozen=True)
     #     class DomainEvent(metaclass=MetaDomainEvent):
     #         stream_id: str
-    #         originator_version: int
+    #         stream_position: int
     #         timestamp: datetime = field(default_factory=datetime_now_with_tzinfo)
     #         metadata: dict[str, str] = field(default_factory=get_metadata_from_context
     #         )

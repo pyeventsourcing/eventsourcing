@@ -41,5 +41,5 @@ class ImmutableAggregateSnapshot(Decision):
         return AggregateEvent(
             decision=decision,
             stream_id=aggregate.id,
-            originator_version=aggregate.version,
+            stream_position=aggregate.version,
         )

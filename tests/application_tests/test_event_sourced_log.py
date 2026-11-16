@@ -64,7 +64,7 @@ class TestEventSourcedLog(TestCase):
         last = log.get_last()
         assert last
         self.assertEqual(last.decision.aggregate_id, id2)
-        logged = log.trigger_event(aggregate_id=id3, next_originator_version=3)
+        logged = log.trigger_event(aggregate_id=id3, next_stream_position=3)
         event_store.put([logged])
         last = log.get_last()
         assert last

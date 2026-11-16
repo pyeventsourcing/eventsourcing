@@ -479,10 +479,10 @@ are four notifications in the notification log.
     assert section.items[2].stream_id == dog_id
     assert section.items[3].stream_id == dog_id
 
-    assert section.items[0].originator_version == 1
-    assert section.items[1].originator_version == 2
-    assert section.items[2].originator_version == 3
-    assert section.items[3].originator_version == 4
+    assert section.items[0].stream_position == 1
+    assert section.items[1].stream_position == 2
+    assert section.items[2].stream_position == 3
+    assert section.items[3].stream_position == 4
 
     assert "Dog.Created" in section.items[0].topic
     assert "Dog.TrickAdded" in section.items[1].topic
@@ -870,7 +870,7 @@ discovered. The aggregate IDs are then accessed in pages of a fixed size.
     aggregate_ids = [i.aggregate_id for i in log_events]
     assert aggregate_ids == [aggregate1_id]
 
-    next = log_events[-1].originator_version
+    next = log_events[-1].stream_position
     log_events = list(app_with_aggregate_log.aggregate_log.get(limit=1, gt=next))
     aggregate_ids = [i.aggregate_id for i in log_events]
     assert aggregate_ids == [aggregate2_id]
@@ -880,7 +880,7 @@ discovered. The aggregate IDs are then accessed in pages of a fixed size.
     aggregate_ids = [i.aggregate_id for i in log_events]
     assert aggregate_ids == [aggregate2_id]
 
-    next = log_events[-1].originator_version - 1
+    next = log_events[-1].stream_position - 1
     log_events = list(app_with_aggregate_log.aggregate_log.get(desc=True, limit=1, lte=next))
     aggregate_ids = [i.aggregate_id for i in log_events]
     assert aggregate_ids == [aggregate1_id]
@@ -1228,7 +1228,7 @@ by selecting in descending order with a limit of 1.
     snapshot = snapshots[0]
 
     assert snapshot.stream_id == dog_id
-    assert snapshot.originator_version == 4
+    assert snapshot.stream_position == 4
 
 When snapshotting is enabled, the application repository looks for snapshots in this way.
 If a snapshot is found by the aggregate repository when retrieving an aggregate,
@@ -1273,10 +1273,10 @@ than 2, perhaps more like 100.
     assert len(snapshots) == 2
 
     assert snapshots[0].stream_id == dog_id
-    assert snapshots[0].originator_version == 2
+    assert snapshots[0].stream_position == 2
 
     assert snapshots[1].stream_id == dog_id
-    assert snapshots[1].originator_version == 4
+    assert snapshots[1].stream_position == 4
 
 
 Code reference

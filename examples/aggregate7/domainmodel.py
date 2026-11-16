@@ -54,7 +54,7 @@ def register_dog(name: str) -> AggregateEvent[Decision]:
             name=name,
         ),
         stream_id=str(uuid4()),
-        originator_version=1,
+        stream_position=1,
     )
 
 
@@ -64,7 +64,7 @@ def add_trick(dog: Dog, trick: Trick) -> AggregateEvent[Decision]:
             trick=trick,
         ),
         stream_id=dog.id,
-        originator_version=dog.version + 1,
+        stream_position=dog.version + 1,
     )
 
 
@@ -77,7 +77,7 @@ def evolve_dog(
         case DogRegistered(name=name, timestamp=timestamp):
             return Dog(
                 id=envelope.stream_id,
-                version=envelope.originator_version,
+                version=envelope.stream_position,
                 created_on=timestamp,
                 modified_on=timestamp,
                 name=name,
@@ -88,7 +88,7 @@ def evolve_dog(
             assert dog is not None
             return Dog(
                 id=dog.id,
-                version=envelope.originator_version,
+                version=envelope.stream_position,
                 created_on=dog.created_on,
                 modified_on=timestamp,
                 name=dog.name,

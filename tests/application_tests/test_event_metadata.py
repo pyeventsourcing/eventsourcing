@@ -21,7 +21,7 @@ class TestEventMetadata(TestCase):
         ):
             event = AggregateEvent(
                 stream_id=str(uuid4()),
-                originator_version=1,
+                stream_position=1,
                 decision=Decision(),
             )
         self.assertEqual(event.metadata["user_id"], "user-1")
@@ -35,7 +35,7 @@ class TestEventMetadata(TestCase):
         ):
             event = AggregateEvent(
                 stream_id=str(uuid4()),
-                originator_version=1,
+                stream_position=1,
                 metadata={"user_id": "user-2"},
                 decision=Decision(),
             )
@@ -48,7 +48,7 @@ class TestEventMetadata(TestCase):
         ):
             event = AggregateEvent(
                 stream_id=str(uuid4()),
-                originator_version=1,
+                stream_position=1,
                 decision=Decision(),
             )
         self.assertEqual(event.metadata, {})
@@ -72,7 +72,7 @@ class TestEventMetadata(TestCase):
         for stored_event in stored_events:
             legacy_stored_event = StoredEvent(
                 stream_id=new_id,
-                originator_version=stored_event.originator_version,
+                stream_position=stored_event.stream_position,
                 topic=stored_event.topic,
                 state=stored_event.state,
             )

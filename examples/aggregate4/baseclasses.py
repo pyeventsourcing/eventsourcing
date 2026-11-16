@@ -51,7 +51,7 @@ class Aggregate(WorksWithDecisions[Decision]):
                     state=aggregate_state,
                 ),
                 stream_id=aggregate.id,
-                originator_version=aggregate.version,
+                stream_position=aggregate.version,
             )
 
     def trigger_event(
@@ -63,7 +63,7 @@ class Aggregate(WorksWithDecisions[Decision]):
         new_event = AggregateEvent(
             decision=event_class(**kwargs),
             stream_id=self.id,
-            originator_version=self.version + 1,
+            stream_position=self.version + 1,
         )
         self.apply_event(new_event)
         self.append_event(new_event)

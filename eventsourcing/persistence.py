@@ -211,7 +211,7 @@ class StoredEvent:
 
     stream_id: str
     """ID of the originating aggregate."""
-    originator_version: int
+    stream_position: int
     """Position in an aggregate sequence."""
     topic: str
     """Topic of a domain event object class."""
@@ -1248,7 +1248,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
             stored_state = self.cipher.encrypt(stored_state)
         return StoredEvent(
             stream_id=domain_event.stream_id,
-            originator_version=domain_event.originator_version,
+            stream_position=domain_event.stream_position,
             topic=topic,
             state=stored_state,
             event_id=domain_event.event_id,
@@ -1270,7 +1270,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
                 f"Failed to deserialise state of stored event with "
                 f"topic '{stored_event.topic}', "
                 f"stream_id '{stored_event.stream_id}' and "
-                f"originator_version {stored_event.originator_version}: {e}"
+                f"stream_position {stored_event.stream_position}: {e}"
             )
             raise MapperDeserialisationError(msg) from e
         else:
@@ -1279,7 +1279,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
                 event_id=stored_event.event_id,
                 metadata=stored_event.metadata,
                 stream_id=stored_event.stream_id,
-                originator_version=stored_event.originator_version,
+                stream_position=stored_event.stream_position,
             )
 
 

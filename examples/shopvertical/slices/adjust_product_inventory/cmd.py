@@ -25,7 +25,7 @@ class AdjustProductInventory(Command):
                     adjustment=self.adjustment,
                 ),
                 stream_id=self.product_id,
-                originator_version=len(events) + 1,
+                stream_position=len(events) + 1,
             ),
         )
 

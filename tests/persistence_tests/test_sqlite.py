@@ -274,7 +274,7 @@ class TestSQLiteApplicationRecorderErrors(TestCase):
         recorder = SQLiteApplicationRecorder(SQLiteDatastore(":memory:"))
         stored_event1 = StoredEvent(
             stream_id=str(uuid4()),
-            originator_version=1,
+            stream_position=1,
             topic="topic1",
             state=b"",
         )
@@ -415,7 +415,7 @@ class TestSQLiteProcessRecorderErrors(TestCase):
         recorder = SQLiteProcessRecorder(SQLiteDatastore(":memory:"))
         stored_event1 = StoredEvent(
             stream_id=str(uuid4()),
-            originator_version=1,
+            stream_position=1,
             topic="topic1",
             state=b"",
         )

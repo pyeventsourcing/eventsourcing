@@ -47,36 +47,36 @@
 #
 #     def test_domain_event_instance(self) -> None:
 #         stream_id = uuid4()
-#         originator_version = 101
+#         stream_position = 101
 #         a = DomainEvent(
 #             stream_id=stream_id,
-#             originator_version=originator_version,
+#             stream_position=stream_position,
 #         )
 #         self.assertEqual(a.stream_id, stream_id)
-#         self.assertEqual(a.originator_version, originator_version)
+#         self.assertEqual(a.stream_position, stream_position)
 #         self.assertIsInstance(a.timestamp, datetime)
 #         self.assertEqual(a.metadata, {})
 #
 #     def test_event_id_as_given(self) -> None:
 #         stream_id = uuid4()
-#         originator_version = 101
+#         stream_position = 101
 #         event_id = uuid4()
 #         e = DomainEvent(
 #             stream_id=stream_id,
-#             originator_version=originator_version,
+#             stream_position=stream_position,
 #             event_id=event_id,
 #         )
 #         self.assertEqual(e.event_id, event_id)
 #
 #     def test_event_id_deterministic_fallback(self) -> None:
 #         stream_id = uuid4()
-#         originator_version = 101
+#         stream_position = 101
 #         expected_event_id = event_id_from_stream_id_and_version(
-#             stream_id, originator_version
+#             stream_id, stream_position
 #         )
 #         e = DomainEvent(
 #             stream_id=stream_id,
-#             originator_version=originator_version,
+#             stream_position=stream_position,
 #         )
 #         self.assertEqual(e.event_id, expected_event_id)
 #
@@ -89,13 +89,13 @@
 #         # Create an 'account opened' event.
 #         event3 = AccountOpened(
 #             stream_id=uuid4(),
-#             originator_version=0,
+#             stream_position=0,
 #             full_name="Alice",
 #         )
 #
 #         self.assertEqual(event3.full_name, "Alice")
 #         assert isinstance(event3.stream_id, UUID)
-#         self.assertEqual(event3.originator_version, 0)
+#         self.assertEqual(event3.stream_position, 0)
 #
 #         # Define a 'full name updated' domain event.
 #         @dataclass(frozen=True, kw_only=True)
@@ -105,14 +105,14 @@
 #         # Create a 'full name updated' domain event.
 #         event4 = FullNameUpdated(
 #             stream_id=event3.stream_id,
-#             originator_version=1,
+#             stream_position=1,
 #             full_name="Bob",
 #         )
 #
 #         # Check the attribute values of the domain event.
 #         self.assertEqual(event4.full_name, "Bob")
 #         assert isinstance(event4.stream_id, UUID)
-#         self.assertEqual(event4.originator_version, 1)
+#         self.assertEqual(event4.stream_position, 1)
 #
 #
 # class TestDatetimeNowWithTzinfo(TestCase):

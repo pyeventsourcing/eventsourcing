@@ -43,7 +43,7 @@ class TestSubmitCart(unittest.TestCase):
         self.assertIsInstance(new_events[0].decision, SubmittedCart)
         new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
-        self.assertEqual(new_event.originator_version, 1)
+        self.assertEqual(new_event.stream_position, 1)
 
     def test_submit_cart_sufficient_inventory_after_item_removed(self) -> None:
         cart_id = str(uuid4())
@@ -60,14 +60,14 @@ class TestSubmitCart(unittest.TestCase):
                     price=Decimal(1),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
                 stream_id=cart_id,
-                originator_version=2,
+                stream_position=2,
             ),
         )
         new_events = cmd.handle(cart_events)
@@ -75,7 +75,7 @@ class TestSubmitCart(unittest.TestCase):
         self.assertIsInstance(new_events[0].decision, SubmittedCart)
         new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
-        self.assertEqual(new_event.originator_version, 3)
+        self.assertEqual(new_event.stream_position, 3)
 
     def test_submit_cart_sufficient_inventory_after_cart_cleared(self) -> None:
         cart_id = str(uuid4())
@@ -91,12 +91,12 @@ class TestSubmitCart(unittest.TestCase):
                     price=Decimal(1),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=ClearedCart(),
                 stream_id=cart_id,
-                originator_version=2,
+                stream_position=2,
             ),
         )
         new_events = cmd.handle(cart_events)
@@ -104,7 +104,7 @@ class TestSubmitCart(unittest.TestCase):
         self.assertIsInstance(new_events[0].decision, SubmittedCart)
         new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
-        self.assertEqual(new_event.originator_version, 3)
+        self.assertEqual(new_event.stream_position, 3)
 
     def test_submit_cart_insufficient_inventory_after_item_added(self) -> None:
         cart_id = str(uuid4())
@@ -121,7 +121,7 @@ class TestSubmitCart(unittest.TestCase):
                     price=Decimal(100),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
         )
         with self.assertRaises(InsufficientInventoryError):
@@ -154,7 +154,7 @@ class TestSubmitCart(unittest.TestCase):
                     price=Decimal(100),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
         )
         new_events = cmd.handle(cart_events)
@@ -162,7 +162,7 @@ class TestSubmitCart(unittest.TestCase):
         self.assertIsInstance(new_events[0].decision, SubmittedCart)
         new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
-        self.assertEqual(new_event.originator_version, 2)
+        self.assertEqual(new_event.stream_position, 2)
 
     def test_submit_cart_insufficient_inventory_after_item_added_twice(self) -> None:
         cart_id = str(uuid4())
@@ -190,7 +190,7 @@ class TestSubmitCart(unittest.TestCase):
                     price=Decimal(100),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=AddedItemToCart(
@@ -200,7 +200,7 @@ class TestSubmitCart(unittest.TestCase):
                     price=Decimal(100),
                 ),
                 stream_id=cart_id,
-                originator_version=2,
+                stream_position=2,
             ),
         )
         with self.assertRaises(InsufficientInventoryError):
@@ -233,7 +233,7 @@ class TestSubmitCart(unittest.TestCase):
                     price=Decimal(100),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=AddedItemToCart(
@@ -243,7 +243,7 @@ class TestSubmitCart(unittest.TestCase):
                     price=Decimal(100),
                 ),
                 stream_id=cart_id,
-                originator_version=2,
+                stream_position=2,
             ),
         )
         new_events = cmd.handle(cart_events)
@@ -251,7 +251,7 @@ class TestSubmitCart(unittest.TestCase):
         self.assertIsInstance(new_events[0].decision, SubmittedCart)
         new_event = cast(AggregateEvent[SubmittedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
-        self.assertEqual(new_event.originator_version, 3)
+        self.assertEqual(new_event.stream_position, 3)
 
     def test_submit_cart_after_submitted_cart(self) -> None:
         cart_id = str(uuid4())
@@ -259,7 +259,7 @@ class TestSubmitCart(unittest.TestCase):
             AggregateEvent(
                 decision=SubmittedCart(),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
         )
 

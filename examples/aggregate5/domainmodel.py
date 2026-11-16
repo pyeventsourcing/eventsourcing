@@ -31,7 +31,7 @@ class Dog(Immutable):
         return AggregateEvent(
             decision=cls(**kwargs),
             stream_id=self.id,
-            originator_version=self.version + 1,
+            stream_position=self.version + 1,
         )
 
     @staticmethod
@@ -41,7 +41,7 @@ class Dog(Immutable):
                 name=name,
             ),
             stream_id=str(uuid4()),
-            originator_version=1,
+            stream_position=1,
         )
         dog = Dog.mutate(event, None)
         return dog, event
@@ -58,7 +58,7 @@ class Dog(Immutable):
             case Dog.Registered(name=name):
                 return Dog(
                     id=event.stream_id,
-                    version=event.originator_version,
+                    version=event.stream_position,
                     name=name,
                     tricks=(),
                 )
@@ -67,7 +67,7 @@ class Dog(Immutable):
                 assert dog is not None
                 return Dog(
                     id=dog.id,
-                    version=event.originator_version,
+                    version=event.stream_position,
                     name=dog.name,
                     tricks=(*dog.tricks, trick),
                 )

@@ -463,7 +463,7 @@ class TestPostgresAggregateRecorder(SetupPostgresDatastore, AggregateRecorderTes
         # Write a stored event.
         stored_event1 = StoredEvent(
             stream_id=str(uuid4()),
-            originator_version=0,
+            stream_position=0,
             topic="topic1",
             state=b"state1",
         )
@@ -567,7 +567,7 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
         # This should firstly fail because the composite type isn't registered.
         stored_event1 = StoredEvent(
             stream_id=str(uuid4()),
-            originator_version=0,
+            stream_position=0,
             topic="topic1",
             state=b"state1",
         )
@@ -607,7 +607,7 @@ class TestPostgresAggregateRecorderErrors(SetupPostgresDatastore, TestCase):
         recorder.insert_events_statement = SQL("BLAH").format()
         stored_event1 = StoredEvent(
             stream_id=str(uuid4()),
-            originator_version=0,
+            stream_position=0,
             topic="topic1",
             state=b"state1",
         )
@@ -716,7 +716,7 @@ class TestPostgresApplicationRecorder(
                 for _ in range(batch_size):
                     stored_event = StoredEvent(
                         stream_id=self.new_stream_id(),
-                        originator_version=self.INITIAL_VERSION,
+                        stream_position=self.INITIAL_VERSION,
                         topic="topic1",
                         state=b"state1",
                     )
@@ -795,7 +795,7 @@ class TestPostgresApplicationRecorder(
                 for _ in range(batch_size):
                     stored_event = StoredEvent(
                         stream_id=self.new_stream_id(),
-                        originator_version=self.INITIAL_VERSION,
+                        stream_position=self.INITIAL_VERSION,
                         topic="topic1",
                         state=b"state1",
                     )
@@ -886,7 +886,7 @@ class TestPostgresApplicationRecorder(
         stream_id = self.new_stream_id()
         stored_event1 = StoredEvent(
             stream_id=stream_id,
-            originator_version=0,
+            stream_position=0,
             topic="topic1",
             state=b"state1",
         )
@@ -921,7 +921,7 @@ class TestPostgresApplicationRecorder(
         stream_id = self.new_stream_id()
         stored_event1 = StoredEvent(
             stream_id=stream_id,
-            originator_version=0,
+            stream_position=0,
             topic="topic1",
             state=b"state1",
         )
@@ -946,13 +946,13 @@ class TestPostgresApplicationRecorder(
 
         stored_event1 = StoredEvent(
             stream_id=str(uuid4()),
-            originator_version=1,
+            stream_position=1,
             topic="topic1",
             state=b"state1",
         )
         stored_event2 = StoredEvent(
             stream_id=str(uuid4()),
-            originator_version=1,
+            stream_position=1,
             topic="topic1",
             state=b"state1",
         )
@@ -1052,7 +1052,7 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
             return [
                 StoredEvent(
                     stream_id=str(uuid4()),
-                    originator_version=1,
+                    stream_position=1,
                     state=b"",
                     topic="",
                     event_id=uuid4(),
@@ -1070,8 +1070,8 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
         )
         recorder.insert_events_statement = SQL(
             "    INSERT INTO {schema}.{table} AS t ("
-            "    stream_id, originator_version, topic, state)"
-            "    SELECT stream_id, originator_version, topic, state"
+            "    stream_id, stream_position, topic, state)"
+            "    SELECT stream_id, stream_position, topic, state"
             "    FROM unnest(%s)"
         ).format(
             schema=Identifier(recorder.datastore.schema),
@@ -1254,7 +1254,7 @@ class TestPostgresProcessRecorder(SetupPostgresDatastore, ProcessRecorderTestCas
         stream_id = str(uuid4())
         stored_event1 = StoredEvent(
             stream_id=stream_id,
-            originator_version=0,
+            stream_position=0,
             topic="topic1",
             state=b"state1",
         )

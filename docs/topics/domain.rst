@@ -239,7 +239,7 @@ It has an :py:attr:`~eventsourcing.domain.DomainEvent.stream_id`,
 which is a Python :class:`~uuid.UUID` that identifies an aggregate
 or sequence (or "stream") to which the domain event belongs.
 
-It has an :py:attr:`~eventsourcing.domain.DomainEvent.originator_version`,
+It has an :py:attr:`~eventsourcing.domain.DomainEvent.stream_position`,
 which is a Python :class:`int`, which represents its position in that sequence.
 
 It has a :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` attribute,
@@ -263,7 +263,7 @@ UUIDs generated from the originator ID and version values. New events should be 
 with a new version 4 UUID when constructed for the first time.
 
 Domain event objects are ordered in their originator's sequence by their
-:py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and not by their
+:py:attr:`~eventsourcing.domain.DomainEvent.stream_position`, and not by their
 :py:attr:`~eventsourcing.domain.DomainEvent.timestamp`, because the integer
 version numbers form a gapless sequence, that excludes the possibility
 for inserting new items mid-sequence. Timestamps are far more likely to have
@@ -284,11 +284,11 @@ The :class:`~eventsourcing.domain.DomainEvent` class can be instantiated directl
 
     domain_event = DomainEvent(
         stream_id=stream_id,
-        originator_version=2,
+        stream_position=2,
         event_id=uuid4(),
     )
     assert domain_event.stream_id == stream_id
-    assert domain_event.originator_version == 2
+    assert domain_event.stream_position == 2
     assert isinstance(domain_event.timestamp, datetime)
     assert domain_event.metadata == {}
 
@@ -321,11 +321,11 @@ The :class:`~eventsourcing.domain.AggregateEvent` class can be instantiated dire
 
     aggregate_event = AggregateEvent(
         stream_id=stream_id,
-        originator_version=2,
+        stream_position=2,
         event_id=uuid4(),
     )
     assert aggregate_event.stream_id == stream_id
-    assert aggregate_event.originator_version == 2
+    assert aggregate_event.stream_position == 2
     assert isinstance(aggregate_event.timestamp, datetime)
     assert aggregate_event.metadata == {}
 
@@ -384,7 +384,7 @@ results in a new aggregate object.
     created_event = AggregateCreated(
         originator_topic="eventsourcing.domain:Aggregate",
         stream_id=stream_id,
-        originator_version=1,
+        stream_position=1,
         event_id=uuid4(),
     )
 
@@ -423,7 +423,7 @@ those common attribute values as its arguments.
 
 The :func:`~eventsourcing.domain.CanInitAggregate.mutate` method uses the values of the
 event attributes :py:attr:`~eventsourcing.domain.DomainEvent.stream_id`,
-:py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and
+:py:attr:`~eventsourcing.domain.DomainEvent.stream_position`, and
 :py:attr:`~eventsourcing.domain.DomainEvent.timestamp` as the values of these arguments.
 
 The :func:`~eventsourcing.domain.BaseAggregate.__base_init__` method then initialises
@@ -462,7 +462,7 @@ Firstly, the event is validated against the state of the aggregate. If the
 event's :py:attr:`~eventsourcing.domain.DomainEvent.stream_id` does not
 equal the aggregate object's :py:obj:`~eventsourcing.domain.Aggregate.id`,
 then an :class:`~eventsourcing.domain.OriginatorIDError` is raised. And
-if the event's :py:attr:`~eventsourcing.domain.DomainEvent.originator_version`
+if the event's :py:attr:`~eventsourcing.domain.DomainEvent.stream_position`
 is not one greater than the aggregate's :py:obj:`~eventsourcing.domain.Aggregate.version`,
 then an :class:`~eventsourcing.domain.OriginatorVersionError` exception is raised.
 This ensures that aggregates are reconstructed from a correct sequence of events.
@@ -484,7 +484,7 @@ The modified aggregate is then returned to the caller.
 
     subsequent_event = AggregateEvent(
         stream_id=stream_id,
-        originator_version=2,
+        stream_position=2,
         event_id=uuid4(),
     )
 
@@ -515,7 +515,7 @@ how a particular event evolves the state of a particular aggregate.
 
     my_event = MyEvent(
         stream_id=stream_id,
-        originator_version=3,
+        stream_position=3,
         event_id=uuid4(),
         full_name="Eric Idle"
     )
@@ -628,7 +628,7 @@ of events is then used to reconstruct the "current state" of the aggregate. The 
 
     discarded_event = AggregateDiscarded(
         stream_id=stream_id,
-        originator_version=4,
+        stream_position=4,
         event_id=uuid4(),
     )
 
@@ -755,11 +755,11 @@ This value will be used to uniquely identify the new aggregate in the domain mod
 
 As we have seen :ref:`above <Domain events>`, the arguments needed when constructing any
 domain event are :py:attr:`~eventsourcing.domain.DomainEvent.stream_id`,
-:py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and
+:py:attr:`~eventsourcing.domain.DomainEvent.stream_position`, and
 :py:attr:`~eventsourcing.domain.DomainEvent.event_id`.
 An :class:`~eventsourcing.domain.AggregateCreated`
 object also needs an :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic`.
-By default, the :py:attr:`~eventsourcing.domain.DomainEvent.originator_version` value
+By default, the :py:attr:`~eventsourcing.domain.DomainEvent.stream_position` value
 will be set to ``1``. The event's :py:attr:`~eventsourcing.domain.AggregateCreated.originator_topic`
 value will be derived from the aggregate class itself, using the library's
 :func:`~eventsourcing.utils.get_topic` function.
@@ -896,11 +896,11 @@ that matches the ``trick`` attribute on the ``TrickAdded`` event class.
 
 As discussed :ref:`above <Domain events>`, the arguments needed when constructing any
 domain event are :py:attr:`~eventsourcing.domain.DomainEvent.stream_id`,
-:py:attr:`~eventsourcing.domain.DomainEvent.originator_version`, and
+:py:attr:`~eventsourcing.domain.DomainEvent.stream_position`, and
 :py:attr:`~eventsourcing.domain.DomainEvent.event_id`.
 The :func:`~eventsourcing.domain.Aggregate.trigger_event` method uses the :py:attr:`~eventsourcing.domain.Aggregate.id` attribute
 of the aggregate as the :py:attr:`~eventsourcing.domain.DomainEvent.stream_id` of the new
-aggregate event. The :py:attr:`~eventsourcing.domain.DomainEvent.originator_version` of the
+aggregate event. The :py:attr:`~eventsourcing.domain.DomainEvent.stream_position` of the
 new aggregate event is calculated by adding ``1`` to the current aggregate :py:attr:`~eventsourcing.domain.Aggregate.version`.
 
 After creating the aggregate event object, the :func:`~eventsourcing.domain.Aggregate.trigger_event` method
@@ -948,12 +948,12 @@ Hence, the example ``aggregate`` so far has two pending events.
 
     assert isinstance(pending_events[0], Aggregate.Created)
     assert pending_events[0].stream_id == aggregate.id
-    assert pending_events[0].originator_version == 1
+    assert pending_events[0].stream_position == 1
     assert pending_events[0].timestamp == aggregate.created_on
 
     assert isinstance(pending_events[1], Aggregate.Event)
     assert pending_events[1].stream_id == aggregate.id
-    assert pending_events[1].originator_version == 2
+    assert pending_events[1].stream_position == 2
     assert pending_events[1].timestamp == aggregate.modified_on
 
 
@@ -2571,7 +2571,7 @@ components before executing policies.
     with put_metadata_in_context(example_metadata):
         domain_event = DomainEvent(
             stream_id=stream_id,
-            originator_version=2,
+            stream_position=2,
             event_id=uuid4(),
         )
 
@@ -3127,7 +3127,7 @@ create a snapshot of an aggregate object.
 
     assert isinstance(snapshot, Snapshot)
     assert snapshot.stream_id == dog.id
-    assert snapshot.originator_version == dog.version
+    assert snapshot.stream_position == dog.version
     assert snapshot.topic == "__main__:Dog", snapshot.topic
     assert snapshot.state["tricks"] == dog.tricks
     assert snapshot.state["_created_on"] == dog.created_on

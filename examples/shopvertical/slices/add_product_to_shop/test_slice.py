@@ -32,7 +32,7 @@ class TestAddProductToShop(TestCase):
         self.assertIsInstance(new_events[0].decision, AddedProductToShop)
         new_event = cast(AggregateEvent[AddedProductToShop], new_events[0])
         self.assertEqual(new_event.stream_id, product_id)
-        self.assertEqual(new_event.originator_version, 1)
+        self.assertEqual(new_event.stream_position, 1)
         self.assertEqual(new_event.decision.name, "Coffee")
         self.assertEqual(new_event.decision.description, "A very nice coffee")
         self.assertEqual(new_event.decision.price, Decimal("5.99"))
@@ -48,7 +48,7 @@ class TestAddProductToShop(TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=product_id,
-                originator_version=1,
+                stream_position=1,
             ),
         )
 

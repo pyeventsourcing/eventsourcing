@@ -65,7 +65,7 @@ class NotificationLogJSONService[
                             if isinstance(item.stream_id, UUID)
                             else item.stream_id
                         ),
-                        "originator_version": item.originator_version,
+                        "stream_position": item.stream_position,
                         "topic": item.topic,
                         "state": b64encode(item.state).decode("utf8"),
                     }
@@ -98,7 +98,7 @@ class NotificationLogJSONService[
                         if isinstance(notification.stream_id, UUID)
                         else notification.stream_id
                     ),
-                    "originator_version": notification.originator_version,
+                    "stream_position": notification.stream_position,
                     "topic": notification.topic,
                     "state": b64encode(notification.state).decode("utf8"),
                 }
@@ -129,7 +129,7 @@ class NotificationLogJSONClient(NotificationLog):
                 Notification(
                     id=item["id"],
                     stream_id=item["stream_id"],
-                    originator_version=item["originator_version"],
+                    stream_position=item["stream_position"],
                     topic=item["topic"],
                     state=b64decode(item["state"].encode("utf8")),
                 )
@@ -155,7 +155,7 @@ class NotificationLogJSONClient(NotificationLog):
             Notification(
                 id=item["id"],
                 stream_id=item["stream_id"],
-                originator_version=item["originator_version"],
+                stream_position=item["stream_position"],
                 topic=item["topic"],
                 state=b64decode(item["state"].encode("utf8")),
             )

@@ -17,7 +17,7 @@
 #
 #         event = MyEvent(
 #             stream_id=uuid4(),
-#             originator_version=1,
+#             stream_position=1,
 #         )
 #
 #         stored = self.mapper.to_stored_event(event)

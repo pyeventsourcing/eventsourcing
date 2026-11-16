@@ -81,7 +81,7 @@ def test_stored_event(num_events: int, benchmark: BenchmarkFixture) -> None:
         _ = [
             StoredEvent(
                 stream_id=stream_id,
-                originator_version=i + 1,
+                stream_position=i + 1,
                 topic="topic1",
                 state=b"state1",
             )
@@ -115,7 +115,7 @@ def test_recorder_insert_events_1(
         events = [
             StoredEvent(
                 stream_id=stream_id,
-                originator_version=i + 1,
+                stream_position=i + 1,
                 topic="topic1",
                 state=b"state1",
             )
@@ -151,7 +151,7 @@ def test_recorder_insert_events_2(
         events = [
             StoredEvent(
                 stream_id=stream_id,
-                originator_version=i + 1,
+                stream_position=i + 1,
                 topic="topic1",
                 state=b"state1",
             )
@@ -187,7 +187,7 @@ def test_recorder_insert_events_100(
         events = [
             StoredEvent(
                 stream_id=stream_id,
-                originator_version=i + 1,
+                stream_position=i + 1,
                 topic="topic1",
                 state=b"state1",
             )
@@ -223,7 +223,7 @@ def test_recorder_select_events(
     events = [
         StoredEvent(
             stream_id=stream_id,
-            originator_version=i + 1,
+            stream_position=i + 1,
             topic="topic1",
             state=b"state1",
         )

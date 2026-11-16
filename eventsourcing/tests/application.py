@@ -87,7 +87,7 @@ class ExampleApplicationTestCase(TestCase):
         assert app.snapshots is not None  # for mypy
         snapshots = list(app.snapshots.get(account_id))
         self.assertEqual(len(snapshots), 1)
-        self.assertEqual(snapshots[0].originator_version, Aggregate.INITIAL_VERSION + 1)
+        self.assertEqual(snapshots[0].stream_position, Aggregate.INITIAL_VERSION + 1)
 
         from_snapshot1 = app.repository.get(
             account_id, BankAccountWithPydantic, version=Aggregate.INITIAL_VERSION + 2
@@ -101,8 +101,8 @@ class ExampleApplicationTestCase(TestCase):
         assert app.snapshots is not None  # for mypy
         snapshots = list(app.snapshots.get(account_id))
         self.assertEqual(len(snapshots), 2)
-        self.assertEqual(snapshots[0].originator_version, Aggregate.INITIAL_VERSION + 1)
-        self.assertEqual(snapshots[1].originator_version, Aggregate.INITIAL_VERSION + 3)
+        self.assertEqual(snapshots[0].stream_position, Aggregate.INITIAL_VERSION + 1)
+        self.assertEqual(snapshots[1].stream_position, Aggregate.INITIAL_VERSION + 3)
 
         from_snapshot2 = app.repository.get(account_id, BankAccountWithPydantic)
         self.assertIsInstance(from_snapshot2, BankAccountWithPydantic)

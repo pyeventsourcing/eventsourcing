@@ -54,13 +54,13 @@ class TestPOPOApplicationRecorder(ApplicationRecorderTestCase[POPOApplicationRec
         # Write two stored events.
         stored_event1 = StoredEvent(
             stream_id=str(uuid4()),
-            originator_version=self.INITIAL_VERSION,
+            stream_position=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
         )
         stored_event2 = StoredEvent(
             stream_id=str(uuid4()),
-            originator_version=self.INITIAL_VERSION,
+            stream_position=self.INITIAL_VERSION,
             topic="topic2",
             state=b"state2",
         )
@@ -106,7 +106,7 @@ class TestPOPOApplicationRecorder(ApplicationRecorderTestCase[POPOApplicationRec
                 for _ in range(batch_size):
                     stored_event = StoredEvent(
                         stream_id=str(uuid4()),
-                        originator_version=self.INITIAL_VERSION,
+                        stream_position=self.INITIAL_VERSION,
                         topic="topic1",
                         state=b"state1",
                     )

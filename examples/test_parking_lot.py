@@ -182,14 +182,14 @@ class TestParkingLot(TestCase):
         assert isinstance(event0, AggregateEvent)
         assert isinstance(event0.decision, Vehicle.Registered)
         self.assertEqual(event0.stream_id, vehicle1_id)
-        self.assertEqual(event0.originator_version, 1)
+        self.assertEqual(event0.stream_position, 1)
         self.assertEqual(event0.decision.licence_plate_number, "123-123")
 
         event1 = domain_events[1]
         assert isinstance(event1, AggregateEvent)
         assert isinstance(event1.decision, Vehicle.Booked)
         self.assertEqual(event1.stream_id, vehicle1_id)
-        self.assertEqual(event1.originator_version, 2)
+        self.assertEqual(event1.stream_position, 2)
         self.assertEqual(event1.decision.start, booking1.start)
         self.assertEqual(event1.decision.finish, booking1.finish)
 
@@ -197,7 +197,7 @@ class TestParkingLot(TestCase):
         assert isinstance(event2, AggregateEvent)
         assert isinstance(event2.decision, Vehicle.Booked)
         self.assertEqual(event2.stream_id, vehicle1_id)
-        self.assertEqual(event2.originator_version, 3)
+        self.assertEqual(event2.stream_position, 3)
         self.assertEqual(event2.decision.start, booking2.start)
         self.assertEqual(event2.decision.finish, booking2.finish)
 
@@ -205,5 +205,5 @@ class TestParkingLot(TestCase):
         assert isinstance(event3, AggregateEvent)
         assert isinstance(event3.decision, Vehicle.Unbooked)
         self.assertEqual(event3.stream_id, vehicle1_id)
-        self.assertEqual(event3.originator_version, 4)
+        self.assertEqual(event3.stream_position, 4)
         self.assertEqual(event3.decision.when, inspected_on)

@@ -360,7 +360,7 @@ class Repository[TDecision](WorksWithDecisions[TDecision]):
                 ),
             )
             if snapshots:
-                gt = snapshots[0].originator_version
+                gt = snapshots[0].stream_position
         else:
             snapshots = list[AggregateEvent[TDecision]]()
 
@@ -943,7 +943,7 @@ class AggregatesApplication[
                     except KeyError:
                         continue
                     interval = self.snapshotting_intervals.get(type(aggregate))
-                    if interval and event.originator_version % interval == 0:
+                    if interval and event.stream_position % interval == 0:
                         try:
                             projector = self.snapshotting_projectors[type(aggregate)]
                         except KeyError:
@@ -965,7 +965,7 @@ class AggregatesApplication[
                         self.take_snapshot(
                             aggregate_id=event.stream_id,
                             aggregate_cls=aggregate.__class__,
-                            version=event.originator_version,
+                            version=event.stream_position,
                             projector=projector,
                         )
 

@@ -30,7 +30,7 @@ class AddProductToShop(Command):
                     price=self.price,
                 ),
                 stream_id=self.product_id,
-                originator_version=1,
+                stream_position=1,
             ),
         )
 

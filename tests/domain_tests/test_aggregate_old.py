@@ -910,17 +910,17 @@
 #         pending = a.collect_events()
 #         self.assertEqual(len(pending), 2)
 #         self.assertIsInstance(pending[0], AggregateCreated)
-#         self.assertEqual(pending[0].originator_version, 1)
+#         self.assertEqual(pending[0].stream_position, 1)
 #         self.assertIsInstance(pending[1], AggregateEvent)
-#         self.assertEqual(pending[1].originator_version, 2)
+#         self.assertEqual(pending[1].stream_position, 2)
 #
-#     def test_event_mutate_raises_originator_version_error(self) -> None:
+#     def test_event_mutate_raises_stream_position_error(self) -> None:
 #         a = Aggregate()
 #
 #         # Try to mutate aggregate with an invalid domain event.
 #         event = AggregateEvent(
 #             stream_id=a.id,
-#             originator_version=a.version,  # NB not +1.
+#             stream_position=a.version,  # NB not +1.
 #         )
 #         # Check raises "VersionError".
 #         with self.assertRaises(OriginatorVersionError):
@@ -932,7 +932,7 @@
 #         # Try to mutate aggregate with an invalid domain event.
 #         event = AggregateEvent(
 #             stream_id=uuid4(),
-#             originator_version=a.version + 1,
+#             stream_position=a.version + 1,
 #         )
 #         # Check raises "VersionError".
 #         with self.assertRaises(OriginatorIDError):

@@ -29,7 +29,7 @@ class TestListProductsInShop(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=product_id1,
-                originator_version=1,
+                stream_position=1,
             ),
         )
         products = ListProductsInShop.projection(events)
@@ -52,7 +52,7 @@ class TestListProductsInShop(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=product_id1,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=AddedItemToCart(
@@ -62,7 +62,7 @@ class TestListProductsInShop(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=str(uuid4()),
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=AddedProductToShop(
@@ -71,7 +71,7 @@ class TestListProductsInShop(unittest.TestCase):
                     price=Decimal("3.99"),
                 ),
                 stream_id=product_id2,
-                originator_version=1,
+                stream_position=1,
             ),
         )
         products = ListProductsInShop.projection(events)
@@ -99,14 +99,14 @@ class TestListProductsInShop(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=product_id1,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=AdjustedProductInventory(
                     adjustment=2,
                 ),
                 stream_id=product_id1,
-                originator_version=2,
+                stream_position=2,
             ),
             AggregateEvent(
                 decision=AddedProductToShop(
@@ -115,7 +115,7 @@ class TestListProductsInShop(unittest.TestCase):
                     price=Decimal("3.99"),
                 ),
                 stream_id=product_id2,
-                originator_version=1,
+                stream_position=1,
             ),
         )
         products = ListProductsInShop.projection(events)

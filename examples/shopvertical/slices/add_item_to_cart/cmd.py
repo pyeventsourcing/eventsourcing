@@ -54,7 +54,7 @@ class AddItemToCart(Command):
                     price=self.price,
                 ),
                 stream_id=self.cart_id,
-                originator_version=len(events) + 1,
+                stream_position=len(events) + 1,
             ),
         )
 

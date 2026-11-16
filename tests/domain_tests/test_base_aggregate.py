@@ -77,7 +77,7 @@
 #         self.assertIsInstance(a.pending_events[0], Aggregate.Event)
 #         self.assertIsInstance(a.pending_events[0], Aggregate.Created)
 #         self.assertEqual(a.pending_events[0].stream_id, a.id)
-#         self.assertEqual(a.pending_events[0].originator_version, 1)
+#         self.assertEqual(a.pending_events[0].stream_position, 1)
 #
 #         aggregate_id = a.id
 #
@@ -93,7 +93,7 @@
 #         self.assertIsInstance(a.pending_events[1], Aggregate.Event)
 #         self.assertNotIsInstance(a.pending_events[1], Aggregate.Created)
 #         self.assertEqual(a.pending_events[1].stream_id, a.id)
-#         self.assertEqual(a.pending_events[1].originator_version, 2)
+#         self.assertEqual(a.pending_events[1].stream_position, 2)
 #
 #         self.assertEqual(
 #             repr(a),
@@ -115,7 +115,7 @@
 #         self.assertIsInstance(a.pending_events[0], Aggregate.Event)
 #         self.assertIsInstance(a.pending_events[0], Aggregate.Created)
 #         self.assertEqual(a.pending_events[0].stream_id, a.id)
-#         self.assertEqual(a.pending_events[0].originator_version, 1)
+#         self.assertEqual(a.pending_events[0].stream_position, 1)
 #
 #         # Raises type error if event class can't be constructed.
 #         with self.assertRaises(TypeError) as cm:
@@ -199,7 +199,7 @@
 #         self.assertIsInstance(a.pending_events[0], A.Event)
 #         self.assertIsInstance(a.pending_events[0], A.Created)
 #         self.assertEqual(a.pending_events[0].stream_id, a.id)
-#         self.assertEqual(a.pending_events[0].originator_version, 1)
+#         self.assertEqual(a.pending_events[0].stream_position, 1)
 #
 #         aggregate_id = a.id
 #
@@ -215,7 +215,7 @@
 #         self.assertIsInstance(a.pending_events[1], A.Event)
 #         self.assertNotIsInstance(a.pending_events[1], A.Created)
 #         self.assertEqual(a.pending_events[1].stream_id, a.id)
-#         self.assertEqual(a.pending_events[1].originator_version, 2)
+#         self.assertEqual(a.pending_events[1].stream_position, 2)
 #
 #     def test_annotations_mention_id_no_default(self) -> None:
 #         class A(Aggregate):
@@ -803,7 +803,7 @@
 #
 #         class DomainEvent(BaseModel):
 #             stream_id: UUID
-#             originator_version: int
+#             stream_position: int
 #             timestamp: datetime
 #
 #         class A(BaseAggregate):
@@ -850,7 +850,7 @@
 #         @dataclass(frozen=True)
 #         class DomainEvent:
 #             stream_id: UUID
-#             originator_version: int
+#             stream_position: int
 #             timestamp: datetime
 #
 #         class A(BaseAggregate):

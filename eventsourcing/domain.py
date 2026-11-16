@@ -102,7 +102,7 @@ class TaggedEvent[TDecision](EventEnvelope[TDecision]):
 @dataclass(kw_only=True, frozen=True)
 class AggregateEvent[TDecision](EventEnvelope[TDecision]):
     stream_id: str
-    originator_version: int
+    stream_position: int
 
     @override
     def mutate[TState](self, obj: TState | None) -> TState | None:
@@ -112,7 +112,7 @@ class AggregateEvent[TDecision](EventEnvelope[TDecision]):
         if obj.id == NIL_UUID_STR:
             # We received a shell, so initialise the `id` and `version`.
             obj.id = self.stream_id
-            obj.version = self.originator_version
+            obj.version = self.stream_position
 
             # Apply the event to the aggregate.
             return super().mutate(obj)
@@ -120,8 +120,8 @@ class AggregateEvent[TDecision](EventEnvelope[TDecision]):
         # Check this event belongs to this aggregate.
         assert self.stream_id == obj.id
         # Check this event is the next one for this aggregate.
-        assert self.originator_version == obj.version + 1, (
-            self.originator_version,
+        assert self.stream_position == obj.version + 1, (
+            self.stream_position,
             obj.version,
         )
         # Apply the event to the aggregate (allow for exceptions to be raised
@@ -131,7 +131,7 @@ class AggregateEvent[TDecision](EventEnvelope[TDecision]):
         # Increment the version number.
         if obj is not None:
             assert isinstance(obj, MutableAggregateProtocol)
-            obj.version = self.originator_version
+            obj.version = self.stream_position
 
         return obj
 
@@ -449,10 +449,10 @@ class Aggregate[
         envelope = AggregateEvent(
             decision=decision_cls(*args, **kwargs),
             stream_id=self.id,
-            originator_version=self.version + 1,
+            stream_position=self.version + 1,
         )
         # print(
-        #     f"Triggered {envelope.stream_id} version {envelope.originator_version}
+        #     f"Triggered {envelope.stream_id} version {envelope.stream_position}
         #     "
         # )
         envelope.mutate(self)
@@ -516,33 +516,33 @@ class EventSourcedLog[TDecision, SDecision]:
 
     def trigger_event(
         self,
-        next_originator_version: int | None = None,
+        next_stream_position: int | None = None,
         **kwargs: Any,
     ) -> AggregateEvent[TDecision]:
         """Constructs and returns a new log event."""
         return self._trigger_event(
             logged_cls=self.event_cls,
-            next_originator_version=next_originator_version,
+            next_stream_position=next_stream_position,
             **kwargs,
         )
 
     def _trigger_event(
         self,
         logged_cls: type[SDecision],
-        next_originator_version: int | None = None,
+        next_stream_position: int | None = None,
         **kwargs: Any,
     ) -> AggregateEvent[TDecision]:
         """Constructs and returns a new log event."""
-        if next_originator_version is None:
+        if next_stream_position is None:
             last_logged = self.get_last()
             if last_logged is None:
-                next_originator_version = Aggregate.INITIAL_VERSION
+                next_stream_position = Aggregate.INITIAL_VERSION
             else:
-                next_originator_version = last_logged.originator_version + 1
+                next_stream_position = last_logged.stream_position + 1
 
         return AggregateEvent(
             stream_id=self.stream_id,
-            originator_version=next_originator_version,
+            stream_position=next_stream_position,
             decision=cast(TDecision, logged_cls(**kwargs)),
         )
 

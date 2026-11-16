@@ -29,7 +29,7 @@ class TestAdjustProductInventory(unittest.TestCase):
                     price=Decimal("3.99"),
                 ),
                 stream_id=product_id,
-                originator_version=1,
+                stream_position=1,
             ),
         )
         new_events = cmd.handle(product_events)
@@ -37,7 +37,7 @@ class TestAdjustProductInventory(unittest.TestCase):
         self.assertIsInstance(new_events[0].decision, AdjustedProductInventory)
         new_event = cast(AggregateEvent[AdjustedProductInventory], new_events[0])
         self.assertEqual(new_event.stream_id, product_id)
-        self.assertEqual(new_event.originator_version, 2)
+        self.assertEqual(new_event.stream_position, 2)
         self.assertEqual(new_event.decision.adjustment, 2)
 
     def test_adjust_inventory_product_not_found(self) -> None:

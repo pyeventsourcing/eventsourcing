@@ -32,7 +32,7 @@ class Dog(Aggregate):
                 name=name,
             ),
             stream_id=str(uuid4()),
-            originator_version=1,
+            stream_position=1,
         )
         dog = cls.project_events(None, [event])
         assert dog is not None
@@ -47,14 +47,14 @@ class Dog(Aggregate):
         match envelope.decision:
             case Dog.Registered(timestamp=timestamp, name=name):
                 self.id = envelope.stream_id
-                self.version = envelope.originator_version
+                self.version = envelope.stream_position
                 self.created_on = timestamp
                 self.modified_on = timestamp
                 self.name = name
                 self.tricks = []
             case Dog.TrickAdded(timestamp=timestamp, trick=trick):
                 self.tricks.append(trick)
-                self.version = envelope.originator_version
+                self.version = envelope.stream_position
                 self.modified_on = timestamp
             case _:
                 super().apply_event(envelope)

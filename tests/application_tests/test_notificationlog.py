@@ -25,7 +25,7 @@ class TestNotificationLog(TestCase):
         for i in range(5):
             stored_event = StoredEvent(
                 stream_id=stream_id,
-                originator_version=i,
+                stream_position=i,
                 topic="topic",
                 state=b"state",
             )
@@ -64,7 +64,7 @@ class TestNotificationLog(TestCase):
         for i in range(4):
             stored_event = StoredEvent(
                 stream_id=stream_id,
-                originator_version=i,
+                stream_position=i,
                 topic="topic",
                 state=b"state",
             )
@@ -167,7 +167,7 @@ class TestNotificationLog(TestCase):
         for i in range(5):
             stored_event = StoredEvent(
                 stream_id=stream_id,
-                originator_version=i,
+                stream_position=i,
                 topic="topic",
                 state=b"state",
             )
@@ -200,7 +200,7 @@ class TestNotificationLog(TestCase):
         for i in range(4):
             stored_event = StoredEvent(
                 stream_id=stream_id,
-                originator_version=i,
+                stream_position=i,
                 topic="topic",
                 state=b"state",
             )

@@ -47,7 +47,7 @@ class MutableAggregateSnapshot(Decision):
         return AggregateEvent(
             decision=decision,
             stream_id=aggregate_id,
-            originator_version=aggregate_version,
+            stream_position=aggregate_version,
         )
 
     @override

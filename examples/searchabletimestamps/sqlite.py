@@ -73,10 +73,10 @@ class SearchableTimestampsApplicationRecorder(
             f"INSERT INTO {self.event_timestamps_table_name} VALUES (?, ?, ?)"
         )
         self.select_event_timestamp_statement = (
-            f"SELECT originator_version FROM {self.event_timestamps_table_name} WHERE "
+            f"SELECT stream_position FROM {self.event_timestamps_table_name} WHERE "
             "stream_id = ? AND "
             "timestamp <= ? "
-            "ORDER BY originator_version DESC "
+            "ORDER BY stream_position DESC "
             "LIMIT 1"
         )
 
@@ -88,7 +88,7 @@ class SearchableTimestampsApplicationRecorder(
             f"{self.event_timestamps_table_name} ("
             "stream_id TEXT, "
             "timestamp timestamp, "
-            "originator_version INTEGER, "
+            "stream_position INTEGER, "
             "PRIMARY KEY "
             "(stream_id, timestamp))"
         )
@@ -107,10 +107,10 @@ class SearchableTimestampsApplicationRecorder(
         event_timestamps_data = cast(
             "list[tuple[str, int, dt.datetime]]", kwargs["event_timestamps_data"]
         )
-        for stream_id, timestamp, originator_version in event_timestamps_data:
+        for stream_id, timestamp, stream_position in event_timestamps_data:
             c.execute(
                 self.insert_event_timestamp_statement,
-                (stream_id, originator_version, timestamp),
+                (stream_id, stream_position, timestamp),
             )
 
         return notification_id
@@ -122,7 +122,7 @@ class SearchableTimestampsApplicationRecorder(
         with self.datastore.transaction(commit=False) as c:
             c.execute(self.select_event_timestamp_statement, (stream_id, timestamp))
             for row in c.fetchall():
-                return row["originator_version"]
+                return row["stream_position"]
             return None
 
 

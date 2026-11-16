@@ -25,7 +25,7 @@ class TestClearCart(unittest.TestCase):
         self.assertIsInstance(new_events[0].decision, ClearedCart)
         new_event = cast(AggregateEvent[ClearedCart], new_events[0])
         self.assertEqual(new_event.stream_id, cart_id)
-        self.assertEqual(new_event.originator_version, 1)
+        self.assertEqual(new_event.stream_position, 1)
 
     def test_clear_cart_after_submitted_cart(self) -> None:
         cart_id = str(uuid4())
@@ -33,7 +33,7 @@ class TestClearCart(unittest.TestCase):
             AggregateEvent(
                 decision=SubmittedCart(),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
         )
 

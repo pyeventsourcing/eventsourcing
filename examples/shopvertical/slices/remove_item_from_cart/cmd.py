@@ -50,7 +50,7 @@ class RemoveItemFromCart(Command):
                     product_id=self.product_id,
                 ),
                 stream_id=self.cart_id,
-                originator_version=len(events) + 1,
+                stream_position=len(events) + 1,
             ),
         )
 

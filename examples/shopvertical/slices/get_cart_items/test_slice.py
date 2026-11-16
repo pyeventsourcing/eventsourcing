@@ -33,7 +33,7 @@ class TestGetCartItems(TestCase):
                     price=Decimal(1),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
         )
         cart_items = GetCartItems.projection(cart_events)
@@ -55,14 +55,14 @@ class TestGetCartItems(TestCase):
                     price=Decimal(1),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
                 stream_id=cart_id,
-                originator_version=2,
+                stream_position=2,
             ),
         )
         cart_items = GetCartItems.projection(cart_events)
@@ -80,7 +80,7 @@ class TestGetCartItems(TestCase):
                     price=Decimal(1),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=AddedItemToCart(
@@ -90,21 +90,21 @@ class TestGetCartItems(TestCase):
                     price=Decimal(1),
                 ),
                 stream_id=cart_id,
-                originator_version=2,
+                stream_position=2,
             ),
             AggregateEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
                 stream_id=cart_id,
-                originator_version=3,
+                stream_position=3,
             ),
             AggregateEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
                 stream_id=cart_id,
-                originator_version=4,
+                stream_position=4,
             ),
         )
         cart_items = GetCartItems.projection(cart_events)
@@ -122,12 +122,12 @@ class TestGetCartItems(TestCase):
                     price=Decimal(1),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=ClearedCart(),
                 stream_id=cart_id,
-                originator_version=2,
+                stream_position=2,
             ),
         )
         cart_items = GetCartItems.projection(cart_events)

@@ -45,7 +45,7 @@ class TestDataclassMapper(TestCase):
                 amount=Decimal("10.00"),
             ),
             stream_id=str(uuid4()),
-            originator_version=123456,
+            stream_position=123456,
         )
 
         # Construct mapper with transcoder.
@@ -60,7 +60,7 @@ class TestDataclassMapper(TestCase):
         # Check decrypted copy has correct values.
         assert isinstance(copy.decision, BankAccountWithDataclasses.TransactionAppended)
         self.assertEqual(copy.stream_id, domain_event.stream_id)
-        self.assertEqual(copy.originator_version, domain_event.originator_version)
+        self.assertEqual(copy.stream_position, domain_event.stream_position)
         # TODO: Timestamps...
         # self.assertEqual(copy.timestamp, domain_event.timestamp)
         # self.assertEqual(copy.decision.amount, domain_event.decision.amount)
@@ -79,7 +79,7 @@ class TestDataclassMapper(TestCase):
         # Check the error has useful information about the event.
         self.assertIn(get_topic(type(domain_event.decision)), str(cm.exception))
         self.assertIn(domain_event.stream_id, str(cm.exception))
-        self.assertIn(str(domain_event.originator_version), str(cm.exception))
+        self.assertIn(str(domain_event.stream_position), str(cm.exception))
 
         # Check mapper raises TranscodingNotRegisteredError.
         with self.assertRaises(TranscodingNotRegisteredError):
@@ -99,7 +99,7 @@ class TestDataclassMapper(TestCase):
 
         # Check decrypted copy has correct values.
         self.assertEqual(copy.stream_id, domain_event.stream_id)
-        self.assertEqual(copy.originator_version, domain_event.originator_version)
+        self.assertEqual(copy.stream_position, domain_event.stream_position)
 
         self.assertEqual(len(stored_event.state), 80)
 
@@ -118,7 +118,7 @@ class TestDataclassMapper(TestCase):
 
         # Check decompressed copy has correct values.
         self.assertEqual(copy.stream_id, domain_event.stream_id)
-        self.assertEqual(copy.originator_version, domain_event.originator_version)
+        self.assertEqual(copy.stream_position, domain_event.stream_position)
 
         self.assertIn(len(stored_event.state), range(50, 100))
 

@@ -55,10 +55,10 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
         new = set()
         for s in stored_events:
             # Check events don't already exist.
-            if s.originator_version in self._stored_events_index[s.stream_id]:
+            if s.stream_position in self._stored_events_index[s.stream_id]:
                 msg = f"Stored event already recorded: {s}"
                 raise IntegrityError(msg)
-            new.add((s.stream_id, s.originator_version))
+            new.add((s.stream_id, s.stream_position))
         # Check new events are unique.
         if len(new) < len(stored_events):
             msg = f"Stored events are not unique: {stored_events}"
@@ -70,7 +70,7 @@ class POPOAggregateRecorder(POPORecorder, AggregateRecorder):
         notification_id: int | None = None
         for s in stored_events:
             self._stored_events.append(s)
-            self._stored_events_index[s.stream_id][s.originator_version] = (
+            self._stored_events_index[s.stream_id][s.stream_position] = (
                 len(self._stored_events) - 1
             )
             notification_id = len(self._stored_events)
@@ -149,7 +149,7 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
                 n = Notification(
                     id=i,
                     stream_id=s.stream_id,
-                    originator_version=s.originator_version,
+                    stream_position=s.stream_position,
                     topic=s.topic,
                     state=s.state,
                     event_id=s.event_id,

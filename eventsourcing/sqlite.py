@@ -308,13 +308,13 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
             "stream_id TEXT, "
-            "originator_version INTEGER, "
+            "stream_position INTEGER, "
             "topic TEXT, "
             "state BLOB, "
             "event_id TEXT, "
             "metadata BLOB, "
             "PRIMARY KEY "
-            "(stream_id, originator_version)) "
+            "(stream_id, stream_position)) "
             "WITHOUT ROWID"
         )
         return statements
@@ -335,7 +335,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
         params = [
             (
                 s.stream_id,
-                s.originator_version,
+                s.stream_position,
                 s.topic,
                 s.state,
                 s.event_id.hex,
@@ -359,12 +359,12 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
         statement = self.select_events_statement
         params: list[Any] = [stream_id]
         if gt is not None:
-            statement += "AND originator_version>? "
+            statement += "AND stream_position>? "
             params.append(gt)
         if lte is not None:
-            statement += "AND originator_version<=? "
+            statement += "AND stream_position<=? "
             params.append(lte)
-        statement += "ORDER BY originator_version "
+        statement += "ORDER BY stream_position "
         if not desc:
             statement += "ASC "
         else:
@@ -377,7 +377,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
             return [
                 StoredEvent(
                     stream_id=row["stream_id"],
-                    originator_version=row["originator_version"],
+                    stream_position=row["stream_position"],
                     topic=row["topic"],
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
@@ -407,13 +407,13 @@ class SQLiteApplicationRecorder(
             "CREATE TABLE IF NOT EXISTS "
             f"{self.events_table_name} ("
             "stream_id TEXT, "
-            "originator_version INTEGER, "
+            "stream_position INTEGER, "
             "topic TEXT, "
             "state BLOB, "
             "event_id TEXT, "
             "metadata BLOB, "
             "PRIMARY KEY "
-            "(stream_id, originator_version))"
+            "(stream_id, stream_position))"
         )
         return [statement]
 
@@ -430,7 +430,7 @@ class SQLiteApplicationRecorder(
                 self.insert_events_statement,
                 (
                     s.stream_id,
-                    s.originator_version,
+                    s.stream_position,
                     s.topic,
                     s.state,
                     s.event_id.hex,
@@ -491,7 +491,7 @@ class SQLiteApplicationRecorder(
                 Notification(
                     id=row["rowid"],
                     stream_id=row["stream_id"],
-                    originator_version=row["originator_version"],
+                    stream_position=row["stream_position"],
                     topic=row["topic"],
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),

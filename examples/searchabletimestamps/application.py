@@ -25,7 +25,7 @@ class SearchableTimestampsApplication(BookingApplication):
         event_timestamps_data = [
             (
                 e.stream_id,
-                e.originator_version,
+                e.stream_position,
                 e.decision.timestamp,
             )
             for e in processing_event.events

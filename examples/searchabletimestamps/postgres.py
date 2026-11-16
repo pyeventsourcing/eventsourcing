@@ -38,7 +38,7 @@ class SearchableTimestampsApplicationRecorder(
             SQL(
                 "CREATE TABLE IF NOT EXISTS {0}.{1} ("
                 "stream_id uuid NOT NULL, "
-                "originator_version bigint NOT NULL, "
+                "stream_position bigint NOT NULL, "
                 "timestamp timestamp with time zone, "
                 "PRIMARY KEY "
                 "(stream_id, timestamp))"
@@ -56,10 +56,10 @@ class SearchableTimestampsApplicationRecorder(
         )
 
         self.select_event_timestamp_statement = SQL(
-            "SELECT originator_version FROM {0}.{1} WHERE "
+            "SELECT stream_position FROM {0}.{1} WHERE "
             "stream_id = %s AND "
             "timestamp <= %s "
-            "ORDER BY originator_version DESC "
+            "ORDER BY stream_position DESC "
             "LIMIT 1"
         ).format(
             Identifier(self.datastore.schema),
@@ -78,10 +78,10 @@ class SearchableTimestampsApplicationRecorder(
             list[tuple[str, int, datetime]],
             kwargs.get("event_timestamps_data"),
         )
-        for stream_id, originator_version, timestamp in event_timestamps_data:
+        for stream_id, stream_position, timestamp in event_timestamps_data:
             curs.execute(
                 query=self.insert_event_timestamp_statement,
-                params=(stream_id, originator_version, timestamp),
+                params=(stream_id, stream_position, timestamp),
                 prepare=True,
             )
         super()._insert_events(curs, stored_events, **kwargs)
@@ -97,7 +97,7 @@ class SearchableTimestampsApplicationRecorder(
                 prepare=True,
             )
             for row in curs.fetchall():
-                return row["originator_version"]
+                return row["stream_position"]
             return None
 
 

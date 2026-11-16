@@ -175,7 +175,7 @@ is a Python frozen data class.
 
 A :class:`~eventsourcing.persistence.StoredEvent` has an :class:`~eventsourcing.persistence.StoredEvent.stream_id`
 attribute which is a :class:`UUID` that identifies the aggregate sequence to
-which the domain event belongs. It has an :class:`~eventsourcing.persistence.StoredEvent.originator_version` attribute which
+which the domain event belongs. It has an :class:`~eventsourcing.persistence.StoredEvent.stream_position` attribute which
 is a Python :class:`int` that identifies the position of the domain event in that
 sequence.
 
@@ -190,7 +190,7 @@ A stored event object also has a :class:`~eventsourcing.persistence.StoredEvent.
 
     stored_event = StoredEvent(
         stream_id=uuid4(),
-        originator_version=1,
+        stream_position=1,
         topic="eventsourcing.model:DomainEvent",
         state=b'{"a": 4}',
     )
@@ -534,7 +534,7 @@ objects.
 
     domain_event = MyDomainEvent(
         stream_id=id1,
-        originator_version=1,
+        stream_position=1,
         obj=obj1,
     )
 
@@ -716,7 +716,7 @@ the position of a stored event in an application sequence.
     notification = Notification(
         id=123,
         stream_id=uuid4(),
-        originator_version=1,
+        stream_position=1,
         state=b"{}",
         topic="eventsourcing.model:DomainEvent",
     )
@@ -969,7 +969,7 @@ by extending :class:`~eventsourcing.popo.POPOAggregateRecorder`.
     notifications = application_recorder.select_notifications(start=1, limit=10)
     assert notifications[0].id == 1
     assert notifications[0].stream_id == stored_event.stream_id
-    assert notifications[0].originator_version == stored_event.originator_version
+    assert notifications[0].stream_position == stored_event.stream_position
     assert notifications[0].state == stored_event.state
     assert notifications[0].topic == stored_event.topic
 
@@ -981,7 +981,7 @@ by extending :class:`~eventsourcing.popo.POPOAggregateRecorder`.
 
             assert notifications[0].id == 1
             assert notifications[0].stream_id == stored_event.stream_id
-            assert notifications[0].originator_version == stored_event.originator_version
+            assert notifications[0].stream_position == stored_event.stream_position
             assert notifications[0].state == stored_event.state
             assert notifications[0].topic == stored_event.topic
             subscription.stop()
@@ -1012,7 +1012,7 @@ by extending :class:`~eventsourcing.popo.POPOApplicationRecorder`.
     notifications = process_recorder.select_notifications(start=1, limit=10)
     assert notifications[0].id == 1
     assert notifications[0].stream_id == stored_event.stream_id
-    assert notifications[0].originator_version == stored_event.originator_version
+    assert notifications[0].stream_position == stored_event.stream_position
     assert notifications[0].state == stored_event.state
     assert notifications[0].topic == stored_event.topic
 
@@ -1229,13 +1229,13 @@ by extending :class:`~eventsourcing.postgres.PostgresAggregateRecorder`.
     # Select stored events from an aggregate sequence.
     recorded_events = application_recorder.select_events(stored_event.stream_id)
     assert recorded_events[0].stream_id == stored_event.stream_id
-    assert recorded_events[0].originator_version == stored_event.originator_version
+    assert recorded_events[0].stream_position == stored_event.stream_position
 
     # Select notifications from the application sequence.
     notifications = application_recorder.select_notifications(start=1, limit=10)
     assert notifications[0].id == 1
     assert notifications[0].stream_id == stored_event.stream_id
-    assert notifications[0].originator_version == stored_event.originator_version
+    assert notifications[0].stream_position == stored_event.stream_position
 
     # Subscribe to application sequence from a tracked position.
     max_tracking_id = None
@@ -1245,7 +1245,7 @@ by extending :class:`~eventsourcing.postgres.PostgresAggregateRecorder`.
 
             assert notifications[0].id == 1
             assert notifications[0].stream_id == stored_event.stream_id
-            assert notifications[0].originator_version == stored_event.originator_version
+            assert notifications[0].stream_position == stored_event.stream_position
             subscription.stop()
 
 
@@ -1312,7 +1312,7 @@ by combining and extending :class:`~eventsourcing.postgres.PostgresApplicationRe
     notifications = process_recorder.select_notifications(start=1, limit=10)
     assert notifications[0].id == 1
     assert notifications[0].stream_id == stored_event.stream_id
-    assert notifications[0].originator_version == stored_event.originator_version
+    assert notifications[0].stream_position == stored_event.stream_position
 
     # Get latest tracked position.
     assert process_recorder.max_tracking_id("upstream") == 21

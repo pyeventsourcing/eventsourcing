@@ -75,7 +75,7 @@ NO_TRACEBACK = (Error, KeyboardInterrupt, CancelledError)
 
 class PgStoredEvent(NamedTuple):
     stream_id: str
-    originator_version: int
+    stream_position: int
     topic: str
     state: bytes
     event_id: UUID
@@ -378,13 +378,13 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
             SQL(
                 "CREATE TABLE IF NOT EXISTS {schema}.{table} ("
                 "stream_id text NOT NULL, "
-                "originator_version bigint NOT NULL, "
+                "stream_position bigint NOT NULL, "
                 "topic text, "
                 "state bytea, "
                 "event_id uuid, "
                 "metadata jsonb, "
                 "PRIMARY KEY "
-                "(stream_id, originator_version)) "
+                "(stream_id, stream_position)) "
                 "WITH ("
                 "    autovacuum_enabled = true,"
                 "    autovacuum_vacuum_threshold = 100000000,"
@@ -401,7 +401,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         self.insert_events_statement = SQL(
             "    INSERT INTO {schema}.{table} AS t ("
             "        stream_id,"
-            "        originator_version,"
+            "        stream_position,"
             "        topic,"
             "        state,"
             "        event_id,"
@@ -409,7 +409,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
             "    )"
             "    SELECT"
             "        stream_id,"
-            "        originator_version,"
+            "        stream_position,"
             "        topic,"
             "        state,"
             "        event_id,"
@@ -434,7 +434,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
             SQL(
                 "CREATE TYPE {schema}.{name} "
                 "AS (stream_id text, "
-                "originator_version bigint, "
+                "stream_position bigint, "
                 "topic text, "
                 "state bytea, "
                 "event_id uuid, "
@@ -448,7 +448,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
     def construct_pg_stored_event(
         self,
         stream_id: str,
-        originator_version: int,
+        stream_position: int,
         topic: str,
         state: bytes,
         event_id: UUID,
@@ -457,7 +457,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         try:
             return self.datastore.psycopg_python_types[self.stored_event_type_name](
                 stream_id,
-                originator_version,
+                stream_position,
                 topic,
                 state,
                 event_id,
@@ -489,7 +489,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         pg_stored_events = [
             self.construct_pg_stored_event(
                 stored_event.stream_id,
-                stored_event.originator_version,
+                stored_event.stream_position,
                 stored_event.topic,
                 stored_event.state,
                 stored_event.event_id,
@@ -518,11 +518,11 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
         params: list[Any] = [stream_id]
         if gt is not None:
             params.append(gt)
-            statement += SQL(" AND originator_version > %s")
+            statement += SQL(" AND stream_position > %s")
         if lte is not None:
             params.append(lte)
-            statement += SQL(" AND originator_version <= %s")
-        statement += SQL(" ORDER BY originator_version")
+            statement += SQL(" AND stream_position <= %s")
+        statement += SQL(" ORDER BY stream_position")
         if desc is False:
             statement += SQL(" ASC")
         else:
@@ -536,7 +536,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
             return [
                 StoredEvent(
                     stream_id=row["stream_id"],
-                    originator_version=row["originator_version"],
+                    stream_position=row["stream_position"],
                     topic=row["topic"],
                     state=bytes(row["state"]),
                     event_id=row["event_id"] or NIL_UUID,
@@ -557,14 +557,14 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
         self.sql_create_statements[self.create_table_statement_index] = SQL(
             "CREATE TABLE IF NOT EXISTS {schema}.{table} ("
             "stream_id text NOT NULL, "
-            "originator_version bigint NOT NULL, "
+            "stream_position bigint NOT NULL, "
             "topic text, "
             "state bytea, "
             "event_id uuid, "
             "metadata jsonb, "
             "notification_id bigserial, "
             "PRIMARY KEY "
-            "(stream_id, originator_version)) "
+            "(stream_id, stream_position)) "
             "WITH ("
             "    autovacuum_enabled = true,"
             "    autovacuum_vacuum_threshold = 100000000,"
@@ -627,7 +627,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             "    RETURN QUERY"
             "    INSERT INTO {schema}.{table} AS t ("
             "        stream_id,"
-            "        originator_version,"
+            "        stream_position,"
             "        topic,"
             "        state,"
             "        event_id,"
@@ -635,7 +635,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             "    )"
             "    SELECT"
             "        stream_id,"
-            "        originator_version,"
+            "        stream_position,"
             "        topic,"
             "        state,"
             "        event_id,"
@@ -664,7 +664,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
             pg_stored_events = [
                 self.construct_pg_stored_event(
                     stream_id=e.stream_id,
-                    originator_version=e.originator_version,
+                    stream_position=e.stream_position,
                     topic=e.topic,
                     state=e.state,
                     event_id=e.event_id,
@@ -793,7 +793,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                 Notification(
                     id=row["notification_id"],
                     stream_id=row["stream_id"],
-                    originator_version=row["originator_version"],
+                    stream_position=row["stream_position"],
                     topic=row["topic"],
                     state=bytes(row["state"]),
                     event_id=row["event_id"] or NIL_UUID,

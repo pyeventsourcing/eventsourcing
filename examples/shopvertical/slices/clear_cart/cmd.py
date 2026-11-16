@@ -29,7 +29,7 @@ class ClearCart(Command):
             AggregateEvent(
                 decision=ClearedCart(),
                 stream_id=self.cart_id,
-                originator_version=len(events) + 1,
+                stream_position=len(events) + 1,
             ),
         )
 

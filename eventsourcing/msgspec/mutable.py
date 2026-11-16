@@ -49,7 +49,7 @@ class MuetableAggregateSnapshot(Decision):
         return AggregateEvent(
             decision=cls(state=snapshot_state),
             stream_id=aggregate_id,
-            originator_version=aggregate_version,
+            stream_position=aggregate_version,
         )
 
     @override

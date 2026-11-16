@@ -50,7 +50,7 @@ class TestAddItemToCart(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=AddedItemToCart(
@@ -60,7 +60,7 @@ class TestAddItemToCart(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=cart_id,
-                originator_version=2,
+                stream_position=2,
             ),
             AggregateEvent(
                 decision=AddedItemToCart(
@@ -70,7 +70,7 @@ class TestAddItemToCart(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=cart_id,
-                originator_version=3,
+                stream_position=3,
             ),
         )
 
@@ -97,7 +97,7 @@ class TestAddItemToCart(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=AddedItemToCart(
@@ -107,7 +107,7 @@ class TestAddItemToCart(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=cart_id,
-                originator_version=2,
+                stream_position=2,
             ),
             AggregateEvent(
                 decision=AddedItemToCart(
@@ -117,14 +117,14 @@ class TestAddItemToCart(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=cart_id,
-                originator_version=3,
+                stream_position=3,
             ),
             AggregateEvent(
                 decision=RemovedItemFromCart(
                     product_id=product_id,
                 ),
                 stream_id=cart_id,
-                originator_version=4,
+                stream_position=4,
             ),
         )
 
@@ -150,7 +150,7 @@ class TestAddItemToCart(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
             AggregateEvent(
                 decision=AddedItemToCart(
@@ -160,7 +160,7 @@ class TestAddItemToCart(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=cart_id,
-                originator_version=2,
+                stream_position=2,
             ),
             AggregateEvent(
                 decision=AddedItemToCart(
@@ -170,12 +170,12 @@ class TestAddItemToCart(unittest.TestCase):
                     price=Decimal("5.99"),
                 ),
                 stream_id=cart_id,
-                originator_version=3,
+                stream_position=3,
             ),
             AggregateEvent(
                 decision=ClearedCart(),
                 stream_id=cart_id,
-                originator_version=4,
+                stream_position=4,
             ),
         )
 
@@ -195,7 +195,7 @@ class TestAddItemToCart(unittest.TestCase):
             AggregateEvent(
                 decision=SubmittedCart(),
                 stream_id=cart_id,
-                originator_version=1,
+                stream_position=1,
             ),
         )
 
