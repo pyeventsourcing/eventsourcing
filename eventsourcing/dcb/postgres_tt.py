@@ -44,7 +44,7 @@ CREATE TYPE {schema}.{event_type} AS (
     type text,
     data bytea,
     tags text[],
-    uuid uuid,
+    event_id uuid,
     metadata jsonb
 )
 """)
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS {schema}.{events_table} (
     type text NOT NULL,
     data bytea,
     tags text[] NOT NULL,
-    uuid uuid,
+    event_id uuid,
     metadata jsonb
 ) WITH (
   autovacuum_enabled = true,
@@ -186,8 +186,8 @@ BEGIN
         SELECT * FROM unnest(new_events)
     ),
     inserted AS (
-        INSERT INTO {schema}.{events_table} (type, data, tags, uuid, metadata)
-        SELECT type, data, tags, uuid, metadata
+        INSERT INTO {schema}.{events_table} (type, data, tags, event_id, metadata)
+        SELECT type, data, tags, event_id, metadata
         FROM new_data
         RETURNING id, tags
     ),
@@ -280,8 +280,8 @@ BEGIN
             SELECT * FROM unnest(new_events)
         ),
         inserted AS (
-            INSERT INTO {schema}.{events_table} (type, data, tags, uuid, metadata)
-            SELECT type, data, tags, uuid, metadata
+            INSERT INTO {schema}.{events_table} (type, data, tags, event_id, metadata)
+            SELECT type, data, tags, event_id, metadata
             FROM new_data
             RETURNING id, tags
         ),
@@ -483,7 +483,7 @@ class PostgresDcbRecorderTT(DcbRecorder, PostgresRecorder):
                     type=row["type"],
                     data=row["data"],
                     tags=row["tags"],
-                    event_id=row["uuid"] or NIL_UUID,
+                    event_id=row["event_id"] or NIL_UUID,
                     metadata=row["metadata"] or {},
                 ),
                 position=row["id"],
@@ -596,7 +596,7 @@ class PostgresDcbRecorderTT(DcbRecorder, PostgresRecorder):
                 type=e.type,
                 data=e.data,
                 tags=e.tags,
-                uuid=e.event_id,
+                event_id=e.event_id,
                 metadata=Jsonb(e.metadata),
             )
             for e in dcb_events
@@ -654,7 +654,7 @@ class PsycopgDcbEvent(NamedTuple):
     type: str
     data: bytes
     tags: list[str]
-    uuid: UUID
+    event_id: UUID
     metadata: dict[str, str]
 
 
