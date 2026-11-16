@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import sqlite3
 from typing import TYPE_CHECKING, Any, cast, override
 
@@ -18,39 +18,39 @@ if TYPE_CHECKING:
     from eventsourcing.persistence import ApplicationRecorder, StoredEvent
 
 
-def adapt_date_iso(val: datetime.date) -> str:
-    """Adapt datetime.date to ISO 8601 date."""
+def adapt_date_iso(val: dt.date) -> str:
+    """Adapt dt.date to ISO 8601 date."""
     return val.isoformat()
 
 
-def adapt_datetime_iso(val: datetime.datetime) -> str:
-    """Adapt datetime.datetime to timezone-naive ISO 8601 date."""
+def adapt_datetime_iso(val: dt.datetime) -> str:
+    """Adapt dt.datetime to timezone-naive ISO 8601 date."""
     return val.isoformat()
 
 
-def adapt_datetime_epoch(val: datetime.datetime) -> int:
-    """Adapt datetime.datetime to Unix timestamp."""
+def adapt_datetime_epoch(val: dt.datetime) -> int:
+    """Adapt dt.datetime to Unix timestamp."""
     return int(val.timestamp())
 
 
-sqlite3.register_adapter(datetime.date, adapt_date_iso)
-sqlite3.register_adapter(datetime.datetime, adapt_datetime_iso)
-# sqlite3.register_adapter(datetime.datetime, adapt_datetime_epoch)
+sqlite3.register_adapter(dt.date, adapt_date_iso)
+sqlite3.register_adapter(dt.datetime, adapt_datetime_iso)
+# sqlite3.register_adapter(dt.datetime, adapt_datetime_epoch)
 
 
-def convert_date(val: bytes) -> datetime.date:
-    """Convert ISO 8601 date to datetime.date object."""
-    return datetime.date.fromisoformat(val.decode())
+def convert_date(val: bytes) -> dt.date:
+    """Convert ISO 8601 date to dt.date object."""
+    return dt.date.fromisoformat(val.decode())
 
 
-def convert_datetime(val: bytes) -> datetime.datetime:
-    """Convert ISO 8601 datetime to datetime.datetime object."""
-    return datetime.datetime.fromisoformat(val.decode())
+def convert_datetime(val: bytes) -> dt.datetime:
+    """Convert ISO 8601 datetime to dt.datetime object."""
+    return dt.datetime.fromisoformat(val.decode())
 
 
-def convert_timestamp(val: bytes) -> datetime.datetime:
-    """Convert Unix epoch timestamp to datetime.datetime object."""
-    return datetime.datetime.fromtimestamp(int(val), datetime.UTC)
+def convert_timestamp(val: bytes) -> dt.datetime:
+    """Convert Unix epoch timestamp to dt.datetime object."""
+    return dt.datetime.fromtimestamp(int(val), dt.UTC)
 
 
 sqlite3.register_converter("date", convert_date)
@@ -105,7 +105,7 @@ class SearchableTimestampsApplicationRecorder(
 
         # Insert event timestamps.
         event_timestamps_data = cast(
-            "list[tuple[str, int, datetime.datetime]]", kwargs["event_timestamps_data"]
+            "list[tuple[str, int, dt.datetime]]", kwargs["event_timestamps_data"]
         )
         for originator_id, timestamp, originator_version in event_timestamps_data:
             c.execute(
@@ -117,7 +117,7 @@ class SearchableTimestampsApplicationRecorder(
 
     @override
     def get_version_at_timestamp(
-        self, originator_id: str, timestamp: datetime.datetime
+        self, originator_id: str, timestamp: dt.datetime
     ) -> int | None:
         with self.datastore.transaction(commit=False) as c:
             c.execute(self.select_event_timestamp_statement, (originator_id, timestamp))

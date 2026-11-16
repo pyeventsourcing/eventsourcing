@@ -396,8 +396,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
                     uuid=row["event_id"] or NIL_UUID,
-                )
-                for row in c.fetchall()
+                ) for row in c.fetchall()
             ]
 
 
@@ -517,8 +516,7 @@ class SQLiteApplicationRecorder(
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
                     uuid=row["event_id"] or NIL_UUID,
-                )
-                for row in c.fetchall()
+                ) for row in c.fetchall()
             ]
 
     @override

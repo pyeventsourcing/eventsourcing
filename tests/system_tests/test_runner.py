@@ -560,16 +560,17 @@ class TestMultiThreadedRunnerWithSQLiteInMemory(TestMultiThreadedRunner):
         super().setUp()
         os.environ["PERSISTENCE_MODULE"] = "eventsourcing.sqlite"
         os.environ[f"{BankAccountsWithPydantic.context_name.upper()}_SQLITE_DBNAME"] = (
-            f"file:{BankAccountsWithPydantic.context_name.lower()}?mode=memory&cache=shared"
+            f"file:{BankAccountsWithPydantic.context_name.lower()}"
+            f"?mode=memory&cache=shared"
         )
         os.environ[f"{EmailProcess.context_name.upper()}_SQLITE_DBNAME"] = (
-            f"file:{EmailProcess.context_name.lower()}?mode=memory&cache=shared"
+            f"file:{EmailProcess.context_name.lower()}" f"?mode=memory&cache=shared"
         )
         os.environ[f"MY{EmailProcess.context_name.upper()}_SQLITE_DBNAME"] = (
-            f"file:{EmailProcess.context_name.lower()}?mode=memory&cache=shared"
+            f"file:{EmailProcess.context_name.lower()}" f"?mode=memory&cache=shared"
         )
         os.environ[f"{EmailProcess.context_name.upper()}2_SQLITE_DBNAME"] = (
-            f"file:{EmailProcess.context_name.lower()}2?mode=memory&cache=shared"
+            f"file:{EmailProcess.context_name.lower()}2" f"?mode=memory&cache=shared"
         )
         os.environ["BROKENPROCESSING_SQLITE_DBNAME"] = (
             "file:brokenprocessing?mode=memory&cache=shared"

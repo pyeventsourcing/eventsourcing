@@ -63,10 +63,12 @@ class TestInfrastructureFactory(TestCase):
 
         # MYAPP_MAPPER_TOPIC set to MyMapper.
         env = {
-            "MYAPP_"
-            + InfrastructureFactory.MAPPER_TOPIC: get_topic(AggregateEventMapper),
-            "MYAPP_"
-            + InfrastructureFactory.TRANSCODER_TOPIC: get_topic(LegacyJSONTranscoder),
+            "MYAPP_" + InfrastructureFactory.MAPPER_TOPIC: get_topic(
+                AggregateEventMapper
+            ),
+            "MYAPP_" + InfrastructureFactory.TRANSCODER_TOPIC: get_topic(
+                LegacyJSONTranscoder
+            ),
         }
         factory = InfrastructureFactory.construct(env=Environment("MyApp", env))
         mapper = factory.mapper()
