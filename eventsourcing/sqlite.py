@@ -522,12 +522,12 @@ class SQLiteApplicationRecorder(
             ]
 
     @override
-    def max_notification_id(self) -> int:
+    def max_notification_id(self) -> int | None:
         """Returns the maximum notification ID."""
         with self.datastore.transaction(commit=False) as c:
             return self._max_notification_id(c)
 
-    def _max_notification_id(self, c: SQLiteCursor) -> int:
+    def _max_notification_id(self, c: SQLiteCursor) -> int | None:
         c.execute(self.select_max_notification_id_statement)
         return c.fetchone()[0]
 
