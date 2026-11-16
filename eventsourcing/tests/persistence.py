@@ -70,7 +70,7 @@ class RecorderTestCase(TestCase, ABC):
         self.assertEqual(event1.topic, event2.topic)
         self.assertEqual(event1.state, event2.state)
         self.assertEqual(event1.metadata, event2.metadata)
-        self.assertEqual(event1.uuid, event2.uuid)
+        self.assertEqual(event1.event_id, event2.event_id)
 
 
 class AggregateRecorderTestCase(RecorderTestCase, ABC):
@@ -100,7 +100,7 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
             originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
         notification_id = recorder.insert_events([event1])
@@ -123,7 +123,7 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
             originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
         with self.assertRaises(IntegrityError):
@@ -141,7 +141,7 @@ class AggregateRecorderTestCase(RecorderTestCase, ABC):
             originator_version=self.INITIAL_VERSION + 2,
             topic="topic3",
             state=b"state3",
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
         notification_id = recorder.insert_events([event2, event3])
@@ -258,7 +258,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
             originator_version=self.INITIAL_VERSION,
             topic="topic1",
             state=b"state1",
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
         stored_event2 = StoredEvent(
@@ -266,7 +266,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
             originator_version=self.INITIAL_VERSION + 1,
             topic="topic2",
             state=b"state2",
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
 
@@ -279,7 +279,7 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
             originator_version=self.INITIAL_VERSION,
             topic="topic3",
             state=b"state3",
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
         notification_id = recorder.insert_events([stored_event3])
@@ -346,7 +346,6 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
         self.assert_event_eq(stored_event1, notifications[0])
         self.assert_event_eq(stored_event2, notifications[1])
         self.assert_event_eq(stored_event3, notifications[2])
-
 
         notifications = recorder.select_notifications(start + 1, 10, topics=["topic1"])
         self.assertEqual(len(notifications), 1)
@@ -1860,7 +1859,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         stored_event = mapper.to_stored_event(event)
         self.assertEqual(stored_event.originator_id, event.originator_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
-        self.assertEqual(stored_event.uuid, event.uuid)
+        self.assertEqual(stored_event.event_id, event.uuid)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
@@ -1877,7 +1876,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         stored_event = mapper.to_stored_event(event)
         self.assertEqual(stored_event.originator_id, event.originator_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
-        self.assertEqual(stored_event.uuid, event.uuid)
+        self.assertEqual(stored_event.event_id, event.uuid)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
@@ -1896,7 +1895,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         stored_event = mapper.to_stored_event(event)
         self.assertEqual(stored_event.originator_id, event.originator_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
-        self.assertEqual(stored_event.uuid, event.uuid)
+        self.assertEqual(stored_event.event_id, event.uuid)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)
@@ -1912,7 +1911,7 @@ class AggregateEventMapperTestCase[TDecision](TestCase, ABC):
         stored_event = mapper.to_stored_event(event)
         self.assertEqual(stored_event.originator_id, event.originator_id)
         self.assertEqual(stored_event.originator_version, event.originator_version)
-        self.assertEqual(stored_event.uuid, event.uuid)
+        self.assertEqual(stored_event.event_id, event.uuid)
         self.assertEqual(stored_event.metadata, event.metadata)
 
         copy = mapper.to_domain_event(stored_event)

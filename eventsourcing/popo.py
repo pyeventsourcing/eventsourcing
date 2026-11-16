@@ -152,7 +152,7 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
                     originator_version=s.originator_version,
                     topic=s.topic,
                     state=s.state,
-                    uuid=s.uuid,
+                    event_id=s.event_id,
                     metadata=s.metadata,
                 )
                 results.append(n)

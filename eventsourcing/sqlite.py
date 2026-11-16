@@ -351,7 +351,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
                 s.originator_version,
                 s.topic,
                 s.state,
-                s.uuid.hex,
+                s.event_id.hex,
                 json.dumps(s.metadata).encode("utf-8"),
             )
             for s in stored_events
@@ -399,7 +399,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
                     topic=row["topic"],
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
-                    uuid=self.convert_event_id(row["event_id"]),
+                    event_id=self.convert_event_id(row["event_id"]),
                 ) for row in c.fetchall()
             ]
 
@@ -454,7 +454,7 @@ class SQLiteApplicationRecorder(
                     s.originator_version,
                     s.topic,
                     s.state,
-                    s.uuid.hex,
+                    s.event_id.hex,
                     json.dumps(s.metadata).encode("utf-8"),
                 ),
             )
@@ -519,7 +519,7 @@ class SQLiteApplicationRecorder(
                     topic=row["topic"],
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
-                    uuid=self.convert_event_id(row["event_id"]),
+                    event_id=self.convert_event_id(row["event_id"]),
                 ) for row in c.fetchall()
             ]
 

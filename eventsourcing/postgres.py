@@ -505,7 +505,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
                 stored_event.originator_version,
                 stored_event.topic,
                 stored_event.state,
-                stored_event.uuid,
+                stored_event.event_id,
                 stored_event.metadata,
             )
             for stored_event in stored_events
@@ -552,7 +552,7 @@ class PostgresAggregateRecorder(PostgresRecorder, AggregateRecorder):
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=bytes(row["state"]),
-                    uuid=row["event_id"] or NIL_UUID,
+                    event_id=row["event_id"] or NIL_UUID,
                     metadata=row["metadata"] or {},
                 )
                 for row in curs.fetchall()
@@ -683,7 +683,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                     originator_version=e.originator_version,
                     topic=e.topic,
                     state=e.state,
-                    event_id=e.uuid,
+                    event_id=e.event_id,
                     metadata=e.metadata,
                 )
                 for e in stored_events
@@ -812,7 +812,7 @@ class PostgresApplicationRecorder(PostgresAggregateRecorder, ApplicationRecorder
                     originator_version=row["originator_version"],
                     topic=row["topic"],
                     state=bytes(row["state"]),
-                    uuid=row["event_id"] or NIL_UUID,
+                    event_id=row["event_id"] or NIL_UUID,
                     metadata=row["metadata"] or {},
                 )
                 for row in curs.fetchall()

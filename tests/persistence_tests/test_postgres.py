@@ -1100,7 +1100,7 @@ class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
                     originator_version=1,
                     state=b"",
                     topic="",
-                    uuid=uuid4(),
+                    event_id=uuid4(),
                     metadata={},
                 )
             ]

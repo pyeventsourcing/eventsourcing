@@ -217,7 +217,7 @@ class StoredEvent:
     """Topic of a domain event object class."""
     state: bytes
     """Serialised state of a domain event object."""
-    uuid: UUID = NIL_UUID
+    event_id: UUID = NIL_UUID
     """Optional event ID."""
     metadata: dict[str, str] = field(default_factory=dict)
     """Serialised metadata."""
@@ -1331,7 +1331,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
             originator_version=domain_event.originator_version,
             topic=topic,
             state=stored_state,
-            uuid=domain_event.uuid,
+            event_id=domain_event.uuid,
             metadata=domain_event.metadata,
         )
 
@@ -1356,7 +1356,7 @@ class AggregateEventMapper[TDecision](Mapper[AggregateEvent[TDecision], TDecisio
         else:
             return AggregateEvent(
                 decision=decision,
-                uuid=stored_event.uuid,
+                uuid=stored_event.event_id,
                 metadata=stored_event.metadata,
                 originator_id=stored_event.originator_id,
                 originator_version=stored_event.originator_version,
