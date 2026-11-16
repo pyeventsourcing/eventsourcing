@@ -209,19 +209,6 @@ class TestSQLiteAggregateRecorder(AggregateRecorderTestCase):
         return recorder
 
 
-class WithUuidOriginatorID:
-    originator_id_type: Literal["uuid", "text"] = "uuid"
-
-    def new_originator_id(self) -> str:
-        return cast(str, uuid4())
-
-
-class TestSQLiteAggregateRecorderWithUuidOriginatorID(
-    WithUuidOriginatorID, TestSQLiteAggregateRecorder
-):
-    pass
-
-
 class TestSQLiteAggregateRecorderErrors(TestCase):
     def test_raises_operational_error_when_creating_table_fails(self) -> None:
         recorder = SQLiteAggregateRecorder(SQLiteDatastore(":memory:"))
@@ -284,12 +271,6 @@ class TestSQLiteApplicationRecorder(
     def test_concurrent_throughput_in_memory_db(self) -> None:
         self.db_uri = "file::memory:?cache=shared"
         super().test_concurrent_throughput()
-
-
-class TestSQLiteApplicationRecorderWithUuidOriginatorID(
-    WithUuidOriginatorID, TestSQLiteApplicationRecorder
-):
-    pass
 
 
 class TestSQLiteApplicationRecorderErrors(TestCase):
@@ -438,12 +419,6 @@ class TestSQLiteProcessRecorder(ProcessRecorderTestCase):
         )
         recorder.create_table()
         return recorder
-
-
-class TestSQLiteProcessRecorderWithTextOriginatorID(
-    WithUuidOriginatorID, TestSQLiteProcessRecorder
-):
-    pass
 
 
 class TestSQLiteProcessRecorderErrors(TestCase):
