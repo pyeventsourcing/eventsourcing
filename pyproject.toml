@@ -69,8 +69,8 @@ pyrefly = "*"
 pydantic = { version = "*"}
 msgspec = { version = "*"}
 pytest = { version = "*"}
-eventsourcing-umadb = { version = ">=0.4.5" }
-#eventsourcing-umadb = {path = "../eventsourcing-umadb", develop = true}
+#eventsourcing-umadb = { version = ">=0.4.5" }
+eventsourcing-umadb = {path = "../eventsourcing-umadb", develop = true}
 diff_match_patch = { version = "*"}
 
 [tool.poetry.group.docs.dependencies]

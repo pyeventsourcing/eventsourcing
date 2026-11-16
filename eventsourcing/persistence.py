@@ -1384,7 +1384,7 @@ class TaggedEventMapper[TDecision]:
             type=get_topic(type(event.decision)),
             data=data,
             tags=event.tags,
-            uuid=event.uuid,
+            event_id=event.uuid,
             metadata=event.metadata,
         )
 
@@ -1397,6 +1397,6 @@ class TaggedEventMapper[TDecision]:
         return TaggedEvent(
             tags=event.tags,
             decision=self.transcoder.decode(data, resolve_topic(event.type)),
-            uuid=event.uuid,
+            uuid=event.event_id,
             metadata=event.metadata,
         )

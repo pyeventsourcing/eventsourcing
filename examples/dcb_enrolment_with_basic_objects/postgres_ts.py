@@ -361,7 +361,7 @@ class PostgresDcbRecorderTS(DcbRecorder, PostgresRecorder):
                         type=row["type"],
                         data=row["data"],
                         tags=row["tags"],
-                        uuid=row["uuid"] or NIL_UUID,
+                        event_id=row["uuid"] or NIL_UUID,
                         metadata=row["metadata"] or {},
                     ),
                     position=row["sequence_position"],
@@ -398,7 +398,7 @@ class PostgresDcbRecorderTS(DcbRecorder, PostgresRecorder):
                 type=event.type,
                 data=event.data,
                 tags=event.tags,
-                uuid=event.uuid,
+                uuid=event.event_id,
                 metadata=event.metadata,
             )
             for event in events

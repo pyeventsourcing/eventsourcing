@@ -35,7 +35,7 @@ class DcbEvent:
     type: str
     data: bytes
     tags: list[str] = field(default_factory=list)
-    uuid: UUID
+    event_id: UUID
     metadata: dict[str, str]
 
 

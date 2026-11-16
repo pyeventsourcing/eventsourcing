@@ -1773,7 +1773,7 @@ class TaggedEventMapperTestCase[TDecision](TestCase, ABC):
         mapper = self.construct_mapper()
         dcb_event = mapper.to_dcb_event(event)
         self.assertEqual(dcb_event.tags, event.tags)
-        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.event_id, event.uuid)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
         copy = mapper.to_tagged_event(dcb_event)
@@ -1788,7 +1788,7 @@ class TaggedEventMapperTestCase[TDecision](TestCase, ABC):
         mapper = self.construct_mapper(compressor=zlib_compressor)
         dcb_event = mapper.to_dcb_event(event)
         self.assertEqual(dcb_event.tags, event.tags)
-        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.event_id, event.uuid)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
         copy = mapper.to_tagged_event(dcb_event)
@@ -1805,7 +1805,7 @@ class TaggedEventMapperTestCase[TDecision](TestCase, ABC):
         mapper = self.construct_mapper(cipher=aes_cipher)
         dcb_event = mapper.to_dcb_event(event)
         self.assertEqual(dcb_event.tags, event.tags)
-        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.event_id, event.uuid)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
         copy = mapper.to_tagged_event(dcb_event)
@@ -1819,7 +1819,7 @@ class TaggedEventMapperTestCase[TDecision](TestCase, ABC):
         mapper = self.construct_mapper(compressor=zlib_compressor, cipher=aes_cipher)
         dcb_event = mapper.to_dcb_event(event)
         self.assertEqual(dcb_event.tags, event.tags)
-        self.assertEqual(dcb_event.uuid, event.uuid)
+        self.assertEqual(dcb_event.event_id, event.uuid)
         self.assertEqual(dcb_event.metadata, event.metadata)
 
         copy = mapper.to_tagged_event(dcb_event)

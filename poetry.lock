@@ -771,14 +771,17 @@ description = "Python package for eventsourcing with UmaDB"
 optional = false
 python-versions = ">=3.12"
 groups = ["main", "dev"]
-files = [
-    {file = "eventsourcing_umadb-0.4.5-py3-none-any.whl", hash = "sha256:142a55505066c80f5c9c880e319c660211739e816a6b36174bba47cd30f30356"},
-    {file = "eventsourcing_umadb-0.4.5.tar.gz", hash = "sha256:e746c1f96e802f2ae2d97d184197d7069cbf7d9812989b399f42ff53b4b5b8bb"},
-]
+files = []
+develop = true
 
 [package.dependencies]
-eventsourcing = ">=10.0.0a3"
-umadb = ">=0.6.10"
+eventsourcing = ">=10.0.0a9"
+pyrefly = ">=0.60.0"
+umadb = ">=0.7.10"
+
+[package.source]
+type = "directory"
+url = "../eventsourcing-umadb"
 
 [[package]]
 name = "idna"
@@ -1887,7 +1890,7 @@ version = "1.4.1"
 description = "A fast type checker and language server for Python with powerful IDE features"
 optional = false
 python-versions = ">=3.8"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "pyrefly-1.4.1-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:9c5a4a3f0ec00ae66a13f5741c355980685111b7008289c0b850e9be931aa3fa"},
     {file = "pyrefly-1.4.1-py3-none-macosx_11_0_arm64.whl", hash = "sha256:eaba21336993765373e7e888de90f4d58214ce38994804eef902a6c8148df21f"},
@@ -2449,4 +2452,4 @@ umadb = ["eventsourcing-umadb"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12.0"
-content-hash = "f4d11e725306da8d3726c0a7973f249e1316820c2bb9a4dede59ffcf473d8985"
+content-hash = "a1ec4c9b068eeee41f4b46cc949b2af3fdac978531f476db911103c7b8e5e011"

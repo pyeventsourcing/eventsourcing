@@ -36,7 +36,7 @@ class DcbRecorderTestCase(TestCase):
             type="type1",
             data=b"data1",
             tags=["tagX"],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
         position = recorder.append(events=[event1])
@@ -48,7 +48,7 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
-        self.assertEqual(event1.uuid, result[0].event.uuid)
+        self.assertEqual(event1.event_id, result[0].event.event_id)
         self.assertEqual(event1.data, result[0].event.data)
         self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(1 + initial_position, read_response.head)
@@ -65,7 +65,7 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(after=initial_position, limit=1)
         result = list(read_response)
         self.assertEqual(1, len(result))
-        self.assertEqual(event1.uuid, result[0].event.uuid)
+        self.assertEqual(event1.event_id, result[0].event.event_id)
         self.assertEqual(event1.data, result[0].event.data)
         self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(1 + initial_position, read_response.head)
@@ -81,7 +81,7 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(query_type1, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
-        self.assertEqual(event1.uuid, result[0].event.uuid)
+        self.assertEqual(event1.event_id, result[0].event.event_id)
         self.assertEqual(event1.data, result[0].event.data)
         self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(1 + initial_position, read_response.head)
@@ -98,7 +98,7 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(query_tag_x, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
-        self.assertEqual(event1.uuid, result[0].event.uuid)
+        self.assertEqual(event1.event_id, result[0].event.event_id)
         self.assertEqual(event1.data, result[0].event.data)
         self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(1 + initial_position, read_response.head)
@@ -142,14 +142,14 @@ class DcbRecorderTestCase(TestCase):
             type="type2",
             data=b"data2",
             tags=["tagA", "tagB"],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={},
         )
         event3 = DcbEvent(
             type="type3",
             data=b"data3",
             tags=["tagA", "tagC"],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={},
         )
         position = recorder.append(events=[event2, event3])
@@ -161,13 +161,13 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(after=initial_position)
         result = list(read_response)
         self.assertEqual(3, len(result))
-        self.assertEqual(event1.uuid, result[0].event.uuid)
+        self.assertEqual(event1.event_id, result[0].event.event_id)
         self.assertEqual(event1.data, result[0].event.data)
         self.assertEqual(event1.metadata, result[0].event.metadata)
-        self.assertEqual(event2.uuid, result[1].event.uuid)
+        self.assertEqual(event2.event_id, result[1].event.event_id)
         self.assertEqual(event2.data, result[1].event.data)
         self.assertEqual(event2.metadata, result[1].event.metadata)
-        self.assertEqual(event3.uuid, result[2].event.uuid)
+        self.assertEqual(event3.event_id, result[2].event.event_id)
         self.assertEqual(event3.data, result[2].event.data)
         self.assertEqual(event3.metadata, result[2].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
@@ -176,10 +176,10 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(after=1 + initial_position)
         result = list(read_response)
         self.assertEqual(2, len(result))
-        self.assertEqual(event2.uuid, result[0].event.uuid)
+        self.assertEqual(event2.event_id, result[0].event.event_id)
         self.assertEqual(event2.data, result[0].event.data)
         self.assertEqual(event2.metadata, result[0].event.metadata)
-        self.assertEqual(event3.uuid, result[1].event.uuid)
+        self.assertEqual(event3.event_id, result[1].event.event_id)
         self.assertEqual(event3.data, result[1].event.data)
         self.assertEqual(event3.metadata, result[1].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
@@ -188,7 +188,7 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(after=2 + initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
-        self.assertEqual(event3.uuid, result[0].event.uuid)
+        self.assertEqual(event3.event_id, result[0].event.event_id)
         self.assertEqual(event3.data, result[0].event.data)
         self.assertEqual(event3.metadata, result[0].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
@@ -197,7 +197,7 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(after=1 + initial_position, limit=1)
         result = list(read_response)
         self.assertEqual(1, len(result))
-        self.assertEqual(event2.uuid, result[0].event.uuid)
+        self.assertEqual(event2.event_id, result[0].event.event_id)
         self.assertEqual(event2.data, result[0].event.data)
         self.assertEqual(event2.metadata, result[0].event.metadata)
         self.assertEqual(2 + initial_position, read_response.head)
@@ -225,10 +225,10 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(query_tag_a, after=initial_position)
         result = list(read_response)
         self.assertEqual(2, len(result))
-        self.assertEqual(event2.uuid, result[0].event.uuid)
+        self.assertEqual(event2.event_id, result[0].event.event_id)
         self.assertEqual(event2.data, result[0].event.data)
         self.assertEqual(event2.metadata, result[0].event.metadata)
-        self.assertEqual(event3.uuid, result[1].event.uuid)
+        self.assertEqual(event3.event_id, result[1].event.event_id)
         self.assertEqual(event3.data, result[1].event.data)
         self.assertEqual(event3.metadata, result[1].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
@@ -238,7 +238,7 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(query_tag_a_and_b, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
-        self.assertEqual(event2.uuid, result[0].event.uuid)
+        self.assertEqual(event2.event_id, result[0].event.event_id)
         self.assertEqual(event2.data, result[0].event.data)
         self.assertEqual(event2.metadata, result[0].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
@@ -253,10 +253,10 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(query_tag_b_or_c, after=initial_position)
         result = list(read_response)
         self.assertEqual(2, len(result))
-        self.assertEqual(event2.uuid, result[0].event.uuid)
+        self.assertEqual(event2.event_id, result[0].event.event_id)
         self.assertEqual(event2.data, result[0].event.data)
         self.assertEqual(event2.metadata, result[0].event.metadata)
-        self.assertEqual(event3.uuid, result[1].event.uuid)
+        self.assertEqual(event3.event_id, result[1].event.event_id)
         self.assertEqual(event3.data, result[1].event.data)
         self.assertEqual(event3.metadata, result[1].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
@@ -271,7 +271,7 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(query_tag_x_or_y, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
-        self.assertEqual(event1.uuid, result[0].event.uuid)
+        self.assertEqual(event1.event_id, result[0].event.event_id)
         self.assertEqual(event1.data, result[0].event.data)
         self.assertEqual(event1.metadata, result[0].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
@@ -283,7 +283,7 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(query_type2_tag_a, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
-        self.assertEqual(event2.uuid, result[0].event.uuid)
+        self.assertEqual(event2.event_id, result[0].event.event_id)
         self.assertEqual(event2.data, result[0].event.data)
         self.assertEqual(event2.metadata, result[0].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
@@ -304,7 +304,7 @@ class DcbRecorderTestCase(TestCase):
         read_response = recorder.read(query_type2_tag_a, after=initial_position)
         result = list(read_response)
         self.assertEqual(1, len(result))
-        self.assertEqual(event2.uuid, result[0].event.uuid)
+        self.assertEqual(event2.event_id, result[0].event.event_id)
         self.assertEqual(event2.data, result[0].event.data)
         self.assertEqual(event2.metadata, result[0].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
@@ -321,10 +321,10 @@ class DcbRecorderTestCase(TestCase):
         )
         result = list(read_response)
         self.assertEqual(2, len(result), result)
-        self.assertEqual(event2.uuid, result[0].event.uuid)
+        self.assertEqual(event2.event_id, result[0].event.event_id)
         self.assertEqual(event2.data, result[0].event.data)
         self.assertEqual(event2.metadata, result[0].event.metadata)
-        self.assertEqual(event3.uuid, result[1].event.uuid)
+        self.assertEqual(event3.event_id, result[1].event.event_id)
         self.assertEqual(event3.data, result[1].event.data)
         self.assertEqual(event3.metadata, result[1].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
@@ -341,16 +341,16 @@ class DcbRecorderTestCase(TestCase):
         )
         result = list(read_response)
         self.assertEqual(2, len(result))
-        self.assertEqual(event2.uuid, result[0].event.uuid)
+        self.assertEqual(event2.event_id, result[0].event.event_id)
         self.assertEqual(event2.data, result[0].event.data)
         self.assertEqual(event2.metadata, result[0].event.metadata)
-        self.assertEqual(event3.uuid, result[1].event.uuid)
+        self.assertEqual(event3.event_id, result[1].event.event_id)
         self.assertEqual(event3.data, result[1].event.data)
         self.assertEqual(event3.metadata, result[1].event.metadata)
         self.assertEqual(3 + initial_position, read_response.head)
 
         # Append must fail if recorded events match condition.
-        event4 = DcbEvent(type="type4", data=b"data4", uuid=uuid4(), metadata={})
+        event4 = DcbEvent(type="type4", data=b"data4", event_id=uuid4(), metadata={})
 
         # Fail because condition matches all.
         new = [event4]
@@ -437,7 +437,7 @@ class DcbRecorderTestCase(TestCase):
             type="StudentRegistered",
             data=json.dumps({"name": "Student1", "max_courses": 10}).encode(),
             tags=[student_id],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={},
         )
         course_id = f"course1-{uuid4()}"
@@ -445,7 +445,7 @@ class DcbRecorderTestCase(TestCase):
             type="CourseRegistered",
             data=json.dumps({"name": "Course1", "places": 10}).encode(),
             tags=[course_id],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={},
         )
         student_joined_course = DcbEvent(
@@ -454,7 +454,7 @@ class DcbRecorderTestCase(TestCase):
                 {"student_id": student_id, "course_id": course_id}
             ).encode(),
             tags=[course_id, student_id],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={},
         )
 
@@ -649,7 +649,7 @@ class DcbRecorderTestCase(TestCase):
             type="type1",
             data=b"data1",
             tags=["tagX"],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={"correlation_id": str(uuid4())},
         )
         position1 = recorder.append(events=[event1])
@@ -659,7 +659,7 @@ class DcbRecorderTestCase(TestCase):
         with recorder.subscribe(after=initial_position) as subscription:
             sequenced1 = next(subscription)
             self.assertEqual(position1, sequenced1.position)
-            self.assertEqual(event1.uuid, sequenced1.event.uuid)
+            self.assertEqual(event1.event_id, sequenced1.event.event_id)
             self.assertEqual(event1.metadata, sequenced1.event.metadata)
 
             thread = EnsureSubscriptionBlockAndReceive(subscription)
@@ -671,7 +671,7 @@ class DcbRecorderTestCase(TestCase):
                 type="type1",
                 data=b"data1",
                 tags=["tagX"],
-                uuid=uuid4(),
+                event_id=uuid4(),
                 metadata={},
             )
             position2 = recorder.append(events=[event2])

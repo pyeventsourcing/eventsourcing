@@ -79,11 +79,11 @@ class TestDcbObjects(TestCase):
     def test_event(self) -> None:
         # Must contain "type" and "data".
         uuid = uuid4()
-        event = DcbEvent(type="EventType1", data=b"data", uuid=uuid, metadata={})
+        event = DcbEvent(type="EventType1", data=b"data", event_id=uuid, metadata={})
         self.assertEqual("EventType1", event.type)
         self.assertEqual(b"data", event.data)
         self.assertEqual([], event.tags)
-        self.assertEqual(uuid, event.uuid)
+        self.assertEqual(uuid, event.event_id)
         self.assertEqual({}, event.metadata)
 
         # May contain tags.
@@ -91,7 +91,7 @@ class TestDcbObjects(TestCase):
             type="EventType1",
             data=b"data",
             tags=["tag1", "tag2"],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={},
         )
         self.assertEqual("EventType1", event.type)
@@ -100,7 +100,9 @@ class TestDcbObjects(TestCase):
 
     def test_sequenced_event(self) -> None:
         sequenced_event = DcbSequencedEvent(
-            event=DcbEvent(type="EventType1", data=b"data", uuid=uuid4(), metadata={}),
+            event=DcbEvent(
+                type="EventType1", data=b"data", event_id=uuid4(), metadata={}
+            ),
             position=3,
         )
         self.assertEqual("EventType1", sequenced_event.event.type)
@@ -322,7 +324,7 @@ class ConcurrentAppendTestCase(TestCase):
                 type="CommitOrderTest",
                 data=b"",
                 tags=[tag],
-                uuid=uuid4(),
+                event_id=uuid4(),
                 metadata={},
             )
             for _ in range(self.insert_num)
@@ -570,7 +572,7 @@ def generate_events(num_events: int) -> list[DcbEvent]:
             type=f"topic{i}",
             data=b"state{i}",
             tags=[str(uuid4())],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={},
         )
         for i in range(num_events)

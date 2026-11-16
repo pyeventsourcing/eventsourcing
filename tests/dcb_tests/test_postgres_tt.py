@@ -36,7 +36,7 @@ class TestPostgresDcbRecorderTT(DcbRecorderTestCase, WithPostgres):
 
         # Also check subscription loop when select_limit is reached in pull loop.
         event = DcbEvent(
-            type="type1", data=b"data1", tags=["tagX"], uuid=uuid4(), metadata={}
+            type="type1", data=b"data1", tags=["tagX"], event_id=uuid4(), metadata={}
         )
         initial_position = self.recorder.append([event])
         with self.recorder.subscribe(after=initial_position) as subscription:
@@ -82,7 +82,7 @@ class TestPostgresDcbRecorderTT(DcbRecorderTestCase, WithPostgres):
                         type="t1",
                         data=b"",
                         tags=["t2", "t3"],
-                        uuid=uuid4(),
+                        event_id=uuid4(),
                         metadata={},
                     )
                 ],

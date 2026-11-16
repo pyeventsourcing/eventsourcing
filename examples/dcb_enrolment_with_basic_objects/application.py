@@ -27,7 +27,7 @@ class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
             type="StudentRegistered",
             data=json.dumps({"name": name, "max_courses": max_courses}).encode(),
             tags=[student_id],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={},
         )
         position = self.recorder.append(
@@ -45,7 +45,7 @@ class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
             type="CourseRegistered",
             data=json.dumps({"name": name, "places": places}).encode(),
             tags=[course_id],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={},
         )
         consistency_boundary = DcbQuery(
@@ -117,7 +117,7 @@ class EnrolmentWithBasicDcbObjects(BasicDcbApplication, EnrolmentInterface):
             type="StudentJoinedCourse",
             data=b"",
             tags=[student_id, course_id],
-            uuid=uuid4(),
+            event_id=uuid4(),
             metadata={},
         )
 

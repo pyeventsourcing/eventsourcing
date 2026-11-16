@@ -483,7 +483,7 @@ class PostgresDcbRecorderTT(DcbRecorder, PostgresRecorder):
                     type=row["type"],
                     data=row["data"],
                     tags=row["tags"],
-                    uuid=row["uuid"] or NIL_UUID,
+                    event_id=row["uuid"] or NIL_UUID,
                     metadata=row["metadata"] or {},
                 ),
                 position=row["id"],
@@ -596,7 +596,7 @@ class PostgresDcbRecorderTT(DcbRecorder, PostgresRecorder):
                 type=e.type,
                 data=e.data,
                 tags=e.tags,
-                uuid=e.uuid,
+                uuid=e.event_id,
                 metadata=Jsonb(e.metadata),
             )
             for e in dcb_events
