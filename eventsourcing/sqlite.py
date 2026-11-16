@@ -290,6 +290,10 @@ class SQLiteRecorder(Recorder):
             else originator_id
         )
 
+    @staticmethod
+    def convert_event_id(event_id: str) -> UUID:
+        return UUID(event_id) if event_id else NIL_UUID
+
 
 class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
     def __init__(
@@ -395,7 +399,7 @@ class SQLiteAggregateRecorder(SQLiteRecorder, AggregateRecorder):
                     topic=row["topic"],
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
-                    uuid=row["event_id"] or NIL_UUID,
+                    uuid=self.convert_event_id(row["event_id"]),
                 ) for row in c.fetchall()
             ]
 
@@ -515,7 +519,7 @@ class SQLiteApplicationRecorder(
                     topic=row["topic"],
                     state=row["state"],
                     metadata=json.loads((row["metadata"] or b"{}").decode("utf-8")),
-                    uuid=row["event_id"] or NIL_UUID,
+                    uuid=self.convert_event_id(row["event_id"]),
                 ) for row in c.fetchall()
             ]
 

@@ -70,6 +70,7 @@ class RecorderTestCase(TestCase, ABC):
         self.assertEqual(event1.topic, event2.topic)
         self.assertEqual(event1.state, event2.state)
         self.assertEqual(event1.metadata, event2.metadata)
+        self.assertEqual(event1.uuid, event2.uuid)
 
 
 class AggregateRecorderTestCase(RecorderTestCase, ABC):
@@ -290,6 +291,8 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
         # Check we got what was written.
         self.assertEqual(len(stored_events1), 2)
         self.assertEqual(len(stored_events2), 1)
+        self.assert_events_eq(stored_events1, [stored_event1, stored_event2])
+        self.assert_events_eq(stored_events2, [stored_event3])
 
         if self.recorder_supports_idempotent_appends:
             # Check get record conflict doesn't error if attempt to store it again.
