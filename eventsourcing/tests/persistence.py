@@ -49,6 +49,7 @@ if TYPE_CHECKING:
 
 
 class RecorderTestCase(TestCase, ABC):
+    recorder_supports_idempotent_appends: ClassVar[bool] = False
     INITIAL_VERSION = 1
 
     def new_originator_id(self) -> str:
@@ -72,7 +73,6 @@ class RecorderTestCase(TestCase, ABC):
 
 
 class AggregateRecorderTestCase(RecorderTestCase, ABC):
-    recorder_supports_idempotent_appends: ClassVar[bool] = False
 
     @abstractmethod
     def create_recorder(self) -> AggregateRecorder:
