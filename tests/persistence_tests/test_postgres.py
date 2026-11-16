@@ -3,7 +3,7 @@ from __future__ import annotations
 from concurrent.futures.thread import ThreadPoolExecutor
 from threading import Event, Thread
 from time import sleep
-from typing import TYPE_CHECKING, Literal, cast, override
+from typing import TYPE_CHECKING, Literal, override
 from unittest import TestCase
 from unittest.mock import Mock
 from uuid import uuid4
@@ -458,17 +458,6 @@ class WithSchema(SetupPostgresDatastore):
         self.assertEqual(self.datastore.schema, self.schema)
 
 
-class WithUuidOriginatorID(SetupPostgresDatastore):
-    originator_id_type = "uuid"
-
-    def new_originator_id(self) -> str:
-        # TODO: Maybe come back to supporting `str | UUID` in StoredEvent.
-        return cast(str, uuid4())
-
-    def test_datastore_has_originator_id_type(self) -> None:
-        self.assertEqual(self.datastore.originator_id_type, self.originator_id_type)
-
-
 class WithDbFunctions(SetupPostgresDatastore):
     enable_db_functions = True
 
@@ -570,20 +559,8 @@ class TestPostgresAggregateRecorderWithSchema(
     pass
 
 
-class TestPostgresAggregateRecorderWithUuidOriginatorID(
-    WithUuidOriginatorID, TestPostgresAggregateRecorder
-):
-    pass
-
-
 class TestPostgresAggregateRecorderWithDbFunctions(
     WithDbFunctions, TestPostgresAggregateRecorder
-):
-    pass
-
-
-class TestPostgresAggregateRecorderWithDbFunctionsAndUuidOriginatorID(
-    WithUuidOriginatorID, TestPostgresAggregateRecorderWithDbFunctions
 ):
     pass
 
@@ -1069,24 +1046,10 @@ class TestPostgresApplicationRecorderWithSchema(
     pass
 
 
-class TestPostgresApplicationRecorderWithUuidOriginatorID(
-    WithUuidOriginatorID, TestPostgresApplicationRecorder
-):
-    pass
-
-
 class TestPostgresApplicationRecorderWithDbFunctions(
     WithDbFunctions, TestPostgresApplicationRecorder
 ):
     pass
-
-
-class TestPostgresApplicationRecorderWithDbFunctionsAndUuidOriginatorID(
-    WithUuidOriginatorID, TestPostgresApplicationRecorderWithDbFunctions
-):
-    @override
-    def test_performance(self) -> None:
-        super().test_performance()
 
 
 class TestPostgresApplicationRecorderErrors(SetupPostgresDatastore, TestCase):
