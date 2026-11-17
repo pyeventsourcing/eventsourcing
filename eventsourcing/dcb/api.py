@@ -150,4 +150,4 @@ class DcbSubscription[TDcbRecorder: DcbRecorder](Iterator[DcbSequencedEvent]):
     @abstractmethod
     @override
     def __next__(self) -> DcbSequencedEvent:
-        """Returns the next DcbEvent in the sequence."""
+        """Returns the next sequenced event in the sequence."""

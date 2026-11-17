@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import sys
 from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from types import NoneType
+from types import FrameType, NoneType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -309,7 +310,22 @@ class Group[
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         # 1. Get all the type hints from the __init__ method
-        hints = get_type_hints(cls.__init__)
+        try:
+            hints = get_type_hints(cls.__init__)
+        except NameError:
+            # Collect locals from enclosing scopes in the defining module
+            # (handles classes defined inside functions/test methods when
+            # `from __future__ import annotations` is active)
+            localns: dict[str, Any] = {}
+            matching_frames = []
+            frame: FrameType | None = sys._getframe(1)  # noqa: SLF001
+            while frame is not None:
+                if frame.f_globals.get("__name__") == cls.__module__:
+                    matching_frames.append(frame)
+                frame = frame.f_back
+            for f in reversed(matching_frames):
+                localns.update(f.f_locals)
+            hints = get_type_hints(cls.__init__, localns=localns)
 
         extracted_classes: list[type[EnduringObject[Any]]] = []
 
