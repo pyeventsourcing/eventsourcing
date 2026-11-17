@@ -419,6 +419,15 @@ class ApplicationRecorderTestCase[TApplicationRecorder: ApplicationRecorder](
         self.assertEqual(len(notifications), 1, len(notifications))
         self.assertEqual(notifications[0].id, start + 2)
 
+        # Stop without start.
+        # - prepare by identifying a position to stop
+        preparation = recorder.select_notifications(start=None, limit=3)
+        self.assertEqual(len(preparation), 3)
+        stop = preparation[1].id
+        notifications = recorder.select_notifications(start=None, stop=stop, limit=3)
+        self.assertEqual(len(notifications), 2)
+        self.assertEqual(notifications[1].id, stop)
+
     def test_performance(self) -> None:
         # Construct the recorder.
         recorder = self.create_recorder()
