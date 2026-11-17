@@ -18,11 +18,12 @@ version = "0.8.0"
 description = "Reusable constraint types to use with typing.Annotated"
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "dev", "docs"]
+groups = ["main", "docs"]
 files = [
     {file = "annotated_types-0.8.0-py3-none-any.whl", hash = "sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0"},
     {file = "annotated_types-0.8.0.tar.gz", hash = "sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7"},
 ]
+markers = {main = "extra == \"pydantic\""}
 
 [[package]]
 name = "ast-serialize"
@@ -766,22 +767,21 @@ files = [
 
 [[package]]
 name = "eventsourcing-umadb"
-version = "0.4.5"
+version = "0.5.0a1"
 description = "Python package for eventsourcing with UmaDB"
-optional = false
+optional = true
 python-versions = ">=3.12"
-groups = ["main", "dev"]
-files = []
-develop = true
+groups = ["main"]
+markers = "extra == \"umadb\""
+files = [
+    {file = "eventsourcing_umadb-0.5.0a1-py3-none-any.whl", hash = "sha256:103d3553c5ffb0a939ccb201aa3f9284138f12fa6487acf670d4ce5d735bc7f7"},
+    {file = "eventsourcing_umadb-0.5.0a1.tar.gz", hash = "sha256:48bfa6d4074f6aab8e32a720ba417fa5907f53df88f2dcc387eaa9a6ffb86db8"},
+]
 
 [package.dependencies]
-eventsourcing = ">=10.0.0a9"
+eventsourcing = ">=10.0.0a10"
 pyrefly = ">=0.60.0"
 umadb = ">=0.7.10"
-
-[package.source]
-type = "directory"
-url = "../eventsourcing-umadb"
 
 [[package]]
 name = "idna"
@@ -1191,9 +1191,10 @@ files = [
 name = "msgspec"
 version = "0.22.0"
 description = "A fast serialization and validation library, with builtin support for JSON, MessagePack, YAML, and TOML."
-optional = false
+optional = true
 python-versions = ">=3.10"
-groups = ["main", "dev"]
+groups = ["main"]
+markers = "extra == \"msgspec\""
 files = [
     {file = "msgspec-0.22.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:f3413e3647275f787b21b4dfb4836a59a1a5acf1018ab1d45843b1d7edf15c22"},
     {file = "msgspec-0.22.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:38c5b9bd347bc9abbcee40752be3c5117854e891ea7a1881a56d4b3dec58c5e7"},
@@ -1640,11 +1641,12 @@ version = "2.14.3"
 description = "Data validation using Python type hints"
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "dev", "docs"]
+groups = ["main", "docs"]
 files = [
     {file = "pydantic-2.14.3-py3-none-any.whl", hash = "sha256:3f7b347782ab7e4cf4c798496ae3a82787d9f21ec12676a9c564355eeef8daa8"},
     {file = "pydantic-2.14.3.tar.gz", hash = "sha256:1054f237f4d4733e5a30e1e2333bd33a2004ab9ab1510bd053a9a31bb48e232d"},
 ]
+markers = {main = "extra == \"pydantic\""}
 
 [package.dependencies]
 annotated-types = ">=0.6.0"
@@ -1662,7 +1664,7 @@ version = "2.50.4"
 description = "Core functionality for Pydantic validation and serialization"
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "dev", "docs"]
+groups = ["main", "docs"]
 files = [
     {file = "pydantic_core-2.50.4-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:83d2beac85b757bfc404c5c0612df51c4ef33bbb7be65cf4a96b4da7cbc4ff4f"},
     {file = "pydantic_core-2.50.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:76e0065998159244ff4c097a6c05ff08019c6fbb6e597a85846e73044f0215b3"},
@@ -1805,6 +1807,7 @@ files = [
     {file = "pydantic_core-2.50.4-pp311-pypy311_pp80-win_amd64.whl", hash = "sha256:3e0b395648c6cb871bceb2906907f255dc876ec425f2d5b024e129985cea8519"},
     {file = "pydantic_core-2.50.4.tar.gz", hash = "sha256:aead3b74b68396bf0feab5d57e050b730ded7df55853c1e048a87e00aaf033c6"},
 ]
+markers = {main = "extra == \"pydantic\""}
 
 [package.dependencies]
 typing-extensions = ">=4.16.0"
@@ -2364,11 +2367,12 @@ version = "0.4.5"
 description = "Runtime typing introspection tools"
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "dev", "docs"]
+groups = ["main", "docs"]
 files = [
     {file = "typing_inspection-0.4.5-py3-none-any.whl", hash = "sha256:bc210535442b39e1bf2805e0c7a17dfd6a4ace760c84c7f7d16245d23a6b1c39"},
     {file = "typing_inspection-0.4.5.tar.gz", hash = "sha256:7f16c411e7930dc79596d42ab44672a3fe5f60eb34b781a1647e7872363120c7"},
 ]
+markers = {main = "extra == \"pydantic\""}
 
 [package.dependencies]
 typing-extensions = ">=4.15.0"
@@ -2390,9 +2394,10 @@ files = [
 name = "umadb"
 version = "0.7.10"
 description = "Python client for UmaDB event store"
-optional = false
+optional = true
 python-versions = ">=3.11"
-groups = ["main", "dev"]
+groups = ["main"]
+markers = "extra == \"umadb\""
 files = [
     {file = "umadb-0.7.10-cp311-abi3-macosx_10_12_x86_64.whl", hash = "sha256:59489467fd30331cbc0697d7891ba2ba07fb635c8462de778ae4bf1f6c33e711"},
     {file = "umadb-0.7.10-cp311-abi3-macosx_11_0_arm64.whl", hash = "sha256:c02ce4d0c15e1e4dc0ad1566b21f6fad7bcd2d9d5056bdbd50ccfbffed59fe8b"},
@@ -2452,4 +2457,4 @@ umadb = ["eventsourcing-umadb"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12.0"
-content-hash = "a1ec4c9b068eeee41f4b46cc949b2af3fdac978531f476db911103c7b8e5e011"
+content-hash = "13e3048a60a53f9076c69d5bc400e4076450a558125a5c1832f65e2233713904"
