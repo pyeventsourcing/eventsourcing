@@ -47,27 +47,15 @@ envs = {
 param_arg_names = "env,num_events"
 param_arg_values = [
     ("popo", 1),
-    # # ("popo", 10),
-    # ("popo", 100),
     ("sqlite", 1),
-    # # ("sqlite", 10),
-    # ("sqlite", 100),
     ("postgres", 1),
-    # # ("postgres", 10),
-    # ("postgres", 100),
-    ("postgres-text", 1),
-    # # ("postgres", 10),
     ("postgres-functions", 1),
-    # # ("postgres", 10),
-    # ("postgres-functions", 100),
-    # # ("postgres", 10),
 ]
 
 rounds = {
     "popo": 5000,
     "sqlite": 3000,
     "postgres": 1000,
-    "postgres-text": 1000,
     "postgres-functions": 1000,
 }
 
