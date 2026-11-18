@@ -144,19 +144,19 @@ class _RetryDecorator(Protocol):
     def __call__[**P, T](self, func: Callable[P, T]) -> Callable[P, T]: ...
 
 
-# Overload 1: Parameterized decorator usage -> @retry(max_attempts=3)
 @overload
 def retry(  # type: ignore[overload-overlap]
     exc: type[Exception] | tuple[type[Exception], ...] = Exception,
     max_attempts: int | None = 1,
     wait: float = 0.0,
     stall: float = 0.0,
-) -> _RetryDecorator: ...
+) -> _RetryDecorator:
+    """Overload 1: Parameterized decorator usage -> @retry(max_attempts=3)"""
 
 
-# Overload 2: Bare decorator usage -> @retry
 @overload
-def retry[**P, T](exc: Callable[P, T]) -> Callable[P, T]: ...
+def retry[**P, T](exc: Callable[P, T]) -> Callable[P, T]:
+    """Overload 2: Bare decorator usage -> @retry"""
 
 
 # Implementation
