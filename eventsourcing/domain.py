@@ -11,7 +11,6 @@ from typing import (
     ClassVar,
     Self,
     cast,
-    final,
     get_args,
     get_type_hints,
     override,
@@ -395,14 +394,13 @@ class BaseSlice[TDecision](
 class CommandSlice[TDecision](BaseSlice[TDecision], ABC):
     @abstractmethod
     def execute(self) -> None:
-        pass
+        """
+        Triggers new events.
+        """
 
 
 class QuerySlice[TDecision](BaseSlice[TDecision]):
-    @final
-    def execute(self) -> None:
-        msg = "A query slice doesn't need to be executed"
-        raise ProgrammingError(msg)
+    pass
 
 
 class Aggregate[
