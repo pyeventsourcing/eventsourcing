@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import sys
+import inspect
 from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -318,7 +318,7 @@ class Group[
             # `from __future__ import annotations` is active)
             localns: dict[str, Any] = {}
             matching_frames = []
-            frame: FrameType | None = sys._getframe(1)  # noqa: SLF001
+            frame: FrameType | None = inspect.currentframe()
             while frame is not None:
                 if frame.f_globals.get("__name__") == cls.__module__:
                     matching_frames.append(frame)
