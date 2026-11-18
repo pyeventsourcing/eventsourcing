@@ -1,7 +1,7 @@
 from typing import override
 from unittest import TestCase
 
-from eventsourcing.dataclasses import CommandSlice, Decision, Selector
+from eventsourcing.dataclasses import CommandSlice, Decision, QuerySlice, Selector
 from eventsourcing.dcb.gwt import given, when
 from eventsourcing.decorator import triggers
 from eventsourcing.domain import TaggedEvent
@@ -156,7 +156,7 @@ class TestGivenWhenThen(TestCase):
         event = TaggedEvent(decision=MyDecision(), tags=["any"])
         given(event).when(MySlice()).then()
 
-    def test_slice_projection(self) -> None:
+    def test_slice_projection_command(self) -> None:
         class MyDecision(Decision):
             obj_id: str
             value: int
@@ -187,6 +187,33 @@ class TestGivenWhenThen(TestCase):
         when = given(event1, event2).when(MySlice(obj_id=obj_id))
 
         when.then(TaggedEvent(decision=MyDecision(obj_id=obj_id, value=100), tags=[]))
+
+    def test_slice_projection_query(self) -> None:
+        class MyDecision(Decision):
+            obj_id: str
+            value: int
+
+        class MySlice(QuerySlice):
+            def __init__(self, obj_id: str):
+                self.obj_id = obj_id
+                self.total = 0
+
+            @override
+            def consistency_boundary(self) -> Selector:
+                return Selector(types=[MyDecision], tags=[self.obj_id])
+
+            @triggers(MyDecision)
+            def apply_decision(self, value: int) -> None:
+                self.total += value
+
+        obj_id = "123"
+        event1 = TaggedEvent(decision=MyDecision(obj_id=obj_id, value=5), tags=[obj_id])
+        event2 = TaggedEvent(decision=MyDecision(obj_id=obj_id, value=6), tags=[obj_id])
+
+        # total = 5 + 6 = 11 > 10, so it should trigger another event
+        my_slice = MySlice(obj_id=obj_id)
+        given(event1, event2).when(my_slice).then()
+        self.assertEqual(11, my_slice.total)
 
     def test_then_assertion_failures(self) -> None:
         class MyDecision(Decision):
