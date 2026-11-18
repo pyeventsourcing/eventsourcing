@@ -1169,6 +1169,7 @@ and provides a connection pool.
         port = "5432",
         user = "eventsourcing",
         password = "eventsourcing",
+        pool_size = 3,
     )
 
 The :class:`~eventsourcing.postgres.PostgresAggregateRecorder` class implements
@@ -1210,6 +1211,7 @@ by extending :class:`~eventsourcing.postgres.PostgresAggregateRecorder`.
         port = "5432",
         user = "eventsourcing",
         password = "eventsourcing",
+        pool_size = 3,
     )
     drop_tables()
 

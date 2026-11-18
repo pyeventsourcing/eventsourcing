@@ -1503,8 +1503,20 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
         self._notifications_queue: Queue[Sequence[Notification]] = Queue(maxsize=10)
         self._has_been_notified = Event()
         self._thread_error: BaseException | None = None
+        self._listen()
         self._pull_thread = Thread(target=self._loop_on_pull)
         self._pull_thread.start()
+
+    def _listen(self) -> None:
+        """Hook for subclasses to subscribe to notifications before polling starts."""
+
+    def _maybe_set_thread_error(self, e: BaseException) -> None:
+        if self._thread_error is None:
+            self._thread_error = e
+
+    def _maybe_raise_thread_error(self) -> None:
+        if self._thread_error is not None:
+            raise self._thread_error
 
     def __exit__(self, *args: object, **kwargs: Any) -> None:
         try:
@@ -1536,9 +1548,7 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
 
         # Stop the iteration if subscription has been stopped.
         if self._has_been_stopped:
-            # Maybe raise thread error.
-            if self._thread_error is not None:
-                raise self._thread_error
+            self._maybe_raise_thread_error()
             raise StopIteration
 
         # Return a notification from previously obtained list.
@@ -1553,8 +1563,7 @@ class ListenNotifySubscription(Subscription[TApplicationRecorder_co]):
                 self._has_been_notified.wait()
                 self._pull()  # Newly recorded events.
         except BaseException as e:
-            if self._thread_error is None:
-                self._thread_error = e
+            self._maybe_set_thread_error(e)
             self.stop()
 
     def _pull(self) -> None:
