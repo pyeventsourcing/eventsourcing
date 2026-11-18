@@ -987,8 +987,9 @@ class ConnectionPool[TConnection: Connection[Any]](ABC):
                 # Got unused connection from pool, so lock for use.
                 conn.in_use.acquire()
 
-                # Check the connection wasn't closed by the timer.
-                if conn.closed:
+                # Check the connection wasn't closed or expired by the timer.
+                if conn.closed or conn.closing:
+                    conn.in_use.release()
                     return self._get_connection(
                         timeout=self._time_remaining(timeout, started)
                     )

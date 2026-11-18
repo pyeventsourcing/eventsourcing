@@ -143,6 +143,10 @@ class TestSQLiteConnectionPoolWithFileDB(SQLiteConnectionPoolTestCase):
     def test_reader_writer(self) -> None:
         super()._test_reader_writer_without_mutually_exclusive_read_write()
 
+    @override
+    def test_max_age(self) -> None:
+        super().test_max_age()
+
 
 class TestSqliteDatastore(TestCase):
     @override
