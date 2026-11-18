@@ -4,7 +4,7 @@ import contextlib
 import logging
 from asyncio import CancelledError
 from contextlib import contextmanager
-from threading import Thread
+from threading import Event, Thread
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple, cast, override
 
 import psycopg
@@ -876,9 +876,9 @@ class PostgresApplicationRecorderSubscription(
         topics: Sequence[str] = (),
     ) -> None:
         assert isinstance(recorder, PostgresApplicationRecorder)
+        self._is_listening = Event()
+        self._listen_thread = Thread(target=self._listen_to_db)
         super().__init__(recorder=recorder, gt=gt, topics=topics)
-        self._listen_thread = Thread(target=self._listen)
-        self._listen_thread.start()
 
     @override
     def __exit__(self, *args: object, **kwargs: Any) -> None:
@@ -887,24 +887,45 @@ class PostgresApplicationRecorderSubscription(
         finally:
             self._listen_thread.join()
 
+    @override
     def _listen(self) -> None:
+        self._listen_thread.start()
+        self._is_listening.wait()
+        try:
+            self._maybe_raise_thread_error()
+        except Exception:
+            self._listen_thread.join()
+            raise
+
+    def _listen_to_db(self) -> None:
         try:
             with self._recorder.datastore.get_connection() as conn:
                 conn.execute(
                     SQL("LISTEN {0}").format(Identifier(self._recorder.channel_name))
                 )
-                while not self._has_been_stopped and not self._thread_error:
-                    # Wait for at most 0.1s so that the loop condition is
-                    # checked regularly, and the thread can stop even when
-                    # no notify messages are received. We aren't interested
-                    # in the actual notify messages, just that one arrived.
-                    for _ in conn.notifies(timeout=0.1, stop_after=1):
-                        self._has_been_notified.set()
+                self._is_listening.set()
+                try:
+                    while not self._has_been_stopped and not self._thread_error:
+                        # Wait for at most 0.1s so that the loop condition is
+                        # checked regularly, and the thread can stop even when
+                        # no notify messages are received. We aren't interested
+                        # in the actual notify messages, just that one arrived.
+                        for _ in conn.notifies(timeout=0.1, stop_after=1):
+                            self._has_been_notified.set()
+                finally:
+                    if not conn.closed:
+                        with contextlib.suppress(Exception):
+                            conn.execute(
+                                SQL("UNLISTEN {0}").format(
+                                    Identifier(self._recorder.channel_name)
+                                )
+                            )
 
         except BaseException as e:
-            if self._thread_error is None:
-                self._thread_error = e
+            self._maybe_set_thread_error(e)
             self.stop()
+        finally:
+            self._is_listening.set()
 
 
 class PostgresTrackingRecorder(PostgresRecorder, TrackingRecorder):

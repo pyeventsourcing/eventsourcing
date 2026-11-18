@@ -172,14 +172,17 @@ class POPOApplicationRecorder(POPOAggregateRecorder, ApplicationRecorder):
         return POPOApplicationRecorderSubscription(recorder=self, gt=gt, topics=topics)
 
     def listen(self, event: Event) -> None:
-        self._listeners.add(event)
+        with self._database_lock:
+            self._listeners.add(event)
 
     def unlisten(self, event: Event) -> None:
-        with contextlib.suppress(KeyError):
+        with self._database_lock, contextlib.suppress(KeyError):
             self._listeners.remove(event)
 
     def _notify_listeners(self) -> None:
-        for listener in self._listeners:
+        with self._database_lock:
+            listeners = list(self._listeners)
+        for listener in listeners:
             listener.set()
 
 
@@ -194,6 +197,9 @@ class POPOApplicationRecorderSubscription(
     ) -> None:
         assert isinstance(recorder, POPOApplicationRecorder)
         super().__init__(recorder=recorder, gt=gt, topics=topics)
+
+    @override
+    def _listen(self) -> None:
         self._recorder.listen(self._has_been_notified)
 
     @override
