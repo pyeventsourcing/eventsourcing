@@ -21,7 +21,7 @@ from eventsourcing.persistence import (
     StreamEventMapper,
     Tracking,
 )
-from eventsourcing.projection import EventSourcedEventProcessor
+from eventsourcing.projection import AggregatesApplicationPolicy
 from eventsourcing.types import (
     EventCollectorProtocol,
     EventEnvelopeProtocol,
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 type ProcessingJob[TEnvelope: EventEnvelopeProtocol[Any]] = tuple[TEnvelope, Tracking]
 
 
-class Follower[TDecision](EventSourcedEventProcessor[TDecision]):
+class Follower[TDecision](AggregatesApplicationPolicy[TDecision, TDecision]):
     """Extends the :class:`~eventsourcing.projection.EventSourcedProjection` class
     by pulling notification objects from its notification log readers, by converting
     the notification objects to domain events and tracking objects and by processing

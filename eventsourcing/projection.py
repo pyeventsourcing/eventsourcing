@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class AbstractEventProcessor[TEvent](ABC):
+class AbstractPolicy[TEvent](ABC):
     topics: Sequence[str] = ()
     """
     Event topics, used to filter events in database when subscribing to an application.
@@ -42,34 +42,34 @@ class AbstractEventProcessor[TEvent](ABC):
         """Process a domain event and track it."""
 
 
-class EventProcessor[TEvent, TTrackingRecorder](AbstractEventProcessor[TEvent], ABC):
-    # TODO: Maybe rename this.
+class ReadModelPolicy[TEvent, TReadModel](AbstractPolicy[TEvent], ABC):
     name: str = ""
     """
-    Name of projection, used to pick prefixed environment
+    Name of policy, used to pick prefixed environment
     variables and define database table names.
     """
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
         if "name" not in cls.__dict__:
             cls.name = cls.__name__
 
     def __init__(
         self,
-        view: TTrackingRecorder,
+        read_model: TReadModel,
     ):
-        """Initialises the view property with the given view argument."""
-        self._view = view
+        """Initialises the read_model property."""
+        self._read_model = read_model
 
     @property
-    def view(self) -> TTrackingRecorder:
+    def read_model(self) -> TReadModel:
         """Materialised view of an event-sourced application."""
-        return self._view
+        return self._read_model
 
 
-class EventSourcedEventProcessor[TDecision](
-    AggregatesApplication[ProcessRecorder, TDecision],
-    AbstractEventProcessor[StreamEvent[TDecision]],
+class AggregatesApplicationPolicy[TUpstreamDecision, TDownstreamDecision](
+    AggregatesApplication[ProcessRecorder, TDownstreamDecision],
+    AbstractPolicy[StreamEvent[TUpstreamDecision]],
 ):
     """Extends the :py:class:`~eventsourcing.application.AggregatesApplication` class
     by using a process recorder as its application recorder, and by
@@ -89,9 +89,10 @@ class EventSourcedEventProcessor[TDecision](
 
     @override
     def process_event(
-        self, envelope: StreamEvent[TDecision], tracking: Tracking
+        self, envelope: StreamEvent[TUpstreamDecision], tracking: Tracking
     ) -> None:
-        """Calls :func:`~eventsourcing.system.EventSourcedProjection.policy`
+        """
+        Calls :func:`~eventsourcing.projection.AggregatesApplicationPolicy.policy`
         method with the given domain event and a new
         :class:`~eventsourcing.application.ProcessingEvent`
         constructed with the given tracking object.
@@ -105,24 +106,25 @@ class EventSourcedEventProcessor[TDecision](
         which then returns list of :py:class:`~eventsourcing.persistence.Recording`.
 
         After calling :func:`~eventsourcing.application.Application._take_snapshots`,
-        the recordings are passed in a call to
+        the notification_id is passed in a call to
         :py:func:`~eventsourcing.application.Application._notify`.
         """
-        processing_event = ProcessingEvent[TDecision](tracking=tracking)
+        processing_event = ProcessingEvent[TDownstreamDecision](tracking=tracking)
         metadata = {}
         with contextlib.suppress(KeyError):
             metadata["correlation_id"] = envelope.metadata["correlation_id"]
             metadata["causation_id"] = str(envelope.event_id)
         with put_metadata_in_context(metadata):
             self.policy(envelope, processing_event)
-        recordings = self._record(processing_event)
+        notification_id = self._record(processing_event)
         self._take_snapshots(processing_event)
-        self._notify(recordings)
+        self._notify(notification_id)
 
+    @abstractmethod
     def policy(
         self,
-        envelope: StreamEvent[TDecision],
-        processing_event: ProcessingEvent[TDecision],
+        envelope: StreamEvent[TUpstreamDecision],
+        processing_event: ProcessingEvent[TDownstreamDecision],
     ) -> None:
         """Abstract domain event processing policy method. Must be
         implemented by event processing applications. When
@@ -136,50 +138,59 @@ class EventSourcedEventProcessor[TDecision](
         """
 
 
-class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, Any]](
+class EventConsumer[TApplication: SupportsApplicationSubscriptions[Any, Any]](
     ClosingContextManager
 ):
     def __init__(
         self,
         *,
-        upstream_app: TApplication,
-        event_processor: AbstractEventProcessor[Any],
+        upstream: TApplication,
+        policy: AbstractPolicy[Any],
         tracking_recorder: TrackingRecorder,
         topics: Sequence[str],
     ) -> None:
-        self.upstream_app = upstream_app
+        self.upstream = upstream
         self._is_interrupted = threading.Event()
         self._has_called_stop = False
         self._tracking_recorder = tracking_recorder
 
-        # Subscribe to the application.
-        self._subscription = upstream_app.application_subscription(
-            gt=tracking_recorder.max_tracking_id(upstream_app.context_name),
-            topics=topics,
-        )
+        # Subscribe to the upstream application.
+        try:
+            self._subscription = upstream.application_subscription(
+                gt=tracking_recorder.max_tracking_id(upstream.context_name),
+                topics=topics,
+            )
 
-        # Start a thread to stop the subscription when the runner is interrupted.
-        self._thread_error: BaseException | None = None
-        self._stop_thread = threading.Thread(
-            target=self._stop_subscription_when_stopping,
-            kwargs={
-                "subscription": self._subscription,
-                "is_stopping": self._is_interrupted,
-            },
-        )
-        self._stop_thread.start()
+            # Start a thread to stop the subscription when the runner is interrupted.
+            self.thread_error: BaseException | None = None
+            self._stop_thread = threading.Thread(
+                target=self._stop_subscription_when_stopping,
+                kwargs={
+                    "subscription": self._subscription,
+                    "is_stopping": self._is_interrupted,
+                },
+            )
+            self._stop_thread.start()
 
-        # Start a thread to iterate over the subscription.
-        self._processing_thread = threading.Thread(
-            target=self._process_events_loop,
-            kwargs={
-                "subscription": self._subscription,
-                "event_processor": event_processor,
-                "is_stopping": self._is_interrupted,
-                "runner": weakref.ref(self),
-            },
-        )
-        self._processing_thread.start()
+            # Start a thread to iterate over the subscription.
+            self._consumer_thread = threading.Thread(
+                target=self._consumer_loop,
+                kwargs={
+                    "subscription": self._subscription,
+                    "policy": policy,
+                    "is_stopping": self._is_interrupted,
+                    "consumer": weakref.ref(self),
+                },
+            )
+            self._consumer_thread.start()
+        except BaseException:
+            self.stop()
+            if hasattr(self, "_stop_thread") and self._stop_thread.is_alive():
+                self._stop_thread.join()
+            elif hasattr(self, "_subscription"):
+                self._subscription.stop()
+            self.upstream.close()
+            raise
 
     @property
     def is_interrupted(self) -> threading.Event:
@@ -187,7 +198,9 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
 
     @staticmethod
     def _construct_env(name: str, env: EnvType | None = None) -> Environment:
-        """Constructs environment from which projection will be configured."""
+        """
+        Constructs environment from which the policy and application will be configured.
+        """
         _env: dict[str, str] = {}
         _env.update(os.environ)
         if env is not None:
@@ -214,22 +227,22 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
             subscription.stop()
 
     @staticmethod
-    def _process_events_loop(
+    def _consumer_loop(
         subscription: AbstractApplicationSubscription[Any],
-        event_processor: AbstractEventProcessor[Any],
+        policy: AbstractPolicy[Any],
         is_stopping: threading.Event,
-        runner: weakref.ReferenceType[Any],
+        consumer: weakref.ReferenceType[Any],
     ) -> None:
         """Iterates over the subscription and calls process_event()."""
         try:
             for envelope, tracking in subscription:
-                event_processor.process_event(envelope, tracking)
+                policy.process_event(envelope, tracking)
         except BaseException as e:
-            _runner = runner()  # get reference from weakref
-            if _runner is not None:
-                _runner._thread_error = e  # noqa: SLF001
+            _consumer = consumer()  # get reference from weakref
+            if _consumer is not None:
+                _consumer.thread_error = e
             else:
-                msg = "ProjectionRunner was deleted before error could be assigned:\n"
+                msg = "Event consumer was deleted before error could be assigned:\n"
                 msg += format_exc()
                 warn(
                     msg,
@@ -243,12 +256,9 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
         """Blocks until timeout, or until the runner is stopped or errors. Re-raises
         any error otherwise exits normally
         """
-        if (
-            self._is_interrupted.wait(timeout=timeout)
-            and self._thread_error is not None
-        ):
-            error = self._thread_error
-            self._thread_error = None
+        if self._is_interrupted.wait(timeout=timeout) and self.thread_error is not None:
+            error = self.thread_error
+            self.thread_error = None
             raise error from None
 
     def wait(self, notification_id: int | None, timeout: float = 1.0) -> None:
@@ -257,15 +267,15 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
         """
         try:
             self._tracking_recorder.wait(
-                context_name=self.upstream_app.context_name,
+                context_name=self.upstream.context_name,
                 notification_id=notification_id,
                 timeout=timeout,
                 interrupt=self._is_interrupted,
             )
         except WaitInterruptedError as e:
-            if self._thread_error:
-                error = self._thread_error
-                self._thread_error = None
+            if self.thread_error:
+                error = self.thread_error
+                self.thread_error = None
                 raise error from None
             if self._has_called_stop:
                 return
@@ -273,89 +283,104 @@ class BaseProjectionRunner[TApplication: SupportsApplicationSubscriptions[Any, A
 
     @override
     def close(self) -> None:
-        self.stop()
-        self._stop_thread.join()
-        self._subscription.stop()
-        self._processing_thread.join()
-        self.upstream_app.close()
-        if self._thread_error:
-            error = self._thread_error
-            self._thread_error = None
-            raise error
+        try:
+            self.stop()
+            if hasattr(self, "_stop_thread"):
+                self._stop_thread.join()
+            if hasattr(self, "_consumer_thread"):
+                self._consumer_thread.join()
+        finally:
+            try:
+                self.upstream.close()
+            except Exception:
+                if getattr(self, "thread_error", None) is None:
+                    raise
+            thread_error = getattr(self, "thread_error", None)
+            if thread_error is not None:
+                self.thread_error = None
+                raise thread_error
 
 
-class ProjectionRunner[
-    TApplication: SupportsApplicationSubscriptions[Any, Any],
-    TEventProcessor: EventProcessor[Any, Any],
-    TTrackingRecorder: TrackingRecorder,
+class ReadModelRunner[
+    TUpstream: SupportsApplicationSubscriptions[Any, Any],
+    TPolicy: ReadModelPolicy[Any, Any],
+    TReadModel: TrackingRecorder,
 ](
-    BaseProjectionRunner[TApplication],
+    EventConsumer[TUpstream],
 ):
     def __init__(
         self,
         *,
-        application_class: type[TApplication],
-        event_processor_class: type[TEventProcessor],
-        view_class: type[TTrackingRecorder],
+        upstream_class: type[TUpstream],
+        policy_class: type[TPolicy],
+        read_model_class: type[TReadModel],
         env: EnvType | None = None,
     ):
         """Constructs application from given application class with given environment.
         Also constructs a materialised view from given class using an infrastructure
-        factory constructed with an environment named after the projection. Also
-        constructs a projection with the constructed materialised view object.
+        factory constructed with an environment named after the policy. Also
+        constructs a policy with the constructed materialised view object.
         Starts a subscription to application and, in a separate event-processing
-        thread, calls projection's process_event() method for each event and tracking
+        thread, calls policy's process_event() method for each event and tracking
         object pair received from the subscription.
         """
         # Construct the materialised view using an infrastructure factory.
-        self._factory = InfrastructureFactory[TTrackingRecorder].construct(
-            env=self._construct_env(name=event_processor_class.name, env=env)
+        self._factory = InfrastructureFactory[TReadModel].construct(
+            env=self._construct_env(name=policy_class.name, env=env)
         )
-        self.view = self._factory.tracking_recorder(view_class)
+        try:
+            # Construct the policy.
+            self.read_model = self._factory.tracking_recorder(read_model_class)
+            self.policy = policy_class(read_model=self.read_model)
 
-        # Construct the projection using the materialised view.
-        self.event_processor = event_processor_class(view=self.view)
-
-        super().__init__(
-            upstream_app=application_class(env=env),
-            event_processor=self.event_processor,
-            tracking_recorder=self.event_processor.view,
-            topics=self.event_processor.topics,
-        )
+            super().__init__(
+                upstream=upstream_class(env=env),
+                policy=self.policy,
+                tracking_recorder=self.read_model,
+                topics=self.policy.topics,
+            )
+        except BaseException:
+            self._factory.close()
+            raise
 
     @override
     def close(self) -> None:
-        super().close()
-        self._factory.close()
+        try:
+            super().close()
+        finally:
+            self._factory.close()
 
 
-class EventSourcedProjectionRunner[
+class AggregatesApplicationRunner[
     TUpstream: SupportsApplicationSubscriptions[Any, Any],
-    TDownstream: EventSourcedEventProcessor[Any],
+    TDownstream: AggregatesApplicationPolicy[Any, Any],
 ](
-    BaseProjectionRunner[TUpstream],
+    EventConsumer[TUpstream],
 ):
     def __init__(
         self,
         *,
-        upstream_application_class: type[TUpstream],
-        downstream_application_class: type[TDownstream],
+        upstream_class: type[TUpstream],
+        downstream_class: type[TDownstream],
         env: EnvType | None = None,
     ):
-        self.downstream_app = downstream_application_class(
-            env=self._construct_env(
-                name=downstream_application_class.context_name, env=env
+        self.downstream = downstream_class(
+            env=self._construct_env(name=downstream_class.context_name, env=env)
+        )
+        try:
+            super().__init__(
+                upstream=upstream_class(env=env),
+                policy=self.downstream,
+                tracking_recorder=self.downstream.recorder,
+                topics=self.downstream.topics,
             )
-        )
-
-        super().__init__(
-            upstream_app=upstream_application_class(env=env),
-            event_processor=self.downstream_app,
-            tracking_recorder=self.downstream_app.recorder,
-            topics=self.downstream_app.topics,
-        )
+        except BaseException:
+            self.downstream.close()
+            raise
 
     @override
     def close(self) -> None:
-        self.downstream_app.close()
-        super().close()
+        try:
+            super().close()
+        finally:
+            self.downstream.close()

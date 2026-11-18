@@ -8,10 +8,10 @@ from eventsourcing.msgspec.transcoder import Transcoder
 from eventsourcing.persistence import StreamEventMapper
 from eventsourcing.popo import POPOTrackingRecorder
 from eventsourcing.tests.projection import (
-    StreamEventProjectionTestCase,
-    StudentAnalyticsView,
+    AggregatesReadModelTestCase,
+    DcbReadModelTestCase,
+    StudentAnalyticsReadModel,
     StudentAnalyticsViewTestCase,
-    TaggedEventProjectionTestCase,
 )
 from eventsourcing.utils import get_topic
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from eventsourcing.persistence import Tracking
 
 
-class POPOStudentAnalyticsView(POPOTrackingRecorder, StudentAnalyticsView):
+class POPOStudentAnalyticsReadModel(POPOTrackingRecorder, StudentAnalyticsReadModel):
     def __init__(self) -> None:
         super().__init__()
         self._created_event_counter = 0
@@ -50,18 +50,18 @@ class POPOStudentAnalyticsView(POPOTrackingRecorder, StudentAnalyticsView):
 
 class TestPOPOStudentAnalytics(StudentAnalyticsViewTestCase):
     @override
-    def construct_event_counters_view(self) -> StudentAnalyticsView:
-        return POPOStudentAnalyticsView()
+    def construct_event_counters_view(self) -> StudentAnalyticsReadModel:
+        return POPOStudentAnalyticsReadModel()
 
 
-class TestStreamEventProjectionWithPOPO(
-    StreamEventProjectionTestCase[POPOStudentAnalyticsView]
+class TestAggregatesReadModelWithPOPO(
+    AggregatesReadModelTestCase[POPOStudentAnalyticsReadModel]
 ):
     env: ClassVar[dict[str, str]] = {
         "MAPPER_TOPIC": get_topic(StreamEventMapper),
         "TRANSCODER_TOPIC": get_topic(Transcoder),
     }
-    view_class = POPOStudentAnalyticsView
+    read_model_class = POPOStudentAnalyticsReadModel
 
 
 # TODO: Figure out actually what is causing segmentation violations with Python3.13.
@@ -69,15 +69,15 @@ class TestStreamEventProjectionWithPOPO(
 #  - was happening when run alone when DcbSpannerThrown has no attributes
 #  - maybe something to do with deepcopy() in InMemoryRecorder?
 @skipIf(sys.version_info[0:2] == (3, 13), "Weird occasional segmentation violation")
-class TestTaggedEventCountersProjectionWithPOPO(TaggedEventProjectionTestCase):
+class TestDcbReadModelWithPOPO(DcbReadModelTestCase):
 
     env: ClassVar[dict[str, str]] = {
         # "MAPPER_TOPIC": get_topic(TaggedEventMapper),
         # "TRANSCODER_TOPIC": get_topic(Transcoder),
     }
-    view_class: type[StudentAnalyticsView] = POPOStudentAnalyticsView
+    view_class: type[StudentAnalyticsReadModel] = POPOStudentAnalyticsReadModel
 
 
-del TaggedEventProjectionTestCase
-del StreamEventProjectionTestCase
+del DcbReadModelTestCase
+del AggregatesReadModelTestCase
 del StudentAnalyticsViewTestCase

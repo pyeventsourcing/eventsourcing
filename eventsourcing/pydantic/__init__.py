@@ -3,8 +3,8 @@ from dataclasses import dataclass
 import eventsourcing.domain
 from eventsourcing.pydantic.application import (
     AggregatesApplication,
+    AggregatesApplicationPolicy,
     DcbApplication,
-    EventSourcedProjection,
     ProcessApplication,
 )
 from eventsourcing.pydantic.immutable import (
@@ -36,11 +36,11 @@ __all__ = [
     "Aggregate",
     "AggregateState",
     "AggregatesApplication",
+    "AggregatesApplicationPolicy",
     "CommandSlice",
     "DcbApplication",
     "Decision",
     "EnduringObject",
-    "EventSourcedProjection",
     "Group",
     "Immutable",
     "ImmutableAggregate",

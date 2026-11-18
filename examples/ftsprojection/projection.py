@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, override
 from eventsourcing.domain import StreamEvent
 from eventsourcing.persistence import Tracking, TrackingRecorder
 from eventsourcing.postgres import PostgresTrackingRecorder
-from eventsourcing.projection import EventProcessor
+from eventsourcing.projection import ReadModelPolicy
 from eventsourcing.pydantic import Decision
 from examples.contentmanagement.domainmodel import Page
 from examples.contentmanagement.utils import apply_diff
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class FtsViewInterface(FtsRecorder, TrackingRecorder, ABC):
+class FtsReadModel(FtsRecorder, TrackingRecorder, ABC):
     @abstractmethod
     def insert_pages_with_tracking(
         self, pages: Sequence[PageInfo], tracking: Tracking
@@ -31,7 +31,9 @@ class FtsViewInterface(FtsRecorder, TrackingRecorder, ABC):
         pass
 
 
-class FtsProjection(EventProcessor[StreamEvent[Decision], FtsViewInterface]):
+class FtsPolicy(ReadModelPolicy[StreamEvent[Decision], FtsReadModel]):
+    name = "FtsProjection"
+
     @override
     def process_event(
         self, envelope: StreamEvent[Decision], tracking: Tracking
@@ -44,21 +46,21 @@ class FtsProjection(EventProcessor[StreamEvent[Decision], FtsViewInterface]):
                     slug=slug,
                     body=body,
                 )
-                self.view.insert_pages_with_tracking([new_page], tracking)
+                self.read_model.insert_pages_with_tracking([new_page], tracking)
             case Page.BodyUpdated(diff=diff):
-                old_page = self.view.select_page(envelope.stream_id)
+                old_page = self.read_model.select_page(envelope.stream_id)
                 new_page = PageInfo(
                     id=envelope.stream_id,
                     slug=old_page.slug,
                     title=old_page.title,
                     body=apply_diff(old_page.body, diff),
                 )
-                self.view.update_pages_with_tracking([new_page], tracking)
+                self.read_model.update_pages_with_tracking([new_page], tracking)
             case _:
-                self.view.insert_tracking(tracking)
+                self.read_model.insert_tracking(tracking)
 
 
-class PostgresFtsView(PostgresFtsRecorder, PostgresTrackingRecorder, FtsViewInterface):
+class PostgresFtsReadModel(FtsReadModel, PostgresFtsRecorder, PostgresTrackingRecorder):
     @override
     def insert_pages_with_tracking(
         self, pages: Sequence[PageInfo], tracking: Tracking

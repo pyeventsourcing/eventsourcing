@@ -15,21 +15,23 @@ from eventsourcing.postgres import (
     PostgresTrackingRecorder,
 )
 from eventsourcing.projection import (
-    ProjectionRunner,
+    ReadModelRunner,
 )
 from eventsourcing.tests.postgres_utils import drop_tables
 from eventsourcing.tests.projection import (
+    AggregatesReadModelTestCase,
     SpannerThrownError,
-    StreamEventProjectionTestCase,
     StudentAggregate,
-    StudentAnalyticsEventProcessor,
-    StudentAnalyticsView,
+    StudentAnalyticsPolicy,
+    StudentAnalyticsReadModel,
     StudentAnalyticsViewTestCase,
 )
 from eventsourcing.utils import Environment
 
 
-class PostgresStudentAnalyticsView(PostgresTrackingRecorder, StudentAnalyticsView):
+class PostgresStudentAnalyticsReadModel(
+    PostgresTrackingRecorder, StudentAnalyticsReadModel
+):
     _created_event_counter_name = "CREATED_EVENTS"
     _subsequent_event_counter_name = "SUBSEQUENT_EVENTS"
 
@@ -121,7 +123,9 @@ class TestPostgresStudentAnalytics(StudentAnalyticsViewTestCase):
 
     @override
     def setUp(self) -> None:
-        self.factory = InfrastructureFactory[StudentAnalyticsView].construct(self.env)
+        self.factory = InfrastructureFactory[StudentAnalyticsReadModel].construct(
+            self.env
+        )
 
     @override
     def tearDown(self) -> None:
@@ -129,14 +133,14 @@ class TestPostgresStudentAnalytics(StudentAnalyticsViewTestCase):
         drop_tables()
 
     @override
-    def construct_event_counters_view(self) -> StudentAnalyticsView:
-        return self.factory.tracking_recorder(PostgresStudentAnalyticsView)
+    def construct_event_counters_view(self) -> StudentAnalyticsReadModel:
+        return self.factory.tracking_recorder(PostgresStudentAnalyticsReadModel)
 
 
-class TestStreamEventProjectionWithPostgres(
-    StreamEventProjectionTestCase[PostgresStudentAnalyticsView]
+class TestAggregatesReadModelWithPostgres(
+    AggregatesReadModelTestCase[PostgresStudentAnalyticsReadModel]
 ):
-    view_class = PostgresStudentAnalyticsView
+    read_model_class = PostgresStudentAnalyticsReadModel
     env: ClassVar[dict[str, str]] = {
         "PERSISTENCE_MODULE": "eventsourcing.postgres",
         "POSTGRES_DBNAME": "eventsourcing",
@@ -161,10 +165,10 @@ class TestStreamEventProjectionWithPostgres(
         super().test_event_counters_projection()
 
         # Resume....
-        with ProjectionRunner(
-            application_class=AggregatesApplication,
-            event_processor_class=StudentAnalyticsEventProcessor,
-            view_class=self.view_class,
+        with ReadModelRunner(
+            upstream_class=AggregatesApplication,
+            policy_class=StudentAnalyticsPolicy,
+            read_model_class=self.read_model_class,
             env=self.env,
         ):
 
@@ -172,14 +176,12 @@ class TestStreamEventProjectionWithPostgres(
             write_model = AggregatesApplication(env=self.env)
 
             # Construct separate instance of "read model".
-            factory: InfrastructureFactory[StudentAnalyticsView] = (
+            factory: InfrastructureFactory[StudentAnalyticsReadModel] = (
                 InfrastructureFactory.construct(
-                    env=Environment(
-                        name=StudentAnalyticsEventProcessor.name, env=self.env
-                    )
+                    env=Environment(name=StudentAnalyticsPolicy.name, env=self.env)
                 )
             )
-            read_model = factory.tracking_recorder(self.view_class)
+            read_model = factory.tracking_recorder(self.read_model_class)
 
             # Write some events.
             aggregate = StudentAggregate(student_id=str(uuid4()))
@@ -218,10 +220,10 @@ class TestStreamEventProjectionWithPostgres(
         super().test_run_forever_raises_projection_error()
 
         # Resume...
-        with ProjectionRunner(
-            application_class=AggregatesApplication,
-            event_processor_class=StudentAnalyticsEventProcessor,
-            view_class=self.view_class,
+        with ReadModelRunner(
+            upstream_class=AggregatesApplication,
+            policy_class=StudentAnalyticsPolicy,
+            read_model_class=self.read_model_class,
             env=self.env,
         ) as runner:
 
@@ -232,11 +234,11 @@ class TestStreamEventProjectionWithPostgres(
             factory: InfrastructureFactory[PostgresTrackingRecorder] = (
                 InfrastructureFactory.construct(
                     env=Environment(
-                        name=StudentAnalyticsEventProcessor.context_name, env=self.env
+                        name=StudentAnalyticsPolicy.context_name, env=self.env
                     )
                 )
             )
-            read_model = factory.tracking_recorder(self.view_class)
+            read_model = factory.tracking_recorder(self.read_model_class)
 
             # Still terminates with projection error.
             with self.assertRaises(SpannerThrownError):
@@ -250,5 +252,5 @@ class TestStreamEventProjectionWithPostgres(
                 )
 
 
-del StreamEventProjectionTestCase
+del AggregatesReadModelTestCase
 del StudentAnalyticsViewTestCase

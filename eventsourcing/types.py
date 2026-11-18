@@ -162,7 +162,7 @@ class ClosingContextManager(ABC):
 
     def __del__(self) -> None:
         """Calls stop()."""
-        with contextlib.suppress(AttributeError):
+        with contextlib.suppress(Exception):
             self.close()
 
 

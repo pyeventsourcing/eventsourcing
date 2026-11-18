@@ -25,9 +25,9 @@ class AggregatesApplication(
     pass
 
 
-class EventSourcedProjection(
+class AggregatesApplicationPolicy(
     WithTranscoder,
-    eventsourcing.projection.EventSourcedEventProcessor[Decision],
+    eventsourcing.projection.AggregatesApplicationPolicy[Decision, Decision],
 ):
     pass
 

@@ -6,10 +6,10 @@ from uuid import uuid4
 
 from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.postgres import PostgresDatastore
-from eventsourcing.projection import ProjectionRunner
+from eventsourcing.projection import ReadModelRunner
 from eventsourcing.tests.postgres_utils import drop_tables
 from examples.contentmanagement.application import ContentManagement
-from examples.ftsprojection.projection import FtsProjection, PostgresFtsView
+from examples.ftsprojection.projection import FtsPolicy, PostgresFtsReadModel
 
 
 class TestFtsProjection(unittest.TestCase):
@@ -33,7 +33,7 @@ class TestFtsProjection(unittest.TestCase):
         write_model = ContentManagement(env=self.env)
 
         # Construct tracking recorder ("read model").
-        read_model = PostgresFtsView(
+        read_model = PostgresFtsReadModel(
             datastore=PostgresDatastore(
                 dbname="eventsourcing",
                 host="127.0.0.1",
@@ -65,10 +65,10 @@ class TestFtsProjection(unittest.TestCase):
         self.assertEqual(0, len(read_model.search("zinc")))
 
         # Run the projection (independently of read and write model objects).
-        _ = ProjectionRunner(
-            application_class=ContentManagement,
-            event_processor_class=FtsProjection,
-            view_class=PostgresFtsView,
+        _ = ReadModelRunner(
+            upstream_class=ContentManagement,
+            policy_class=FtsPolicy,
+            read_model_class=PostgresFtsReadModel,
             env=self.env,
         )
 

@@ -15,10 +15,10 @@ from eventsourcing.metadata import put_metadata_in_context
 from eventsourcing.msgspec import (
     Aggregate,
     AggregatesApplication,
+    AggregatesApplicationPolicy,
     DcbApplication,
     Decision,
     EnduringObject,
-    EventSourcedProjection,
 )
 from eventsourcing.persistence import (
     IntegrityError,
@@ -26,9 +26,9 @@ from eventsourcing.persistence import (
     TrackingRecorder,
 )
 from eventsourcing.projection import (
-    EventProcessor,
-    EventSourcedProjectionRunner,
-    ProjectionRunner,
+    AggregatesApplicationRunner,
+    ReadModelPolicy,
+    ReadModelRunner,
 )
 from eventsourcing.utils import get_topic
 
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from eventsourcing.types import StreamEventProtocol
 
 
-class StudentAnalyticsView(TrackingRecorder):
+class StudentAnalyticsReadModel(TrackingRecorder):
     @abstractmethod
     def get_student_registered_counter(self) -> int:
         pass
@@ -57,7 +57,7 @@ class StudentAnalyticsView(TrackingRecorder):
 
 
 class StudentAnalyticsViewTestCase(TestCase):
-    def construct_event_counters_view(self) -> StudentAnalyticsView:
+    def construct_event_counters_view(self) -> StudentAnalyticsReadModel:
         raise NotImplementedError
 
     def test(self) -> None:
@@ -179,8 +179,8 @@ class StudentEntity(EnduringObject):
         pass
 
 
-class StudentAnalyticsEventProcessor(
-    EventProcessor[EventEnvelope[Decision], StudentAnalyticsView]
+class StudentAnalyticsPolicy(
+    ReadModelPolicy[EventEnvelope[Decision], StudentAnalyticsReadModel]
 ):
     context_name = "eventcounters"
     topics: Sequence[str] = (
@@ -195,44 +195,44 @@ class StudentAnalyticsEventProcessor(
     ) -> None:
         match envelope.decision:
             case StudentRegistered():
-                self.view.incr_student_registered_counter(tracking)
+                self.read_model.incr_student_registered_counter(tracking)
             case StudentNameChanged():
-                self.view.incr_student_name_changed_counter(tracking)
+                self.read_model.incr_student_name_changed_counter(tracking)
             case SpannerThrown():
                 msg = "This is a deliberate bug"
                 raise SpannerThrownError(msg)
             case _:
-                self.view.insert_tracking(tracking)
+                self.read_model.insert_tracking(tracking)
 
 
-class StreamEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
+class AggregatesReadModelTestCase[TTrackingRecorder: StudentAnalyticsReadModel](
     TestCase, ABC
 ):
-    view_class: type[TTrackingRecorder]
+    read_model_class: type[TTrackingRecorder]
     env: ClassVar[dict[str, str]] = {}
 
     def test_event_counters_projection(self) -> None:
         # Construct runner with application, projection, and recorder.
-        with ProjectionRunner(
-            application_class=AggregatesApplication,
-            event_processor_class=StudentAnalyticsEventProcessor,
-            view_class=self.view_class,
+        with ReadModelRunner(
+            upstream_class=AggregatesApplication,
+            policy_class=StudentAnalyticsPolicy,
+            read_model_class=self.read_model_class,
             env=self.env,
         ) as runner:
 
             # Get "read" and "write" model instances from the runner.
-            write_model = runner.upstream_app
-            read_model = runner.view
+            upstream = runner.upstream
+            read_model = runner.read_model
 
             # Write some events.
             aggregate = StudentAggregate(student_id=str(uuid4()))
             aggregate.change_name()
             aggregate.change_name()
-            notication_id = write_model.save(aggregate)
+            notication_id = upstream.save(aggregate)
 
             # Wait for the events to be processed.
             read_model.wait(
-                context_name=write_model.context_name,
+                context_name=upstream.context_name,
                 notification_id=notication_id,
                 timeout=100,
             )
@@ -245,11 +245,11 @@ class StreamEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
             aggregate = StudentAggregate(student_id=str(uuid4()))
             aggregate.change_name()
             aggregate.change_name()
-            notification_id = write_model.save(aggregate)
+            notification_id = upstream.save(aggregate)
 
             # Wait for the events to be processed.
             read_model.wait(
-                context_name=write_model.context_name,
+                context_name=upstream.context_name,
                 notification_id=notification_id,
                 timeout=100,
             )
@@ -260,19 +260,19 @@ class StreamEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
 
     def test_run_forever_raises_projection_error(self) -> None:
         # Construct runner with application, projection, and recorder.
-        with ProjectionRunner(
-            application_class=AggregatesApplication,
-            event_processor_class=StudentAnalyticsEventProcessor,
-            view_class=self.view_class,
+        with ReadModelRunner(
+            upstream_class=AggregatesApplication,
+            policy_class=StudentAnalyticsPolicy,
+            read_model_class=self.read_model_class,
             env=self.env,
         ) as runner:
-            write_model = runner.upstream_app
-            read_model = runner.view
+            upstream = runner.upstream
+            read_model = runner.read_model
 
             # Write some events.
             aggregate = StudentAggregate(student_id=str(uuid4()))
             aggregate.trigger_event(SpannerThrown, student_id=aggregate.id)
-            notification_id = write_model.save(aggregate)
+            notification_id = upstream.save(aggregate)
 
             # Projection runner terminates with projection error.
             with self.assertRaises(SpannerThrownError):
@@ -281,39 +281,39 @@ class StreamEventProjectionTestCase[TTrackingRecorder: StudentAnalyticsView](
             # Wait times out (event has not been processed).
             with self.assertRaises(TimeoutError):
                 read_model.wait(
-                    context_name=write_model.context_name,
+                    context_name=upstream.context_name,
                     notification_id=notification_id,
                 )
 
 
-class TaggedEventProjectionTestCase(TestCase, ABC):
-    view_class: type[StudentAnalyticsView]
+class DcbReadModelTestCase(TestCase, ABC):
+    view_class: type[StudentAnalyticsReadModel]
     env: ClassVar[dict[str, str]]
 
     def test_event_counters_projection(self) -> None:
 
         # Construct runner with application, projection, and recorder.
-        with ProjectionRunner(
-            application_class=DcbApplication,
-            event_processor_class=StudentAnalyticsEventProcessor,
-            view_class=self.view_class,
+        with ReadModelRunner(
+            upstream_class=DcbApplication,
+            policy_class=StudentAnalyticsPolicy,
+            read_model_class=self.view_class,
             env=self.env,
         ) as runner:
 
             # Get "read" and "write" model instances from the runner.
-            write_model = runner.upstream_app
-            read_model = runner.view
+            upstream = runner.upstream
+            read_model = runner.read_model
 
             # Write some events.
             student = StudentEntity()
             student.change_name()
             student.change_name()
             self.assertEqual(3, len(student.new_decisions))
-            position = write_model.repository.save(student)
+            position = upstream.repository.save(student)
 
             # Wait for the events to be processed.
             read_model.wait(
-                context_name=write_model.context_name,
+                context_name=upstream.context_name,
                 notification_id=position,
             )
 
@@ -325,11 +325,11 @@ class TaggedEventProjectionTestCase(TestCase, ABC):
             student = StudentEntity()
             student.change_name()
             student.change_name()
-            position = write_model.repository.save(student)
+            position = upstream.repository.save(student)
 
             # Wait for the events to be processed.
             read_model.wait(
-                context_name=write_model.context_name,
+                context_name=upstream.context_name,
                 notification_id=position,
             )
 
@@ -339,29 +339,29 @@ class TaggedEventProjectionTestCase(TestCase, ABC):
 
     def test_run_forever_raises_projection_error(self) -> None:
         # Construct runner with application, projection, and recorder.
-        with ProjectionRunner(
-            application_class=DcbApplication,
-            event_processor_class=StudentAnalyticsEventProcessor,
-            view_class=self.view_class,
+        with ReadModelRunner(
+            upstream_class=DcbApplication,
+            policy_class=StudentAnalyticsPolicy,
+            read_model_class=self.view_class,
             env=self.env,
         ) as runner:
-            write_model = runner.upstream_app
-            read_model = runner.view
+            upstream = runner.upstream
+            read_model = runner.read_model
 
             # Write some events.
             student = StudentEntity()
             student.change_name()
             student.trigger_event(SpannerThrown, student_id=student.id)
-            position = write_model.repository.save(student)
+            position = upstream.repository.save(student)
 
-            # Projection runner terminates with projection error.
+            # Runner terminates with projection error.
             with self.assertRaises(SpannerThrownError):
                 runner.run_forever(timeout=5)
 
             # Wait times out (event has not been processed).
             with self.assertRaises(TimeoutError):
                 read_model.wait(
-                    context_name=write_model.context_name,
+                    context_name=upstream.context_name,
                     notification_id=position,
                 )
 
@@ -387,7 +387,7 @@ class CounterAggregate(Aggregate):
         self.count += 1
 
 
-class CounterAggregatesApplication(EventSourcedProjection):
+class CounterAggregatesApplication(AggregatesApplicationPolicy):
     @override
     def policy(
         self,
@@ -413,17 +413,17 @@ class CounterAggregatesApplication(EventSourcedProjection):
         return counter.count
 
 
-class EventSourcedProjectionTestCase(TestCase):
+class AggregatesApplicationRunnerTestCase(TestCase):
     env: ClassVar[dict[str, str]] = {}
 
     def test_event_sourced_projection(self) -> None:
-        with EventSourcedProjectionRunner(
-            upstream_application_class=AggregatesApplication,
-            downstream_application_class=CounterAggregatesApplication,
+        with AggregatesApplicationRunner(
+            upstream_class=AggregatesApplication,
+            downstream_class=CounterAggregatesApplication,
             env=self.env,
         ) as runner:
-            app_max_id = runner.upstream_app.recorder.max_notification_id()
-            projection_max_id = runner.downstream_app.recorder.max_notification_id()
+            app_max_id = runner.upstream.recorder.max_notification_id()
+            projection_max_id = runner.downstream.recorder.max_notification_id()
 
             def fresh_metadata() -> dict[str, str]:
                 correlation_id = uuid4()
@@ -433,61 +433,57 @@ class EventSourcedProjectionTestCase(TestCase):
                 }
 
             with put_metadata_in_context(fresh_metadata()):
-                notification_id = runner.upstream_app.save(
+                notification_id = runner.upstream.save(
                     StudentAggregate(student_id=str(uuid4()))
                 )
             runner.wait(notification_id)
-            self.assertEqual(1, runner.downstream_app.get_count(StudentRegistered))
-            self.assertEqual(0, runner.downstream_app.get_count(StudentNameChanged))
+            self.assertEqual(1, runner.downstream.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
 
             with put_metadata_in_context(fresh_metadata()):
-                notification_id = runner.upstream_app.save(
+                notification_id = runner.upstream.save(
                     StudentAggregate(student_id=str(uuid4()))
                 )
             runner.wait(notification_id)
-            self.assertEqual(2, runner.downstream_app.get_count(StudentRegistered))
-            self.assertEqual(0, runner.downstream_app.get_count(StudentNameChanged))
+            self.assertEqual(2, runner.downstream.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
 
             with put_metadata_in_context(fresh_metadata()):
-                notification_id = runner.upstream_app.save(
+                notification_id = runner.upstream.save(
                     StudentAggregate(student_id=str(uuid4()))
                 )
             runner.wait(notification_id)
-            self.assertEqual(3, runner.downstream_app.get_count(StudentRegistered))
-            self.assertEqual(0, runner.downstream_app.get_count(StudentNameChanged))
+            self.assertEqual(3, runner.downstream.get_count(StudentRegistered))
+            self.assertEqual(0, runner.downstream.get_count(StudentNameChanged))
 
             with put_metadata_in_context(fresh_metadata()):
                 aggregate = StudentAggregate(student_id=str(uuid4()))
                 aggregate.change_name()
-            notification_id = runner.upstream_app.save(aggregate)
+            notification_id = runner.upstream.save(aggregate)
             runner.wait(notification_id)
-            self.assertEqual(4, runner.downstream_app.get_count(StudentRegistered))
-            self.assertEqual(1, runner.downstream_app.get_count(StudentNameChanged))
+            self.assertEqual(4, runner.downstream.get_count(StudentRegistered))
+            self.assertEqual(1, runner.downstream.get_count(StudentNameChanged))
 
             # Check the correlation and causation IDs.
             original_events: dict[str, StreamEventProtocol[Decision]] = {}
-            for notification in runner.upstream_app.notification_log.select(
+            for notification in runner.upstream.notification_log.select(
                 start=app_max_id,
                 limit=10,
                 inclusive_of_start=False,
             ):
-                domain_event = runner.downstream_app.mapper.to_domain_event(
-                    notification
-                )
+                domain_event = runner.downstream.mapper.to_domain_event(notification)
                 self.assertEqual(
                     domain_event.metadata["correlation_id"],
                     domain_event.metadata["causation_id"],
                 )
                 original_events[str(domain_event.event_id)] = domain_event
 
-            for notification in runner.downstream_app.notification_log.select(
+            for notification in runner.downstream.notification_log.select(
                 start=projection_max_id,
                 limit=10,
                 inclusive_of_start=False,
             ):
-                domain_event = runner.downstream_app.mapper.to_domain_event(
-                    notification
-                )
+                domain_event = runner.downstream.mapper.to_domain_event(notification)
                 self.assertIn(domain_event.metadata["causation_id"], original_events)
                 causal_event = original_events[domain_event.metadata["causation_id"]]
                 self.assertEqual(
